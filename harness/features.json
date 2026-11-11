@@ -171,7 +171,7 @@
     },
     {
       "id": "F22",
-      "title": "Register and forgot-password (8-digit code) screens (port RegisterViewModelTest, ForgotPasswordViewModelTest)",
+      "title": "Register and forgot-password screens (port RegisterViewModelTest, ForgotPasswordViewModelTest); the reset-code length is an OPEN DECISION (owner), see AUTH-04: do not start the forgot-password part until it is decided",
       "parity_ids": ["AUTH-03", "AUTH-04"],
       "depends_on": ["F21"],
       "acceptance": ["grep -rq \"class RegisterViewModelTests\" BabeGetThisTests", "grep -rq \"class ForgotPasswordViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
