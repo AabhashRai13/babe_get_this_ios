@@ -240,9 +240,9 @@ final class TranscribeClientTests: XCTestCase {
     // MARK: quantity + unit flattening
 
     func testQuantityAndUnitFlatten() {
-        XCTAssertEqual(TranscribeItemDto(name: "a", quantity: 2, unit: "bottles").toItemDraft().quantity, "2 bottles")
-        XCTAssertEqual(TranscribeItemDto(name: "a", quantity: 2).toItemDraft().quantity, "2")
-        XCTAssertEqual(TranscribeItemDto(name: "a", unit: "kg").toItemDraft().quantity, "kg")
-        XCTAssertNil(TranscribeItemDto(name: "a").toItemDraft().quantity)
+        XCTAssertEqual(TranscribeItemDto(name: "a", quantity: 2, unit: "bottles").toTranscribedItem().quantity, "2 bottles")
+        XCTAssertEqual(TranscribeItemDto(name: "a", quantity: 2).toTranscribedItem().quantity, "2")
+        XCTAssertEqual(TranscribeItemDto(name: "a", unit: "kg").toTranscribedItem().quantity, "kg")
+        XCTAssertNil(TranscribeItemDto(name: "a").toTranscribedItem().quantity)
     }
 }

@@ -45,11 +45,11 @@ struct TranscribeItemDto: Decodable, Equatable, Sendable {
     }
 
     /// Flattens quantity + unit: 2 + "bottles" -> "2 bottles", 2 + nil -> "2", nil + nil -> nil.
-    func toItemDraft() -> ItemDraft {
+    func toTranscribedItem() -> TranscribedItem {
         let parts = [quantity.map(String.init), unit].compactMap { $0 }
         let joined = parts.joined(separator: " ")
         let isBlank = joined.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        return ItemDraft(
+        return TranscribedItem(
             name: name,
             quantity: isBlank ? nil : joined,
             note: note,
@@ -60,7 +60,7 @@ struct TranscribeItemDto: Decodable, Equatable, Sendable {
 }
 
 /// One parsed item the user spoke. Only `name` is guaranteed.
-struct ItemDraft: Equatable, Sendable {
+struct TranscribedItem: Equatable, Sendable {
     var name: String
     var quantity: String?
     var note: String?

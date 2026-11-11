@@ -1,6 +1,6 @@
 import Foundation
 
-/// Uploads a recorded .m4a to POST {apiBaseURL}transcribe and maps the response to ItemDrafts.
+/// Uploads a recorded .m4a to POST {apiBaseURL}transcribe and maps the response to TranscribedItems.
 /// No recording and no UI here: the caller hands in a file URL.
 struct TranscribeClient: Sendable {
     static let timeout: TimeInterval = 60
@@ -26,7 +26,7 @@ struct TranscribeClient: Sendable {
         self.isOnline = isOnline
     }
 
-    func transcribeAndParse(audioFile: URL) async throws -> [ItemDraft] {
+    func transcribeAndParse(audioFile: URL) async throws -> [TranscribedItem] {
         guard isOnline() else { throw VoiceError.network() }
         do {
             let audio = try Data(contentsOf: audioFile)
@@ -45,7 +45,7 @@ struct TranscribeClient: Sendable {
             guard (200...299).contains(http.statusCode) else { throw VoiceError.fromStatus(http.statusCode) }
 
             let dto = try JSONDecoder().decode(TranscribeResponseDto.self, from: data)
-            return dto.items.map { $0.toItemDraft() }
+            return dto.items.map { $0.toTranscribedItem() }
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {

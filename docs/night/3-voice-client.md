@@ -3,10 +3,10 @@
 ## Summary
 Added `TranscribeClient` (`BabeGetThis/Core/Voice/`), a port of Android's `RemoteVoiceRepository` and `TranscribeDtos`.
 It POSTs a multipart upload to `{apiBaseURL}transcribe` with a Bearer token and a 60-second timeout, then maps the
-response to `ItemDraft`s. Errors use `VoiceError`, which mirrors Android's AppError copy and its status mapping.
+response to `TranscribedItem`s. Errors use `VoiceError`, which mirrors Android's AppError copy and its status mapping.
 No recording and no UI. Tests use a `URLProtocol` stub injected through a custom `URLSessionConfiguration`.
 
-Files: `TranscribeClient.swift`, `TranscribeDtos.swift` (DTOs and `ItemDraft`), `VoiceError.swift`,
+Files: `TranscribeClient.swift`, `TranscribeDtos.swift` (DTOs and `TranscribedItem`), `VoiceError.swift`,
 `BabeGetThisTests/Voice/TranscribeClientTests.swift` (13 tests: the 12 Android cases plus a quantity/unit flatten case).
 
 ## Acceptance checklist
