@@ -1,0 +1,413 @@
+{
+  "notes": "Parity task list for the iOS port, derived from docs/PARITY.md. Tasks are in dependency order. Excludes what is already on main and what night tasks 1-4 deliver (GRDB schema/DAO, Supabase rows+mappers, transcribe client, in-memory list detail screen); if one of those is not merged, its NIGHT-* recovery entry is added here. Every task: test first, then ./scripts/verify.sh <simulator> green. Ported Android tests drop their Got This cases.",
+  "tasks": [
+    {
+      "id": "F01",
+      "title": "AppError, safeCall mapping and network monitor (port AppErrorTest, SafeCallTest, NetworkMonitorTest)",
+      "parity_ids": ["ERR-01", "ERR-02", "ERR-04", "STR-14"],
+      "depends_on": [],
+      "acceptance": ["grep -rq \"class SafeCallTests\" BabeGetThisTests", "grep -rq \"class NetworkMonitorTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F02",
+      "title": "Sync point store and list ownership store on UserDefaults suites (port PrefsSyncPointStoreTest, PrefsListOwnershipStoreTest)",
+      "parity_ids": ["SYNC-14", "ACCT-05"],
+      "depends_on": [],
+      "acceptance": ["grep -rq \"class SyncPointStoreTests\" BabeGetThisTests", "grep -rq \"class ListOwnershipStoreTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F03",
+      "title": "Shared UI components: haptics map, swipeable card, settings row, top app bar variants",
+      "parity_ids": ["UI-03", "UI-04", "UI-05", "UI-06"],
+      "depends_on": [],
+      "acceptance": ["grep -rq \"enum Haptic\" BabeGetThis/Core/DesignSystem", "grep -rq \"struct SwipeableCard\" BabeGetThis/Core/DesignSystem", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F04",
+      "title": "Auth state model, Keychain token storage and AuthStateManager with session restore (port AuthStateManagerTest, TokenManagerTest)",
+      "parity_ids": ["SESS-01", "SESS-02", "SESS-04"],
+      "depends_on": ["F01"],
+      "acceptance": ["grep -rq \"class AuthStateManagerTests\" BabeGetThisTests", "grep -rq \"class TokenStoreTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F05",
+      "title": "Persist the Welcome choice and pick the start screen from auth state (port WelcomeViewModelTest)",
+      "parity_ids": ["WEL-02", "WEL-03", "NAV-02", "STR-02"],
+      "depends_on": ["F04"],
+      "acceptance": ["grep -rq \"class WelcomeRepositoryTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F06",
+      "title": "ShoppingListRepository on GRDB: create, createWithItems, rename, addItems, owner routing and pushSoon kicker",
+      "parity_ids": ["DATA-04", "TRIG-03", "ACCT-01"],
+      "depends_on": ["F01", "F04"],
+      "acceptance": ["grep -rq \"class ShoppingListRepositoryTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F07",
+      "title": "List delete (soft vs hard), undo restore and never-sent tombstone cleanup",
+      "parity_ids": ["DATA-05", "DATA-09"],
+      "depends_on": ["F06"],
+      "acceptance": ["grep -rq \"func testUndoRestoresListWithItems\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F08",
+      "title": "ShoppingItemRepository: add, update, delete, restore, toggle picked up (port ShoppingItemRepositorySharedTest minus Got This)",
+      "parity_ids": ["DATA-07"],
+      "depends_on": ["F06"],
+      "acceptance": ["grep -rq \"class ShoppingItemRepositoryTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F09",
+      "title": "CategoryRepository with custom categories (port CategoryDataTest)",
+      "parity_ids": ["DATA-08", "CAT-01"],
+      "depends_on": ["F01"],
+      "acceptance": ["grep -rq \"class CategoryRepositoryTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F10",
+      "title": "Lists overview on the database: owner query, completion rule, date buckets, greeting card, list card, tab pills and motion (port DateGroupingTest)",
+      "parity_ids": ["HOME-03", "HOME-04", "HOME-05", "HOME-06", "HOME-07", "HOME-08", "UI-07", "STR-03"],
+      "depends_on": ["F06", "F03"],
+      "acceptance": ["grep -rq \"class DateGroupingTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F11",
+      "title": "Lists overview actions: swipe-delete with Undo snackbar, long-press rename, create/rename dialog with 40-char limit",
+      "parity_ids": ["HOME-09", "HOME-10", "HOME-11", "STR-01", "STR-04"],
+      "depends_on": ["F07", "F10"],
+      "acceptance": ["grep -rq \"func testDeleteThenUndoRestoresList\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F12",
+      "title": "Create-list chooser sheet (Type / Voice) and the auth prompt dialog gating voice",
+      "parity_ids": ["HOME-12", "AUTH-10", "VOICE-08"],
+      "depends_on": ["F11", "F04"],
+      "acceptance": ["grep -rq \"struct AuthPromptDialog\" BabeGetThis", "grep -rq \"func testVoiceRequiresAuthenticated\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F13",
+      "title": "Port the core ShoppingListViewModelTest cases (minus telemetry)",
+      "parity_ids": ["HOME-16"],
+      "depends_on": ["F11", "F12"],
+      "acceptance": ["grep -rq \"class ShoppingListViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F14",
+      "title": "List detail on the database: live items, exact shop/category grouping, progress card celebration",
+      "parity_ids": ["DET-02", "DET-03", "DET-04", "STR-05"],
+      "depends_on": ["F08"],
+      "acceptance": ["grep -rq \"func testNoShopGroupIsLast\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F15",
+      "title": "Item card swipe-right toggle, tap to edit, add/edit dialog field limits",
+      "parity_ids": ["DET-05", "DET-06", "DET-07"],
+      "depends_on": ["F14", "F03"],
+      "acceptance": ["grep -rq \"func testEditKeepsIdAndPickedUp\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F16",
+      "title": "Searchable category picker with None and Other (new custom category)",
+      "parity_ids": ["DET-08", "STR-06"],
+      "depends_on": ["F15", "F09"],
+      "acceptance": ["grep -rq \"func testCategoryFilterIsCaseInsensitive\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F17",
+      "title": "List detail chrome: first-item prompt, voice and add FABs, top-bar actions",
+      "parity_ids": ["DET-09", "DET-10", "DET-11"],
+      "depends_on": ["F14", "F12"],
+      "acceptance": ["grep -rq \"struct FirstItemPrompt\" BabeGetThis", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F18",
+      "title": "List-completed event with Success haptic and review request; share as text (port ShoppingListShareTextTest)",
+      "parity_ids": ["DET-13", "DET-15", "REV-01"],
+      "depends_on": ["F14"],
+      "acceptance": ["grep -rq \"class ShoppingListShareTextTests\" BabeGetThisTests", "grep -rq \"func testCompletedFiresOnlyOnTransition\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F19",
+      "title": "Supabase auth repository: email sign-in/up/reset, sign-out, delete account, update name, error mapper, offline guard (port AuthErrorMapperTest)",
+      "parity_ids": ["AUTH-07", "AUTH-08", "AUTH-09", "SESS-05"],
+      "depends_on": ["F04", "F01"],
+      "acceptance": ["grep -rq \"class AuthErrorMapperTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F20",
+      "title": "Session observer (token rotation, expireSession) and bearer/401 handling on the transcribe API (port SessionObserverTest, AuthNetworkTest)",
+      "parity_ids": ["SESS-03", "SESS-06"],
+      "depends_on": ["F19"],
+      "acceptance": ["grep -rq \"class SessionObserverTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F21",
+      "title": "Login screen and view model with validation (port LoginViewModelTest)",
+      "parity_ids": ["AUTH-01", "AUTH-02", "STR-09"],
+      "depends_on": ["F19"],
+      "acceptance": ["grep -rq \"class LoginViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F22",
+      "title": "Register and forgot-password (8-digit code) screens (port RegisterViewModelTest, ForgotPasswordViewModelTest)",
+      "parity_ids": ["AUTH-03", "AUTH-04"],
+      "depends_on": ["F21"],
+      "acceptance": ["grep -rq \"class RegisterViewModelTests\" BabeGetThisTests", "grep -rq \"class ForgotPasswordViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F23",
+      "title": "Google sign-in and Sign in with Apple via Supabase id-token with nonce",
+      "parity_ids": ["AUTH-05", "AUTH-06"],
+      "depends_on": ["F21"],
+      "acceptance": ["grep -rq \"func testNonceIsSha256Hashed\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F24",
+      "title": "Auth navigation and back stack, home account control, session-expired banner (port AuthScreensTest)",
+      "parity_ids": ["NAV-01", "NAV-03", "NAV-05", "HOME-13", "HOME-14", "AUTH-11"],
+      "depends_on": ["F22", "F23", "F10"],
+      "acceptance": ["grep -rq \"class AuthNavigationTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F25",
+      "title": "SharedListRemote protocol, Supabase implementation and keyset paging (first push = plain INSERT, duplicate detection)",
+      "parity_ids": ["SYNC-05", "SYNC-12", "SYNC-15", "SRV-01", "SRV-03"],
+      "depends_on": ["F01"],
+      "acceptance": ["grep -rq \"class PagingTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F26",
+      "title": "SyncEngine actor: serial gate, push lists before items, guarded flag clearing, hasUnsyncedChanges",
+      "parity_ids": ["SYNC-02", "SYNC-03", "SYNC-04", "SYNC-06", "SYNC-13"],
+      "depends_on": ["F25", "F02", "F07", "F08", "F04"],
+      "acceptance": ["grep -rq \"actor SyncEngine\" BabeGetThis", "grep -rq \"func testListsPushBeforeItems\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F27",
+      "title": "SyncEngine catchUp, fullCatchUp and apply rules (never REPLACE, shouldSkip, FK guard)",
+      "parity_ids": ["SYNC-07", "SYNC-08", "SYNC-10", "SYNC-11"],
+      "depends_on": ["F26"],
+      "acceptance": ["grep -rq \"func testCatchUpKeepsItemsWhenListUpdates\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F28",
+      "title": "SyncEngine catchUpAccount discovery; port SyncEngineTest and SyncEngineAccountCatchUpTest (minus Got This)",
+      "parity_ids": ["SYNC-09", "SYNC-16", "SYNC-17", "SRV-05"],
+      "depends_on": ["F27"],
+      "acceptance": ["grep -rq \"class SyncEngineTests\" BabeGetThisTests", "grep -rq \"class SyncEngineAccountCatchUpTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F29",
+      "title": "Guest/account lists: onAuthState, claimDeviceLists, finishFirstRun, releaseUnverifiedClaims, evictAccountLists (port SyncEngineClaimTest)",
+      "parity_ids": ["ACCT-02", "ACCT-03", "ACCT-04", "ACCT-06", "ACCT-07", "ACCT-08"],
+      "depends_on": ["F28"],
+      "acceptance": ["grep -rq \"class SyncEngineClaimTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F30",
+      "title": "SyncTrigger: kick on auth, network available and app active; wire app start (port SyncTriggerTest)",
+      "parity_ids": ["TRIG-01", "TRIG-02", "APP-05"],
+      "depends_on": ["F29"],
+      "acceptance": ["grep -rq \"class SyncTriggerTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F31",
+      "title": "Leave-empty-list confirmation and deleteListIfEmpty (port DeleteListIfEmptyTest)",
+      "parity_ids": ["DET-12", "DATA-06"],
+      "depends_on": ["F27", "F14"],
+      "acceptance": ["grep -rq \"class DeleteListIfEmptyTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F32",
+      "title": "Port the core ShoppingItemsViewModelTest cases (minus lock, telemetry, reminder, Got This)",
+      "parity_ids": ["DET-14"],
+      "depends_on": ["F15", "F16", "F17", "F18", "F31"],
+      "acceptance": ["grep -rq \"class ShoppingItemsViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F33",
+      "title": "ShareRepository: share code generation and join_list_by_code (port ShareRepositoryTest)",
+      "parity_ids": ["SHARE-01", "SHARE-02", "SHARE-03", "SRV-02"],
+      "depends_on": ["F27"],
+      "acceptance": ["grep -rq \"class ShareRepositoryTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F34",
+      "title": "Join dialog and Share live dialog",
+      "parity_ids": ["SHARE-04", "SHARE-05", "SHARE-06", "STR-07"],
+      "depends_on": ["F33", "F12", "F17"],
+      "acceptance": ["grep -rq \"func testJoinEnabledOnlyAtSixChars\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F35",
+      "title": "Realtime channel list-<id> while the detail screen is open; every event or (re)subscribe calls catchUp",
+      "parity_ids": ["RT-01", "RT-02", "RT-03"],
+      "depends_on": ["F34"],
+      "acceptance": ["grep -rq \"class RealtimeLifecycleTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F36",
+      "title": "Adoption notice dialog after guest lists are claimed",
+      "parity_ids": ["HOME-15"],
+      "depends_on": ["F29"],
+      "acceptance": ["grep -rq \"func testAdoptionNoticeShownOnce\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F37",
+      "title": "Profile sheet: edit name, log out with unsynced warning, delete account (port ProfileViewModelTest)",
+      "parity_ids": ["PROF-01", "PROF-02", "PROF-03", "NAV-04", "STR-10"],
+      "depends_on": ["F29", "F24"],
+      "acceptance": ["grep -rq \"class ProfileViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F38",
+      "title": "Integration tests against local Docker Supabase (migrations 001-006): insert/upsert, join, realtime catch-up, delete_user, legacy tick trigger",
+      "parity_ids": ["SRV-04", "SRV-06", "SYNC-18"],
+      "depends_on": ["F35", "F37"],
+      "acceptance": ["grep -rq \"class SupabaseIntegrationTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F39",
+      "title": "Voice recorder (AVAudioRecorder, start tone, 30 s cap) and capture view model (port VoiceCaptureViewModelTest, ToItemDraftTest)",
+      "parity_ids": ["VOICE-02", "VOICE-03", "VOICE-04"],
+      "depends_on": ["F01"],
+      "acceptance": ["grep -rq \"class VoiceCaptureViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F40",
+      "title": "Voice capture sheet UI with microphone permission",
+      "parity_ids": ["VOICE-05", "STR-08"],
+      "depends_on": ["F39"],
+      "acceptance": ["grep -rq \"struct VoiceCaptureSheet\" BabeGetThis", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F41",
+      "title": "Voice entry points: create list by voice with auto-name, mic inside a list (port AutoNameVoiceListTest)",
+      "parity_ids": ["VOICE-06", "VOICE-07"],
+      "depends_on": ["F40", "F12", "F17"],
+      "acceptance": ["grep -rq \"class AutoNameVoiceListTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F42",
+      "title": "Settings screen skeleton with About (rate, privacy policy) and version footer",
+      "parity_ids": ["SET-01", "SET-02", "STR-11"],
+      "depends_on": ["F03", "F24"],
+      "acceptance": ["grep -rq \"struct SettingsView\" BabeGetThis", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F43",
+      "title": "Feature flag cache loaded once per launch (port FeatureFlagCacheTest)",
+      "parity_ids": ["FLAG-01"],
+      "depends_on": ["F25"],
+      "acceptance": ["grep -rq \"class FeatureFlagCacheTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F44",
+      "title": "Telemetry: Firebase analytics and crash reporter behind protocols, consent toggles, event mapper, error reporting policy",
+      "parity_ids": ["TEL-01", "TEL-02", "TEL-03", "ERR-03"],
+      "depends_on": ["F42", "F01"],
+      "acceptance": ["grep -rq \"class AnalyticsEventMapperTests\" BabeGetThisTests", "grep -rq \"class TelemetryConsentTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F45",
+      "title": "Wire telemetry events into the view models (telemetry cases of the list, items and settings tests)",
+      "parity_ids": ["TEL-04"],
+      "depends_on": ["F44", "F13", "F32", "F41", "F34"],
+      "acceptance": ["grep -rq \"func testItemAddedIsTracked\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F46",
+      "title": "PIN core: PBKDF2 crypto, Keychain store, recovery code, throttle (port PinCryptoTest, PinRepositoryTest, PinThrottleTest)",
+      "parity_ids": ["PIN-01", "PIN-02", "PIN-03"],
+      "depends_on": [],
+      "acceptance": ["grep -rq \"class PinRepositoryTests\" BabeGetThisTests", "grep -rq \"class PinThrottleTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F47",
+      "title": "PIN dialogs and Settings List lock section (port PinDialogsTest, PinPromptViewModelTest)",
+      "parity_ids": ["PIN-04", "PIN-06", "STR-12"],
+      "depends_on": ["F46", "F42"],
+      "acceptance": ["grep -rq \"class PinPromptViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F48",
+      "title": "Locked lists: PIN-gated open/delete/share, re-lock on background, obscured snapshots",
+      "parity_ids": ["PIN-05"],
+      "depends_on": ["F47", "F32", "F13"],
+      "acceptance": ["grep -rq \"func testLockedListNeedsPinToOpen\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F49",
+      "title": "Shopping reminders: arming rules, local notification, tap routing, in-context permission sheet, settings switch",
+      "parity_ids": ["REM-01", "REM-02", "REM-03", "REM-04", "REM-05", "STR-13"],
+      "depends_on": ["F43", "F32", "F42"],
+      "acceptance": ["grep -rq \"class ReminderSchedulerTests\" BabeGetThisTests", "grep -rq \"class ReminderNotifierTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F50",
+      "title": "Port the non-Got-This SettingsTest cases",
+      "parity_ids": ["SET-03"],
+      "depends_on": ["F47", "F49", "F44"],
+      "acceptance": ["grep -rq \"class SettingsViewModelTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    },
+    {
+      "id": "F51",
+      "title": "Launch screen and polish pass: String Catalog complete, VoiceOver labels, Dynamic Type",
+      "parity_ids": ["APP-04", "UI-08"],
+      "depends_on": ["F50", "F45", "F48", "F38"],
+      "acceptance": ["test -f BabeGetThis/Resources/Localizable.xcstrings", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "status": "todo"
+    }
+  ]
+}
