@@ -6,10 +6,9 @@ import Observation
 @Observable
 final class ListDetailViewModel {
     static let sampleListId = "sample-sunday-roast"
-    static let categories = [
-        "Fruits & Vegetables", "Dairy & Eggs", "Meat & Seafood", "Bakery & Bread", "Pantry",
-        "Frozen", "Snacks", "Drinks", "Beer, Wine & Spirits", "Household", "Other",
-    ]
+    /// How long the "<name> deleted" / Undo snackbar stays up: Android's
+    /// `SnackbarDuration.Short`, which is 4 s in Material 3.
+    static let undoSnackbarDuration: Duration = .seconds(4)
 
     private(set) var items: [ShoppingItem]
     /// The most recent delete, offered back through the Undo snackbar.
@@ -25,34 +24,59 @@ final class ListDetailViewModel {
 
     // MARK: Derived state
 
-    var activeItems: [ShoppingItem] { items.filter { !$0.isPickedUp } }
-    var completedItems: [ShoppingItem] { items.filter(\.isPickedUp) }
+    /// Items in Android's DAO order (`ShoppingItemDao.getItemsByListId`): shop with nil
+    /// last, then category id with nil last, then name.
+    var sortedItems: [ShoppingItem] { items.sorted(by: Self.daoOrder) }
+    var activeItems: [ShoppingItem] { sortedItems.filter { !$0.isPickedUp } }
+    var completedItems: [ShoppingItem] { sortedItems.filter(\.isPickedUp) }
+    var isEmpty: Bool { items.isEmpty }
     var totalCount: Int { items.count }
     var pickedUpCount: Int { completedItems.count }
     var progress: Double { totalCount == 0 ? 0 : Double(pickedUpCount) / Double(totalCount) }
     var percent: Int { Int(progress * 100) }
     var isAllDone: Bool { totalCount > 0 && pickedUpCount == totalCount }
 
-    /// Active items grouped by shop, then category. Names sort A–Z; items without a shop or
-    /// category come last. Item order inside a category is insertion order.
+    /// Active items grouped by shop, then category (Android `buildActiveSections`).
+    /// Shops keep their first-seen order in `activeItems`; categories sort by name,
+    /// case-insensitive, with the uncategorized bucket last. Items keep DAO order.
     var activeGroups: [ShopGroup] {
-        let byShop = Dictionary(grouping: activeItems) { $0.shop }
-        return Self.sorted(Array(byShop.keys)).map { shop in
-            let byCategory = Dictionary(grouping: byShop[shop] ?? []) { $0.category }
-            let categories = Self.sorted(Array(byCategory.keys)).map {
+        var shops: [String?] = []
+        var byShop: [String?: [ShoppingItem]] = [:]
+        for item in activeItems {
+            let shop = item.shop.flatMap { $0.trimmingCharacters(in: .whitespaces).isEmpty ? nil : $0 }
+            if byShop[shop] == nil { shops.append(shop) }
+            byShop[shop, default: []].append(item)
+        }
+        return shops.map { shop in
+            let byCategory = Dictionary(grouping: byShop[shop] ?? []) { $0.categoryName }
+            let categories = byCategory.keys.sorted(by: Self.namesNilLast).map {
                 CategoryGroup(name: $0, items: byCategory[$0] ?? [])
             }
             return ShopGroup(shop: shop, categories: categories)
         }
     }
 
-    private static func sorted(_ names: [String?]) -> [String?] {
-        names.sorted {
-            switch ($0, $1) {
-            case let (a?, b?): a.localizedCaseInsensitiveCompare(b) == .orderedAscending
-            case (_?, nil): true
-            default: false
-            }
+    /// Snackbar copy for the pending delete (Android `snackbar_deleted`, "%1$s deleted").
+    var undoMessage: String? { pendingUndo.map { "\($0.item.name) deleted" } }
+
+    /// The no-shop group gets a "General" header only when other shops exist.
+    func showsShopHeader(_ group: ShopGroup) -> Bool {
+        group.shop != nil || activeGroups.count > 1
+    }
+
+    private static func daoOrder(_ a: ShoppingItem, _ b: ShoppingItem) -> Bool {
+        if (a.shop == nil) != (b.shop == nil) { return b.shop == nil }
+        if let x = a.shop, let y = b.shop, x != y { return x < y }
+        if (a.categoryId == nil) != (b.categoryId == nil) { return b.categoryId == nil }
+        if let x = a.categoryId, let y = b.categoryId, x != y { return x < y }
+        return a.name < b.name
+    }
+
+    private static func namesNilLast(_ a: String?, _ b: String?) -> Bool {
+        switch (a, b) {
+        case let (x?, y?): x.caseInsensitiveCompare(y) == .orderedAscending
+        case (_?, nil): true
+        default: false
         }
     }
 
@@ -87,7 +111,7 @@ final class ListDetailViewModel {
         items.append(ShoppingItem(
             name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
             quantity: draft.quantity.trimmingCharacters(in: .whitespacesAndNewlines),
-            category: draft.category,
+            categoryId: draft.categoryId,
             shop: shop.isEmpty ? nil : shop,
             note: note.isEmpty ? nil : note
         ))

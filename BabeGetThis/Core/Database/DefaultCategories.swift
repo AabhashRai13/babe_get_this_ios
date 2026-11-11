@@ -63,4 +63,15 @@ enum DefaultCategories {
         .init(id: "cat-tobacco-vaping", name: "Tobacco & Vaping", isDefault: true),
         .init(id: "cat-other", name: "Other", isDefault: true),
     ]
+
+    /// The picker's order: Android `CategoryDao.getAllCategories` is `ORDER BY name ASC`.
+    static let sortedByName: [CategoryRecord] = all.sorted { $0.name < $1.name }
+
+    private static let namesById = Dictionary(uniqueKeysWithValues: all.map { ($0.id, $0.name) })
+
+    /// Display name for a stored category id; nil for no id or an unknown one
+    /// (Android's repository resolves names the same way and shows those as uncategorized).
+    static func name(for id: String?) -> String? {
+        id.flatMap { namesById[$0] }
+    }
 }

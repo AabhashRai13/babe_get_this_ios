@@ -18,9 +18,11 @@ struct AddItemSheet: View {
                     Text("Name and quantity are required.")
                 }
                 Section {
-                    Picker("Category", selection: $draft.category) {
+                    Picker("Category", selection: $draft.categoryId) {
                         Text("None").tag(String?.none)
-                        ForEach(ListDetailViewModel.categories, id: \.self) { Text($0).tag(String?.some($0)) }
+                        ForEach(DefaultCategories.sortedByName, id: \.id) { category in
+                            Text(category.name).tag(String?.some(category.id))
+                        }
                     }
                     TextField("Shop (optional)", text: $draft.shop)
                     TextField("Note (optional)", text: $draft.note, axis: .vertical)

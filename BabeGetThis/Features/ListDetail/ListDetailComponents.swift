@@ -145,7 +145,7 @@ struct ItemCardView: View {
                             ChipView(text: "Qty: \(item.quantity)",
                                      fill: AppColors.secondaryContainer, content: AppColors.onSecondaryContainer)
                         }
-                        if let category = item.category {
+                        if let category = item.categoryName {
                             ChipView(text: category,
                                      fill: AppColors.tertiaryContainer, content: AppColors.onTertiaryContainer)
                         }
