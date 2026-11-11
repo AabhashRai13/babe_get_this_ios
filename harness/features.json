@@ -17,7 +17,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/NetworkMonitorTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F02",
@@ -32,7 +32,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListOwnershipStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F03",
@@ -51,7 +51,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsRowTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F04",
