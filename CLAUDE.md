@@ -42,6 +42,12 @@ BabeGetThisTests/      XCTest unit tests
 scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Staging from the Android icon)
 ```
 
+## Overnight harness (`harness/night/`)
+- `run-night.sh` = preflight → five `claude -p` workers in `../ios-night/<task>` worktrees → `integrate.py`
+  (independent checks, merge into local `night/integration`, report). Spec: `docs/superpowers/specs/2026-11-11-*`.
+- `scripts/verify.sh <sim>` is the only build entry point (max two concurrent xcodebuilds, offline package cache).
+- `scripts/git-hooks/commit-msg` (via `core.hooksPath`) rejects attribution trailers.
+
 ## UI
 - Colours live in the asset catalog (light + dark), ported from Android `ui/theme/Color.kt`.
   Use `AppColors.*` and `ListAccent(listId:)`; never hard-code hex values in views.

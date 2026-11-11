@@ -14,7 +14,10 @@ five branches, one local integration branch and a report.
 - Never touch production Supabase (`fpzjyusgqdzqituokrwq`). Don't stop or reset the running local
   `babe-get-this` stack. No task tonight needs Supabase.
 
-## Execution model: five Claude Code sessions in git worktrees
+## Execution model: five headless Claude Code workers in git worktrees
+
+> Superseded in part by **Reliability amendments** below: a deterministic shell runner (`harness/night/run-night.sh`)
+> launches the five workers as `claude -p` processes, not as desktop-app sessions. Tasks, scope and acceptance are unchanged.
 
 ### Prep (done by the orchestrating session on `main`, before anything starts)
 1. `project.yml`: add the Swift packages GRDB.swift and supabase-swift. No session edits `project.yml`.
@@ -128,3 +131,109 @@ Read the report, choose the branches to merge into `main`, and review `PARITY.md
 | Usage limit reached | Sessions resume after the reset; unfinished work is listed in the report |
 | Mac sleeps | Request keep-awake from the app; Mac stays plugged in |
 | Tasks 1 and 2 define different local record types | Intentional for tonight; they're unified in the SyncEngine task after review |
+
+## Reliability amendments (owner, 2026-11-11)
+These change *how* the night runs. The five tasks, their scope, their acceptance criteria and the prohibitions
+(no prod, no push, no `android/` edits, no merge into `main`) are unchanged.
+
+### R1 Orchestration
+`harness/night/run-night.sh` is the only orchestrator. It runs `preflight.sh` and aborts if that fails. Then it
+starts five `claude -p` workers, one per worktree, with `--output-format stream-json`, `--no-session-persistence`
+and a per-task model, budget and timeout. It waits for all of them and records each exit code and final result
+event in `../ios-night/_state/`. Then it runs `integrate.sh`. Everything runs under `caffeinate -dimsu`.
+No orchestration depends on a live chat session.
+
+### R2 Build concurrency
+At most **two** `xcodebuild` processes at once, machine-wide. `scripts/verify.sh` takes one of two lock slots
+(an atomic `mkdir` lock holding the owner's PID; a lock is reclaimed only if that PID is dead) before building. Workers can't
+call `xcodebuild` directly (denied in settings). Each worktree has its own DerivedData (`build/DerivedData`),
+its own result bundle per run (`build/results/<timestamp>.xcresult`) and its own simulator (`bgt-night-<n>`); the
+orchestrator verifies on `bgt-night-verify`. Swift packages are resolved once in preflight into a shared
+read-only directory. Builds pass `-clonedSourcePackagesDirPath` and `-disableAutomaticPackageResolution`, so
+workers need no network.
+
+### R3 Permissions, sandbox and credentials
+- Workers run with `--permission-mode dontAsk --permission-prompts none` (anything not allowed is denied) and
+  `--setting-sources project` plus a per-task `--settings` file. `--strict-mcp-config` means no MCP servers, and
+  slash commands and skills are disabled. No user plugins or hooks are loaded.
+- Writes are allowed only in the task's owned paths and its report. Bash is limited to `scripts/verify.sh`,
+  `scripts/screenshots.sh` (task 4), the parity validator (task 5), read-only git and `git add`/`git commit`. Denied:
+  push, checkout/switch/reset/rebase/merge/worktree/config, `--no-verify`, `supabase`, `security`, `curl`,
+  `xcodebuild`, WebFetch and WebSearch.
+- Bash runs in the Claude Code sandbox. `verify.sh` and `screenshots.sh` are excluded, because the simulator
+  can't run inside it, and they're immutable to workers.
+- Workers start with a scrubbed environment (`env -i`, keeping only HOME/PATH/USER/LOGNAME/TMPDIR/LANG/SHELL). No
+  `Secrets.xcconfig` exists in any worktree. Preflight fails if any worktree or worker environment contains a
+  Supabase key, the prod ref, `GoogleService-Info.plist` or `local.properties`.
+- **Dry run in preflight:** a cheap throwaway worker (Haiku, $0.50 cap) in a scratch worktree, with the real
+  settings, must (a) be able to edit an allowed file and commit, (b) be denied editing `project.yml`,
+  (c) be denied `git push`, (d) report `permissionMode=dontAsk` and zero MCP servers in its init event. The
+  scratch worktree is then removed.
+
+### R4 Attribution
+Worker settings disable attribution. A committed `scripts/git-hooks/commit-msg` hook (enabled with
+`core.hooksPath`) rejects any message containing `Co-Authored-By`, `Generated with`, `Claude Code` or
+`noreply@anthropic.com`. Preflight proves the hook rejects such a message. The orchestrator re-checks every
+commit on each branch anyway.
+
+### R5 Time and usage limits
+| Task | Model | Timeout | Budget cap |
+|---|---|---|---|
+| 1 database | opus | 180 min | $25 |
+| 2 remote rows | opus | 150 min | $15 |
+| 3 voice client | sonnet | 150 min | $15 |
+| 4 list detail | sonnet | 180 min | $25 |
+| 5 parity | opus | 150 min | $20 |
+
+- **Worker deadline:** 05:30. Workers still running then are stopped (TERM, then KILL after 60 s, whole process group).
+- **Total deadline:** 06:30. Integration stops starting new merges after that.
+- A worker that times out, hits its budget, hits a usage limit or exits non-zero is **incomplete**. The run is
+  never resumed automatically. Its worktree and branch are kept as they are, and any uncommitted changes are
+  saved as `_state/<n>.uncommitted.patch`.
+
+### R6 Task 4 deterministic screenshots
+Prep adds a launch route: `-sampleData -openList <listId>` opens that sample list's detail screen. Task 4 must
+provide fixed sample items for `sample-sunday-roast`, matching the Android screenshot: Red wine, Lamb leg,
+Double cream, Baby potatoes active; Sourdough completed. `scripts/screenshots.sh` (prep, immutable) sets the status
+bar to 9:41, launches with that route in light mode and then dark mode, and saves
+`docs/night/screens/list-detail-light.png` and `-dark.png`.
+
+### R7 Task 5 validation and recovery entries
+`harness/night/validate_parity.py` (prep, immutable) checks:
+- `features.json` parses
+- every task has the required fields
+- ids are unique and every `depends_on` points to an existing id
+- the dependency graph has no cycles
+- the task count is between 35 and 60
+- every `parity_ids` entry exists in `PARITY.md`
+- every PARITY ID is either referenced by a task or marked `excluded`/`done`
+
+It needs no simulator. When integrating, every task among 1–4 that isn't merged gets its recovery entry from
+`harness/night/tasks/<n>.json` added to `features.json` with `status: "todo"`, so missing work is never treated as done.
+
+### R8 Preflight proof
+Preflight, in a throwaway worktree:
+1. Adds a probe source file to each task's source folder and test folder; the probes `import GRDB` and `import Supabase`.
+2. Runs one build-for-testing.
+3. Proves every probe compiled (its object file exists) and the shared packages link.
+4. Removes the worktree.
+
+Preflight also checks: the 18 existing tests pass; Docker and Supabase are not required; there's enough free disk
+(at least 20 GB); the Mac is on AC power; the simulators exist; the `claude` CLI is authenticated.
+
+### R9 Immutable acceptance and independent verification
+Briefs, metadata, scripts, hooks, settings and `project.yml` are committed before launch and are write-denied to
+workers. For each branch, before merging, the orchestrator checks:
+- **(a) Scope:** files changed since the prep commit are a subset of the task's owned paths.
+- **(b) Commit messages:** no trailer text in any commit message.
+- **(c) Clean worktree:** nothing uncommitted.
+- **(d) Tests:** its own `verify.sh` run on the branch passes with zero failures, and the task's test folder has
+  at least the required number of tests (1: 26, 2: 17, 3: 12, 4: 5).
+- **(e) Task 4:** both screenshots exist.
+- **(f) Task 5:** the validator passes.
+
+A worker's own claims are never trusted.
+
+### R10 Incomplete work
+Anything that fails R9, or is incomplete under R5, is listed in the report with its reason, branch, log path and
+patch path. It's kept and never merged into `night/integration`.

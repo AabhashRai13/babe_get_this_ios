@@ -1,0 +1,28 @@
+{
+  "worker_deadline": "05:30",
+  "total_deadline": "06:30",
+  "merge_order": [2, 1, 3, 4, 5],
+  "tasks": [
+    {"n": 1, "slug": "1-database", "model": "opus", "timeout_min": 180, "budget_usd": 25, "sim": "bgt-night-1",
+     "owned": ["BabeGetThis/Core/Database/", "BabeGetThisTests/Database/", "docs/night/1-database.md"],
+     "test_dir": "BabeGetThisTests/Database", "min_tests": 26,
+     "recovery": {"id": "NIGHT-1", "title": "Finish overnight task 1: local database (GRDB), see harness/night/tasks/1-database.md", "parity_ids": [], "depends_on": [], "acceptance": ["./scripts/verify.sh 'iPhone 18 Pro'"], "status": "todo"}},
+    {"n": 2, "slug": "2-remote-dto", "model": "opus", "timeout_min": 150, "budget_usd": 15, "sim": "bgt-night-2",
+     "owned": ["BabeGetThis/Core/Remote/", "BabeGetThisTests/Remote/", "docs/night/2-remote-dto.md"],
+     "test_dir": "BabeGetThisTests/Remote", "min_tests": 17,
+     "recovery": {"id": "NIGHT-2", "title": "Finish overnight task 2: Supabase rows and mappers, see harness/night/tasks/2-remote-dto.md", "parity_ids": [], "depends_on": [], "acceptance": ["./scripts/verify.sh 'iPhone 18 Pro'"], "status": "todo"}},
+    {"n": 3, "slug": "3-voice-client", "model": "sonnet", "timeout_min": 150, "budget_usd": 15, "sim": "bgt-night-3",
+     "owned": ["BabeGetThis/Core/Voice/", "BabeGetThisTests/Voice/", "docs/night/3-voice-client.md"],
+     "test_dir": "BabeGetThisTests/Voice", "min_tests": 12,
+     "recovery": {"id": "NIGHT-3", "title": "Finish overnight task 3: voice transcribe client, see harness/night/tasks/3-voice-client.md", "parity_ids": [], "depends_on": [], "acceptance": ["./scripts/verify.sh 'iPhone 18 Pro'"], "status": "todo"}},
+    {"n": 4, "slug": "4-list-detail", "model": "sonnet", "timeout_min": 180, "budget_usd": 25, "sim": "bgt-night-4",
+     "owned": ["BabeGetThis/Features/ListDetail/", "BabeGetThisTests/ListDetail/", "docs/night/screens/", "docs/night/4-list-detail.md"],
+     "test_dir": "BabeGetThisTests/ListDetail", "min_tests": 5,
+     "screenshots": ["docs/night/screens/list-detail-light.png", "docs/night/screens/list-detail-dark.png"],
+     "recovery": {"id": "NIGHT-4", "title": "Finish overnight task 4: list detail screen, see harness/night/tasks/4-list-detail.md", "parity_ids": [], "depends_on": [], "acceptance": ["./scripts/verify.sh 'iPhone 18 Pro'", "./scripts/screenshots.sh 'iPhone 18 Pro'"], "status": "todo"}},
+    {"n": 5, "slug": "5-parity", "model": "opus", "timeout_min": 150, "budget_usd": 20, "sim": null,
+     "owned": ["docs/PARITY.md", "harness/features.json", "docs/night/5-parity.md"],
+     "validator": "python3 harness/night/validate_parity.py",
+     "recovery": {"id": "NIGHT-5", "title": "Redo overnight task 5: PARITY.md and features.json, see harness/night/tasks/5-parity.md", "parity_ids": [], "depends_on": [], "acceptance": ["python3 harness/night/validate_parity.py"], "status": "todo"}}
+  ]
+}

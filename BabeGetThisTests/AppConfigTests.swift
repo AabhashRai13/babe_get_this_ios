@@ -49,3 +49,16 @@ final class AppConfigTests: XCTestCase {
         XCTAssertEqual(config.apiBaseURL.absoluteString, "http://127.0.0.1:8080/")
     }
 }
+
+final class LaunchRouteTests: XCTestCase {
+    func testOpenListFindsSampleList() {
+        let path = LaunchRoute.initialPath(arguments: ["app", "-sampleData", "-openList", "sample-sunday-roast"])
+        XCTAssertEqual(path.map(\.id), ["sample-sunday-roast"])
+    }
+
+    func testMissingOrUnknownListGivesEmptyPath() {
+        XCTAssertTrue(LaunchRoute.initialPath(arguments: ["app", "-sampleData"]).isEmpty)
+        XCTAssertTrue(LaunchRoute.initialPath(arguments: ["app", "-openList"]).isEmpty)
+        XCTAssertTrue(LaunchRoute.initialPath(arguments: ["app", "-openList", "nope"]).isEmpty)
+    }
+}
