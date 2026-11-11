@@ -17,7 +17,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - Ported Android tests are the acceptance bar. A behaviour is at parity when the matching Android test cases
   (minus the Got This ones) are ported to XCTest and pass.
 
-## v1 scope decisions (taken from the Android docs; no owner questions needed)
+## v1 scope decisions (the owner's v1 scope, then decisions taken from the Android docs)
 
 - **In v1:**
   - Offline lists and items, guests with no login wall (`D/technical-decisions/005-require-login.md`, withdrawn).
@@ -25,9 +25,11 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Account-owned lists synced through Supabase (`D/technical-decisions/008-account-owned-lists.md`).
   - Live sharing by 6-character code, with realtime while a list is open.
   - Voice-to-list for signed-in users (`D/product-decisions/002-*.md`, `003-*.md`).
-  - Share as text, profile, settings, telemetry with consent, PIN list lock, shopping reminders,
-    in-app review and feature flags. Android shipped all of these, and the Android app is the spec.
-- **Not in v1:**
+  - Share as text, profile, settings, and telemetry with consent (no App Tracking Transparency prompt, TEL-05).
+- **Not in v1 (owner's v1 scope):**
+  - Reminders and push notifications, PIN list lock, feature flags and in-app review. Android ships all four;
+    the owner ruled them out of iOS v1, so their items below are `[excluded]`.
+  - Deep links.
   - Got This: Android TODO.md marks it v2, and CLAUDE.md says iOS v1 acts as a pre-Got-This client that never sends `picked_up_at`.
   - Home widget, Plus tier, camera autofill, pantry, leaving a shared list (none exist on Android either).
   - The Play in-app update flow.
@@ -45,7 +47,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **APP-02** [done] (app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml) App icons per environment generated from the Android launcher icon.
 - **APP-03** [done] (D/screenshots, iOS-only hook) Launch arguments `-sampleData` / `-openList <id>` (non-prod) for screenshots.
 - **APP-04** [todo] (app/src/main/res/values/splash.xml, values-night/splash.xml) Launch screen matches the first frame: light background #EDF1F4 with a #607D8B icon, dark background #121212 with a #B0BEC5 icon.
-- **APP-05** [todo] (K/BabeGetThisApp.kt) App start: feature flags fetched once, sync trigger registered, auth state restored before the first screen decision.
+- **APP-05** [todo] (K/BabeGetThisApp.kt) App start: sync trigger registered, auth state restored before the first screen decision. (Android also fetches feature flags here; flags are out of v1, FLAG-01.)
 - **UI-01** [done] (K/ui/theme/Color.kt) Colour palette (light and dark, no dynamic colour) and 8 list-accent pairs picked by a stable hash of the list id.
 - **UI-02** [done] (K/ui/theme/Theme.kt) Spacing/radii (`AppMetrics`) and button styles (primary 56pt radius 16, outlined, tonal FAB).
 - **UI-03** [todo] (K/core/ui/components/BgtTopAppBar.kt) Top app bar: large collapsing variant on home (bold title) and small variant on detail and settings; Light haptic on nav and action taps.
@@ -131,8 +133,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **DET-10** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) FABs: a small mic "Add by voice" (always shown; shows the sign-in prompt unless Authenticated) above an extended "+ Add" (only when the list has items). Medium haptic.
 - **DET-11** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Top-bar actions: lock toggle, "Share live", "Share as text".
 - **DET-12** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Leaving an empty, unshared list asks "Delete this empty list?" / "This list has no items, so it will be deleted when you leave." with "Delete list" (destructive) / "Keep editing". Teardown always runs delete-if-empty after any in-flight undo finishes.
-- **DET-13** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) The list-completed event fires only on the not-finished → finished transition (including deleting the last unticked item). It plays a Success haptic and requests a review.
-- **DET-14** [todo] (T/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModelTest.kt) Port the core ShoppingItemsViewModelTest cases. Of the 84, these are ported with their own features: lock 8, telemetry 11, reminder 11, and the Got This tracker/heads-up cases.
+- **DET-13** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) The list-completed event fires only on the not-finished → finished transition (including deleting the last unticked item). It plays a Success haptic. (Android also requests an in-app review here; review is out of v1, REV-01.) Port the 5 ListJustCompleted cases of ShoppingItemsViewModelTest.
+- **DET-14** [todo] (T/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModelTest.kt) Port the core ShoppingItemsViewModelTest cases. Of the 84: 49 are core, 11 telemetry (TEL-04), and 8 lock, 11 reminder/heads-up and 5 Got This tracker cases are not ported (excluded features). Of the 49 core cases, 5 list-completed (DET-13), 3 share-live (SHARE-05) and 4 realtime (RT-03) cases land with those features, leaving 37 here.
 - **DET-15** [todo] (K/feature/shoppingitems/share/ShoppingListShareText.kt) Share as text through the system share sheet. Port ShoppingListShareTextTest (9). Format:
   - `🛒 <name>`, then a blank line.
   - `[ ] <item> (<qty>)` for each unticked item.
@@ -263,9 +265,9 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 
 ## Settings
 
-- **SET-01** [todo] (K/feature/settings/ui/SettingsScreen.kt) Settings screen (small app bar, back). Sections in order: List lock, Reminders, Privacy, About. Footer "Version <name> (<build>)".
+- **SET-01** [todo] (K/feature/settings/ui/SettingsScreen.kt) Settings screen (small app bar, back). Sections in order: Privacy, About. Footer "Version <name> (<build>)". (Android's List lock and Reminders sections are out of v1.)
 - **SET-02** [todo] (K/core/ui/Links.kt) About section: "Rate the app" opens the App Store review page (Android opens the Google Play listing). "Privacy policy" opens https://babegetthis.com/privacy-policy.html.
-- **SET-03** [todo] (T/feature/settings/ui/SettingsTest.kt) Port the non-Got-This SettingsTest cases (75 total, minus the 32 Got This ones).
+- **SET-03** [todo] (T/feature/settings/ui/SettingsTest.kt) Port the remaining SettingsTest cases: 5 privacy-toggle (consent) cases and the privacy-policy row (6). Of the 75, 32 are Got This, 12 PIN/list lock and 21 reminders (not ported); the 4 SettingsRow cases go with UI-05.
 
 ## Categories
 
@@ -378,16 +380,16 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - A second run claims nothing.
   - Add the claimed count to the adoption notice.
 - **ACCT-04** [todo] (K/core/sync/data/repository/SyncEngine.kt) Two one-off steps:
-  - finishFirstRun, once per install: remember the currently locked ids, then set `account_lists_migrated`.
+  - finishFirstRun, once per install: set `account_lists_migrated`. (Android also remembers the locked ids; list lock is out of v1.)
   - releaseUnverifiedClaims, only after a discovery that returned rows: set accountId=nil on (unverified − discovered), then clear the unverified set.
-- **ACCT-05** [todo] (K/core/sync/data/local/PrefsListOwnershipStore.kt) Ownership store: a UserDefaults suite `list_ownership` holding `adoption_notice` (Int, observable), `account_lists_migrated`, `locked_list_ids` and `unverified_list_ids`. It survives eviction. Port PrefsListOwnershipStoreTest (7).
+- **ACCT-05** [todo] (K/core/sync/data/local/PrefsListOwnershipStore.kt) Ownership store: a UserDefaults suite `list_ownership` holding `adoption_notice` (Int, observable), `account_lists_migrated` and `unverified_list_ids`. It survives eviction. Port PrefsListOwnershipStoreTest (7 minus the 3 lock cases = 4). (`locked_list_ids` is out of v1 with list lock.)
 - **ACCT-06** [todo] (K/core/sync/data/repository/SyncEngine.kt) evictAccountLists(andThen), all inside the lock:
   1. Best-effort push.
   2. Hard-delete every list with `accountId NOT NULL OR shareCode NOT NULL` (cascade). Guest lists stay.
   3. Clear sync points.
   4. Run `andThen`, which is the real logout.
 - **ACCT-07** [todo] (D/superpowers/specs/2026-10-14-guest-and-account-lists-design.md) A lost session never evicts: lists stay visible and editable, and sync waits.
-- **ACCT-08** [todo] (T/core/sync/data/repository/SyncEngineClaimTest.kt) Port the non-Got-This SyncEngineClaimTest cases (18 minus 4).
+- **ACCT-08** [todo] (T/core/sync/data/repository/SyncEngineClaimTest.kt) Port the SyncEngineClaimTest cases minus 4 Got This and 2 list-lock cases (12).
 
 ## Sharing
 
@@ -464,59 +466,60 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Sharing: share_code_created/shared, join attempted/succeeded/failed, shared_list_first_edit.
   - Activation: welcome_choice, account_registered/logged_in, first_item_added, first_list_completed.
   - Habit: item_added, item_checked_off, list_completed, category_auto_assigned/corrected.
-  - Reminders: reminder_posted/tapped.
-  - Port AnalyticsEventMapperTest, BucketsTest, FailureReasonsTest, TelemetryMarkersTest and TelemetryContextTest.
-- **TEL-04** [todo] (K/core/telemetry/model/AnalyticsEvent.kt) Wire the events into the view models (the telemetry cases of ShoppingListViewModelTest, ShoppingItemsViewModelTest and SettingsTest).
+  - (Android's reminder_posted / reminder_tapped are out of v1 with reminders.)
+  - Port AnalyticsEventMapperTest (24 minus 4 Got This and 2 reminder = 18), BucketsTest (10 minus 2 reminder = 8), FailureReasonsTest (2), TelemetryMarkersTest (6) and TelemetryContextTest (8).
+- **TEL-04** [todo] (K/core/telemetry/model/AnalyticsEvent.kt) Wire the events into the view models: the 6 telemetry cases of ShoppingListViewModelTest and the 11 of ShoppingItemsViewModelTest.
+- **TEL-05** [todo] (D/technical-decisions/007-telemetry.md) No App Tracking Transparency prompt and no IDFA collection: Firebase Analytics is added without ad-id support, so AdSupport is not linked through Firebase, and there is no `NSUserTrackingUsageDescription`.
 
-## Feature flags, review
+## Feature flags, review (out of v1: owner's v1 scope)
 
-- **FLAG-01** [todo] (K/core/featureflags/FeatureFlagCache.kt) Feature flags. Port FeatureFlagCacheTest (5).
+- **FLAG-01** [excluded] (K/core/featureflags/FeatureFlagCache.kt) Feature flags. Port FeatureFlagCacheTest (5).
   - `feature_flags(key, enabled)` is fetched once per cold start into an in-memory cache and never blocks launch.
   - `isEnabled` defaults to false.
   - `isKnownOff` is true only when the flags loaded and the key isn't true.
-- **REV-01** [todo] (K/core/review/InAppReview.kt) A review is requested (`RequestReviewAction`) on every list-just-completed transition. There is no pre-prompt and no local throttle; the OS quota decides. Errors are swallowed.
+- **REV-01** [excluded] (K/core/review/InAppReview.kt) A review is requested (`RequestReviewAction`) on every list-just-completed transition. There is no pre-prompt and no local throttle; the OS quota decides. Errors are swallowed.
 
-## PIN list lock
+## PIN list lock (out of v1: owner's v1 scope)
 
-- **PIN-01** [todo] (K/core/pin/data/PinCrypto.kt) One 4-digit PIN per device, stored in the Keychain. Port PinCryptoTest (26) and the PinStoreTest cases.
+- **PIN-01** [excluded] (K/core/pin/data/PinCrypto.kt) One 4-digit PIN per device, stored in the Keychain. Port PinCryptoTest (26) and the PinStoreTest cases.
   - It survives logout and never syncs.
   - Hashing: PBKDF2-HMAC-SHA256, 120k iterations, 256-bit key, 16-byte salt.
   - Compared in constant time.
-- **PIN-02** [todo] (K/core/pin/data/PinRepository.kt) Recovery code and PIN rules. Port PinRepositoryTest (28).
+- **PIN-02** [excluded] (K/core/pin/data/PinRepository.kt) Recovery code and PIN rules. Port PinRepositoryTest (28).
   - Recovery code: 10 Crockford base32 characters, shown once.
   - Input is normalised (O→0, I/L→1, other characters dropped).
   - Using the code resets the PIN and issues a new code. The code can be regenerated.
   - Setup refuses if a PIN exists; change and remove need the current PIN.
-- **PIN-03** [todo] (K/core/pin/data/PinThrottle.kt) Throttle. Port PinThrottleTest (12).
+- **PIN-03** [excluded] (K/core/pin/data/PinThrottle.kt) Throttle. Port PinThrottleTest (12).
   - Every 5th consecutive failure locks out for 30 s → 2 m → 10 m → 1 h (the cap).
   - The lockout uses the larger of wall-clock and monotonic time.
   - Messages: "Wrong PIN. N attempts left." / "Too many attempts. Try again in X."
-- **PIN-04** [todo] (K/core/pin/ui/PinDialogs.kt) PIN dialogs: create, confirm, unlock, delete, share, verify current, new PIN, recovery show and recovery entry. Port PinDialogsTest (22) and PinPromptViewModelTest (16).
-- **PIN-05** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Locked lists:
+- **PIN-04** [excluded] (K/core/pin/ui/PinDialogs.kt) PIN dialogs: create, confirm, unlock, delete, share, verify current, new PIN, recovery show and recovery entry. Port PinDialogsTest (22) and PinPromptViewModelTest (16).
+- **PIN-05** [excluded] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Locked lists:
   - Opening, swipe-deleting and sharing need the PIN. Cancelling a delete shows "Nothing was deleted".
   - Content is hidden until unlocked, and the list re-locks when the app goes to the background.
   - App-switcher snapshots are obscured while locked (the FLAG_SECURE equivalent).
   - Locking with no PIN set goes through setup.
   - Locked ids are kept in the ownership store.
-- **PIN-06** [todo] (K/feature/settings/ui/SettingsScreen.kt) Settings "List lock" section: Set up / Change / Remove (warns that all lists unlock) / Regenerate recovery / Forgot, plus the device-only caveat.
+- **PIN-06** [excluded] (K/feature/settings/ui/SettingsScreen.kt) Settings "List lock" section: Set up / Change / Remove (warns that all lists unlock) / Regenerate recovery / Forgot, plus the device-only caveat.
 
-## Shopping reminders
+## Shopping reminders (out of v1: owner's v1 scope, no reminders or push)
 
-- **REM-01** [todo] (K/core/reminder/ReminderScheduler.kt) Arming. Port ReminderSchedulerTest.
+- **REM-01** [excluded] (K/core/reminder/ReminderScheduler.kt) Arming. Port ReminderSchedulerTest.
   - A list is eligible when at least 1 item was ticked on this phone and at least 1 item is unticked.
   - The reminder fires 3 h after the last local activity. Partner changes neither arm nor reset it.
   - One pending reminder app-wide (the newest eligible list), one per session, never retried, silent when in doubt.
   - Kill switch: feature flag `shopping_reminders`.
-- **REM-02** [todo] (K/core/reminder/ReminderNotifier.kt) Local notification. Port ReminderNotifierTest and ReminderContentReaderTest.
+- **REM-02** [excluded] (K/core/reminder/ReminderNotifier.kt) Local notification. Port ReminderNotifierTest and ReminderContentReaderTest.
   - Title "Forget something on <list>?".
   - Body names up to 2 unticked items plus "N more". Locked lists show the count only.
   - A fixed identifier, so a new notification replaces the old one.
-- **REM-03** [todo] (K/core/reminder/ReminderIntentParser.kt) Tapping the notification opens that list above the lists overview. Port ReminderIntentParserTest.
-- **REM-04** [todo] (K/core/reminder/ui/ReminderPermissionSheet.kt) In-context permission:
+- **REM-03** [excluded] (K/core/reminder/ReminderIntentParser.kt) Tapping the notification opens that list above the lists overview. Port ReminderIntentParserTest.
+- **REM-04** [excluded] (K/core/reminder/ui/ReminderPermissionSheet.kt) In-context permission:
   - On the first partly-shopped tick, a "Forget something?" sheet ("Remind me" / "Not now") appears before the system prompt.
   - Not now, dismiss or deny snoozes the offer for 14 days.
   - Never shown when permission is already granted, the toggle is off, the offer is snoozed, or permission is permanently denied.
-- **REM-05** [todo] (K/core/reminder/ui/NotificationSettings.kt) The Settings reminders switch reflects the preference (default on) AND the OS permission. When permission is denied, the row opens system settings.
+- **REM-05** [excluded] (K/core/reminder/ui/NotificationSettings.kt) The Settings reminders switch reflects the preference (default on) AND the OS permission. When permission is denied, the row opens system settings.
 
 ## User-facing strings (app/src/main/res/values/strings.xml: 185 strings + 10 plurals, ported to a String Catalog with the same keys)
 
@@ -531,8 +534,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **STR-09** [todo] (app/src/main/res/values/strings.xml) Auth: auth_login_subtitle, auth_register_subtitle, auth_email, auth_password, auth_confirm_password, auth_name, auth_login, auth_register, auth_forgot_password, auth_reset_password, auth_forgot_subtitle, auth_code_sent, auth_code, auth_new_password, auth_send_code, auth_no_account, auth_has_account, auth_sign_up, auth_sign_in, auth_continue_with_google, plus "Continue with Apple" for iOS.
 - **STR-10** [todo] (app/src/main/res/values/strings.xml) Profile: profile_name, profile_no_email, profile_logout, sign_out_unsynced_title/body/confirm, delete_account_body.
 - **STR-11** [todo] (app/src/main/res/values/strings.xml) Settings, privacy and about: settings, settings_title, settings_privacy_section, settings_analytics_title/subtitle, settings_crash_title/subtitle, settings_about_section, settings_privacy_policy_title/subtitle, settings_rate_title/subtitle (iOS says App Store instead of Google Play).
-- **STR-12** [todo] (app/src/main/res/values/strings.xml) PIN and lock: settings_pin_*, pin_* (pin_wrong plural, pin_locked_out), recovery_*, lock_list, unlock_list, lock_locked, lock_delete_cancelled, lock_remove_pin_warning (plural).
-- **STR-13** [todo] (app/src/main/res/values/strings.xml) Reminders: reminder_title, reminder_body_one/two/more, reminder_body_locked (plural), reminder_prompt_*, settings_reminders_*. reminder_channel_name is Android-only.
+- **STR-12** [excluded] (app/src/main/res/values/strings.xml) PIN and lock: settings_pin_*, pin_* (pin_wrong plural, pin_locked_out), recovery_*, lock_list, unlock_list, lock_locked, lock_delete_cancelled, lock_remove_pin_warning (plural).
+- **STR-13** [excluded] (app/src/main/res/values/strings.xml) Reminders: reminder_title, reminder_body_one/two/more, reminder_body_locked (plural), reminder_prompt_*, settings_reminders_*. reminder_channel_name is Android-only.
 - **STR-14** [todo] (K/core/error/AppError.kt) Error copy that lives in Kotlin (AppError, AuthErrorMapper, the repositories, the voice view model) also goes into the catalog.
 - **STR-15** [excluded] (app/src/main/res/values/strings.xml) Got This strings: settings_got_this_*, got_this_*.
 
