@@ -84,7 +84,8 @@ final class TranscribeClientTests: XCTestCase {
         StubURLProtocol.reset()
         online = true
         audio = FileManager.default.temporaryDirectory.appending(path: "voice-\(UUID().uuidString).m4a")
-        try? Data(count: 64).write(to: audio)
+        // 64 distinct bytes, so the multipart test can tell them apart from padding.
+        try? Data((0..<64).map { UInt8($0 + 1) }).write(to: audio)
     }
 
     override func tearDown() {
@@ -168,11 +169,24 @@ final class TranscribeClientTests: XCTestCase {
         XCTAssertEqual(sent.request.url?.path, "/transcribe")
         XCTAssertEqual(sent.request.value(forHTTPHeaderField: "Authorization"), "Bearer test-token")
         XCTAssertEqual(sent.request.timeoutInterval, 60)
-        XCTAssertTrue(sent.request.value(forHTTPHeaderField: "Content-Type")?.hasPrefix("multipart/form-data") == true)
-        let body = String(decoding: sent.body, as: UTF8.self)
-        XCTAssertTrue(body.contains("name=\"audio\""))
-        XCTAssertTrue(body.contains(".m4a\""))
-        XCTAssertTrue(body.contains("Content-Type: audio/mp4"))
+        let contentType = try XCTUnwrap(sent.request.value(forHTTPHeaderField: "Content-Type"))
+        let prefix = "multipart/form-data; boundary="
+        XCTAssertTrue(contentType.hasPrefix(prefix))
+        let boundary = String(contentType.dropFirst(prefix.count))
+        XCTAssertFalse(boundary.isEmpty)
+
+        // The whole body, byte for byte: opening delimiter, part headers, a blank
+        // line, the exact audio bytes, then the closing delimiter.
+        var expected = Data("--\(boundary)\r\n".utf8)
+        expected.append(Data("Content-Disposition: form-data; name=\"audio\"; filename=\"\(audio.lastPathComponent)\"\r\n".utf8))
+        expected.append(Data("Content-Type: audio/mp4\r\n\r\n".utf8))
+        let audioBytes = try Data(contentsOf: audio)
+        XCTAssertEqual(audioBytes.count, 64)
+        expected.append(audioBytes)
+        expected.append(Data("\r\n--\(boundary)--\r\n".utf8))
+        XCTAssertEqual(sent.body, expected)
+        XCTAssertTrue(sent.body.starts(with: Data("--\(boundary)\r\n".utf8)))
+        XCTAssertTrue(sent.body.suffix(boundary.count + 8) == Data("\r\n--\(boundary)--\r\n".utf8))
     }
 
     // MARK: offline guard
