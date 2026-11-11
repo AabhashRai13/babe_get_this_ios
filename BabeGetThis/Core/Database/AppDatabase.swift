@@ -66,12 +66,69 @@ struct AppDatabase: Sendable {
                 t.column("name", .text).notNull()
                 t.column("isDefault", .boolean).notNull()
             }
-            // Seeded here, so exactly once per install.
-            for category in DefaultCategories.all {
-                try category.insert(db, onConflict: .ignore)
+            // Seeded here, so exactly once per install. Raw SQL over a frozen copy:
+            // a migration must not depend on CategoryRecord or DefaultCategories,
+            // which keep changing. A later change to the defaults gets its own migration.
+            for (id, name) in v1Categories {
+                try db.execute(
+                    sql: "INSERT OR IGNORE INTO categories (id, name, isDefault) VALUES (?, ?, 1)",
+                    arguments: [id, name])
             }
         }
 
         return migrator
     }
+
+    /// The default categories as migration v1 seeds them (Android `DefaultCategories.kt`
+    /// at DB v6). Frozen: never edit this list.
+    private static let v1Categories: [(id: String, name: String)] = [
+        ("cat-fruits-vegetables", "Fruits & Vegetables"),
+        ("cat-dairy-eggs", "Dairy & Eggs"),
+        ("cat-meat-seafood", "Meat & Seafood"),
+        ("cat-bakery-bread", "Bakery & Bread"),
+        ("cat-frozen-foods", "Frozen Foods"),
+        ("cat-pantry-dry-goods", "Rice, Grains & Pasta"),
+        ("cat-canned-jarred", "Canned & Jarred Goods"),
+        ("cat-baking-supplies", "Baking & Dry Ingredients"),
+        ("cat-spices-seasonings", "Spices & Seasonings"),
+        ("cat-sauces-condiments", "Sauces, Condiments & Pastes"),
+        ("cat-oils-vinegars", "Oils, Vinegars & Cooking Fats"),
+        ("cat-breakfast-cereal", "Breakfast & Cereal"),
+        ("cat-spreads", "Spreads, Honey & Jam"),
+        ("cat-snacks", "Snacks"),
+        ("cat-sweets-chocolate", "Sweets & Chocolate"),
+        ("cat-ready-meals", "Ready Meals & Prepared Food"),
+        ("cat-beverages", "Beverages"),
+        ("cat-coffee-tea", "Coffee & Tea"),
+        ("cat-alcohol", "Beer, Wine & Spirits"),
+        ("cat-household-cleaning", "Household & Cleaning"),
+        ("cat-paper-disposables", "Paper & Disposables"),
+        ("cat-kitchen-dining", "Kitchen & Dining"),
+        ("cat-appliances", "Appliances"),
+        ("cat-furniture-storage", "Furniture & Storage"),
+        ("cat-home-decor", "Home Decor"),
+        ("cat-bedding-bath", "Bedding & Bath"),
+        ("cat-lighting-electrical", "Lighting & Electrical"),
+        ("cat-hardware-diy", "Hardware & Tools"),
+        ("cat-garden-outdoor", "Garden & Outdoor"),
+        ("cat-automotive", "Automotive"),
+        ("cat-toiletries-personal-care", "Personal Care & Beauty"),
+        ("cat-health-pharmacy", "Health & Pharmacy"),
+        ("cat-clothing", "Clothing"),
+        ("cat-underwear-sleepwear", "Underwear, Socks & Sleepwear"),
+        ("cat-shoes", "Shoes & Footwear"),
+        ("cat-accessories-jewelry", "Accessories & Jewelry"),
+        ("cat-bags-luggage", "Bags & Luggage"),
+        ("cat-baby-kids", "Baby & Kids"),
+        ("cat-pet-supplies", "Pet Supplies"),
+        ("cat-electronics", "Electronics"),
+        ("cat-toys-games", "Toys & Games"),
+        ("cat-books-media", "Books & Media"),
+        ("cat-sports-outdoors", "Sports & Outdoors"),
+        ("cat-office-stationery", "Office & Stationery"),
+        ("cat-arts-crafts", "Arts, Crafts & Hobbies"),
+        ("cat-party-gifts", "Party, Gifts & Holiday"),
+        ("cat-tobacco-vaping", "Tobacco & Vaping"),
+        ("cat-other", "Other"),
+    ]
 }

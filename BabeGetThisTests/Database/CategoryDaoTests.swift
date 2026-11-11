@@ -17,6 +17,7 @@ final class CategoryDaoTests: XCTestCase {
         XCTAssertEqual(DefaultCategories.all.count, 48)
         XCTAssertEqual(categories.count, 48)
         XCTAssertEqual(Set(categories.map(\.id)), Set(DefaultCategories.all.map(\.id)))
+        XCTAssertEqual(categories.sorted { $0.id < $1.id }, DefaultCategories.all.sorted { $0.id < $1.id })
         XCTAssertTrue(categories.allSatisfy(\.isDefault))
     }
 
@@ -31,13 +32,17 @@ final class CategoryDaoTests: XCTestCase {
         XCTAssertEqual(names.first, "Accessories & Jewelry")
     }
 
-    // Migrating an already-migrated database must not seed again.
+    // Migrating an already-migrated database must not seed again: a seeded row
+    // removed behind the DAO's back stays removed.
     func testMigratingAgainDoesNotSeedTwice() async throws {
-        try await categoryDao.deleteCategory(id: "cat-other")   // ignored: a default
+        try await db.writer.write { try $0.execute(sql: "DELETE FROM categories WHERE id = 'cat-other'") }
         try AppDatabase.migrator.migrate(db.writer)
 
-        let count = try await categoryDao.allCategories().count
-        XCTAssertEqual(count, 48)
+        let ids = try await categoryDao.allCategories().map(\.id)
+        let applied = try await db.writer.read { try AppDatabase.migrator.appliedIdentifiers($0) }
+        XCTAssertEqual(ids.count, 47)
+        XCTAssertFalse(ids.contains("cat-other"))
+        XCTAssertEqual(applied, ["v1"])
     }
 
     func testInsertCategoryIgnoresAnExistingId() async throws {
