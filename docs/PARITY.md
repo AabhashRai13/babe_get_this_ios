@@ -82,14 +82,14 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **HOME-01** [done] (K/feature/shoppinglist/ui/components/GreetingSection.kt) Greeting text: before 12 "Good morning", before 17 "Good afternoon", else "Good evening", plus ", FirstName" when a name exists; summary "N list(s) · M item(s) to get" / "nothing to pick up yet" (in-memory `Greeting`).
 - **HOME-02** [done] (K/feature/shoppinglist/ui/ShoppingListScreen.kt) Active/Completed tabs, empty state "No lists yet" with "Create your first list", and FAB only when lists exist (in-memory `ListsViewModel`).
 - **HOME-03** [todo] (K/feature/shoppinglist/data/local/dao/ShoppingListDao.kt) Lists come from the local DB for the current data owner (guest: `accountId IS NULL AND shareCode IS NULL`; account or expired session: `accountId = owner`). Tombstones are hidden, order is `createdAt DESC`, and the list updates live.
-- **HOME-04** [todo] (K/feature/shoppinglist/model/ShoppingList.kt) A list is completed when itemCount > 0 and completed == itemCount. Empty lists are Active.
+- **HOME-04** [done] (K/feature/shoppinglist/model/ShoppingList.kt) A list is completed when itemCount > 0 and completed == itemCount. Empty lists are Active (`ShoppingListSummary.isCompleted`).
 - **HOME-05** [todo] (K/core/util/DateGrouping.kt) Lists within a tab are grouped into Today / Yesterday / Last 7 Days / This Month / Older. The header is a 6pt primary dot plus a bold label. Port DateGroupingTest (13).
-- **HOME-06** [todo] (K/feature/shoppinglist/ui/components/GreetingSection.kt) The greeting card shows on the Active tab only, as its first row, using the signed-in user's name.
-- **HOME-07** [todo] (K/feature/shoppinglist/ui/components/ShoppingListCard.kt) List card:
-  - Accent badge with a cart on Active and a check on Completed.
-  - Name semibold on Active, muted on Completed.
-  - Subtitle "No items yet" when empty, "X/Y items" on Active, "Y items" on Completed.
-  - Lock icon when locked, then a chevron.
+- **HOME-06** [done] (K/feature/shoppinglist/ui/components/GreetingSection.kt) Greeting card (title + summary on primaryContainer): `GreetingCard` in `Features/Lists/ListsView.swift`. Remaining work is HOME-18.
+- **HOME-18** [todo] (K/feature/shoppinglist/ui/components/GreetingSection.kt) The greeting card shows on the Active tab only, as its first row (today it shows on both tabs), using the signed-in user's name.
+- **HOME-07** [done] (K/feature/shoppinglist/ui/components/ShoppingListCard.kt) List card: accent badge with a cart, semibold name, "X/Y items" subtitle and a chevron (`ListCard` in `Features/Lists/ListsView.swift`). Remaining work is HOME-17. (Android's lock icon is out of v1 with PIN lock.)
+- **HOME-17** [todo] (K/feature/shoppinglist/ui/components/ShoppingListCard.kt) List card deltas:
+  - A check instead of the cart on the Completed tab, and a muted name there.
+  - Subtitle "No items yet" when empty and "Y items" on Completed (Active keeps "X/Y items").
 - **HOME-08** [todo] (K/feature/shoppinglist/ui/components/TabPillRow.kt) Tab pills: outlined icon when inactive, filled when active; the selected pill is primary with a 200 ms colour animation; Medium haptic. Empty-tab text per tab (TabEmptyState.kt).
 - **HOME-09** [todo] (K/feature/shoppinglist/ui/viewModels/ShoppingListViewModel.kt) Swipe left deletes a list (Medium haptic):
   - Guest lists are hard-deleted, account lists soft-deleted.
@@ -114,24 +114,27 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Item card; tick/untick; swipe-delete with Undo.
   - Add-item sheet.
 - **DET-02** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) Back the detail view model with the repositories: items are observed live from the DB, and add/edit/tick/delete go through `ShoppingItemRepository`.
-- **DET-03** [todo] (K/feature/shoppingitems/data/local/dao/ShoppingItemDao.kt) Exact grouping:
-  - Named shops A→Z, with the no-shop group last. A "General" header appears only when other shops exist.
+- **DET-03** [done] (K/feature/shoppingitems/data/local/dao/ShoppingItemDao.kt) Exact grouping, in `ListDetailViewModel` (night task 4 plus the PR #1 review fixes):
+  - Items in DAO order: shop (nil last), category id (nil last), name. Shops A→Z, with the no-shop group last. A "General" header appears only when other shops exist.
   - Categories A→Z case-insensitive, with "Uncategorized" last. Category headers are hidden when a shop's only bucket is uncategorized.
-  - Completed is one flat list in DAO order.
-- **DET-04** [todo] (K/feature/shoppingitems/ui/components/ProgressCard.kt) Progress card: "X of Y picked up", a truncated "NN%" badge and an 8pt bar. The finished state shows a check on primaryContainer. The celebration (scale spring, check pop, colour pulse) plays only on the transition to finished.
+  - Completed is one flat list in DAO order. Items store a category id from `DefaultCategories` and show its name.
+- **DET-04** [done] (K/feature/shoppingitems/ui/components/ProgressCard.kt) Progress card: "X of Y picked up", a truncated "NN%" badge and an 8pt bar. The finished state shows a check on primaryContainer (`ProgressCardView`). Remaining work is DET-16.
+- **DET-16** [todo] (K/feature/shoppingitems/ui/components/ProgressCard.kt) Progress card celebration (scale spring, check pop, colour pulse), played only on the transition to finished.
 - **DET-05** [todo] (K/feature/shoppingitems/ui/components/ShoppingItemCard.kt) Swipe right toggles picked up (green, Light haptic). The checkbox pops (1→1.15→1). A picked-up name is struck through at 45% alpha. Chips show on active items only. Items move between sections with a no-bounce spring.
 - **DET-06** [todo] (K/feature/shoppingitems/ui/AddItemDialog.kt) Tapping an item opens the Edit Item dialog. Editing keeps id, listId, createdAt and isPickedUp.
-- **DET-07** [todo] (K/feature/shoppingitems/ui/AddItemDialog.kt) Dialog limits:
-  - Name max 60 with a counter at the limit. Quantity is required (placeholder "e.g. 2 large, slightly firm").
+- **DET-07** [done] (K/feature/shoppingitems/ui/AddItemDialog.kt) Dialog limits in `ItemDraft` / `AddItemSheet`:
+  - Name max 60. Quantity is required ("Quantity (required)", placeholder "e.g. 2 large, slightly firm").
   - Note max 80, multiline. Shop max 40 (placeholder "e.g. Whole Foods, Costco").
-  - Values are trimmed, and blank shop/note become nil. Buttons stay above the keyboard.
+  - Values are trimmed, and blank shop/note become nil. Add sits in the navigation bar, above the keyboard.
+  - Remaining work is DET-17.
+- **DET-17** [todo] (K/feature/shoppingitems/ui/AddItemDialog.kt) The "n/max" counter that appears when a field reaches its limit (name 60, note 80, shop 40).
 - **DET-08** [todo] (K/feature/shoppingitems/ui/AddItemDialog.kt) Category picker:
   - "None" first, then categories A→Z, filtered case-insensitively.
   - When nothing matches: "No categories match "x"".
   - "Other" opens a "New category name" field; the category is created and the item saved with it.
-- **DET-09** [todo] (K/feature/shoppingitems/ui/components/FirstItemPrompt.kt) First-item prompt on an empty list: circle mark, "List created!", "Add your first item to get started", "Add first item".
-- **DET-10** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) FABs: a small mic "Add by voice" (always shown; shows the sign-in prompt unless Authenticated) above an extended "+ Add" (only when the list has items). Medium haptic.
-- **DET-11** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Top-bar actions: lock toggle, "Share live", "Share as text".
+- **DET-09** [done] (K/feature/shoppingitems/ui/components/FirstItemPrompt.kt) First-item prompt on an empty list, instead of the item list and with no progress card: circle mark, "List created!", "Add your first item to get started", "Add first item" (`FirstItemPromptView`).
+- **DET-10** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) FABs: a small mic "Add by voice" (always shown; shows the sign-in prompt unless Authenticated) above the extended "+ Add". Medium haptic. The "+ Add" FAB, hidden on an empty list, is already built.
+- **DET-11** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Top-bar actions: "Share live", "Share as text". (Android's lock toggle is out of v1 with PIN lock.)
 - **DET-12** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Leaving an empty, unshared list asks "Delete this empty list?" / "This list has no items, so it will be deleted when you leave." with "Delete list" (destructive) / "Keep editing". Teardown always runs delete-if-empty after any in-flight undo finishes.
 - **DET-13** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) The list-completed event fires only on the not-finished → finished transition (including deleting the last unticked item). It plays a Success haptic. (Android also requests an in-app review here; review is out of v1, REV-01.) Port the 5 ListJustCompleted cases of ShoppingItemsViewModelTest.
 - **DET-14** [todo] (T/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModelTest.kt) Port the core ShoppingItemsViewModelTest cases. Of the 84: 49 are core, 11 telemetry (TEL-04), and 8 lock, 11 reminder/heads-up and 5 Got This tracker cases are not ported (excluded features). Of the 49 core cases, 5 list-completed (DET-13), 3 share-live (SHARE-05) and 4 realtime (RT-03) cases land with those features, leaving 37 here.

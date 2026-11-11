@@ -75,8 +75,8 @@
     },
     {
       "id": "F10",
-      "title": "Lists overview on the database: owner query, completion rule, date buckets, greeting card, list card, tab pills and motion (port DateGroupingTest)",
-      "parity_ids": ["HOME-03", "HOME-04", "HOME-05", "HOME-06", "HOME-07", "HOME-08", "UI-07", "STR-03"],
+      "title": "Lists overview on the database: owner query, date buckets, greeting card on Active only, list card deltas, tab pills and motion (port DateGroupingTest)",
+      "parity_ids": ["HOME-03", "HOME-05", "HOME-17", "HOME-18", "HOME-08", "UI-07", "STR-03"],
       "depends_on": ["F06", "F03"],
       "acceptance": ["grep -rq \"class DateGroupingTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
@@ -107,16 +107,16 @@
     },
     {
       "id": "F14",
-      "title": "List detail on the database: live items, exact shop/category grouping, progress card celebration",
-      "parity_ids": ["DET-02", "DET-03", "DET-04", "STR-05"],
+      "title": "List detail on the database: live items through the repositories, progress card celebration",
+      "parity_ids": ["DET-02", "DET-16", "STR-05"],
       "depends_on": ["F08"],
       "acceptance": ["grep -rq \"func testNoShopGroupIsLast\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
     },
     {
       "id": "F15",
-      "title": "Item card swipe-right toggle, tap to edit, add/edit dialog field limits",
-      "parity_ids": ["DET-05", "DET-06", "DET-07"],
+      "title": "Item card swipe-right toggle, tap to edit, add/edit dialog counter at the limit",
+      "parity_ids": ["DET-05", "DET-06", "DET-17"],
       "depends_on": ["F14", "F03"],
       "acceptance": ["grep -rq \"func testEditKeepsIdAndPickedUp\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
@@ -131,8 +131,8 @@
     },
     {
       "id": "F17",
-      "title": "List detail chrome: first-item prompt, voice and add FABs, top-bar actions",
-      "parity_ids": ["DET-09", "DET-10", "DET-11"],
+      "title": "List detail chrome: voice FAB with sign-in gate, Share live and Share as text top-bar actions",
+      "parity_ids": ["DET-10", "DET-11"],
       "depends_on": ["F14", "F12"],
       "acceptance": ["grep -rq \"struct FirstItemPrompt\" BabeGetThis", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
