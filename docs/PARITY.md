@@ -357,8 +357,10 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **SYNC-13** [todo] (K/core/sync/data/repository/SyncEngine.kt) hasUnsyncedChanges(account) is true when pending account lists plus pending items is greater than 0.
 - **SYNC-14** [todo] (K/core/sync/data/local/PrefsSyncPointStore.kt) Sync point store: a UserDefaults suite `sync_points` keyed by list id or `"account"`, holding raw ISO strings, with get/set/remove/clear. Port PrefsSyncPointStoreTest (4).
 - **SYNC-15** [todo] (K/core/sync/data/remote/SharedListRemote.kt) Remote protocol and its Supabase implementation: insertList, upsertLists, upsertItems, fetchList, fetchItems, fetchAccountItems, fetchAllLists, setShareCode, joinByCode, listChanges.
-- **SYNC-16** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) Port the non-Got-This SyncEngineTest cases (40 minus 5) against an in-memory fake remote.
-- **SYNC-17** [todo] (T/core/sync/data/repository/SyncEngineAccountCatchUpTest.kt) Port the non-Got-This SyncEngineAccountCatchUpTest cases (18 minus 3).
+- **SYNC-16** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) SyncEngineTest, push part, against an in-memory fake remote: the 14 push/outbox cases and the 3 non-Got-This unsynced-count cases (17). SyncEngineTest has 40 cases: 35 non-Got-This, split by method across SYNC-16, SYNC-19 and SYNC-20.
+- **SYNC-19** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) SyncEngineTest, catch-up part: the 13 catchUp / apply / fullCatchUp cases.
+- **SYNC-20** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) SyncEngineTest, eviction part: the 5 non-Got-This eviction cases (6 minus the purchase-history one).
+- **SYNC-17** [todo] (T/core/sync/data/repository/SyncEngineAccountCatchUpTest.kt) Port the SyncEngineAccountCatchUpTest cases minus 3 Got This and 1 list-lock case (14).
 - **SYNC-18** [todo] (supabase/migrations/006_got_this.sql) Because iOS v1 never sends `picked_up_at`, migration 006's `items_track_picked_up_at` trigger records iOS ticks as 'legacy'. This is accepted; prove it in an integration test, with no client code.
 
 ## Account vs guest lists (decision 008)

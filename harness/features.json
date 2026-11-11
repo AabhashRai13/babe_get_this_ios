@@ -203,32 +203,32 @@
     },
     {
       "id": "F26",
-      "title": "SyncEngine actor: serial gate, push lists before items, guarded flag clearing, hasUnsyncedChanges",
-      "parity_ids": ["SYNC-02", "SYNC-03", "SYNC-04", "SYNC-06", "SYNC-13"],
+      "title": "SyncEngine actor: serial gate, push lists before items, guarded flag clearing, hasUnsyncedChanges (port the 17 push/outbox/unsynced SyncEngineTest cases)",
+      "parity_ids": ["SYNC-02", "SYNC-03", "SYNC-04", "SYNC-06", "SYNC-13", "SYNC-16"],
       "depends_on": ["F25", "F02", "F07", "F08", "F04"],
       "acceptance": ["grep -rq \"actor SyncEngine\" BabeGetThis", "grep -rq \"func testListsPushBeforeItems\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
     },
     {
       "id": "F27",
-      "title": "SyncEngine catchUp, fullCatchUp and apply rules (never REPLACE, shouldSkip, FK guard)",
-      "parity_ids": ["SYNC-07", "SYNC-08", "SYNC-10", "SYNC-11"],
+      "title": "SyncEngine catchUp, fullCatchUp and apply rules (never REPLACE, shouldSkip, FK guard); port the 13 catch-up SyncEngineTest cases",
+      "parity_ids": ["SYNC-07", "SYNC-08", "SYNC-10", "SYNC-11", "SYNC-19"],
       "depends_on": ["F26"],
       "acceptance": ["grep -rq \"func testCatchUpKeepsItemsWhenListUpdates\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
     },
     {
       "id": "F28",
-      "title": "SyncEngine catchUpAccount discovery; port SyncEngineTest and SyncEngineAccountCatchUpTest (minus Got This)",
-      "parity_ids": ["SYNC-09", "SYNC-16", "SYNC-17", "SRV-05"],
+      "title": "SyncEngine catchUpAccount discovery (port SyncEngineAccountCatchUpTest minus Got This and lock cases)",
+      "parity_ids": ["SYNC-09", "SYNC-17", "SRV-05"],
       "depends_on": ["F27"],
       "acceptance": ["grep -rq \"class SyncEngineTests\" BabeGetThisTests", "grep -rq \"class SyncEngineAccountCatchUpTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
     },
     {
       "id": "F29",
-      "title": "Guest/account lists: onAuthState, claimDeviceLists, finishFirstRun, releaseUnverifiedClaims, evictAccountLists (port SyncEngineClaimTest)",
-      "parity_ids": ["ACCT-02", "ACCT-03", "ACCT-04", "ACCT-06", "ACCT-07", "ACCT-08"],
+      "title": "Guest/account lists: onAuthState, claimDeviceLists, finishFirstRun, releaseUnverifiedClaims, evictAccountLists (port SyncEngineClaimTest and the 5 eviction SyncEngineTest cases)",
+      "parity_ids": ["ACCT-02", "ACCT-03", "ACCT-04", "ACCT-06", "ACCT-07", "ACCT-08", "SYNC-20"],
       "depends_on": ["F28"],
       "acceptance": ["grep -rq \"class SyncEngineClaimTests\" BabeGetThisTests", "./scripts/verify.sh \"iPhone 18 Pro\""],
       "status": "todo"
