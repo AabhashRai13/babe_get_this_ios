@@ -1,0 +1,10 @@
+#include "Shared.xcconfig"
+
+// Local Supabase in Docker + local transcribe stub. The simulator reaches
+// the Mac's localhost directly.
+BGT_ENVIRONMENT = dev
+APP_BUNDLE_ID = com.babegetthis.ios.dev
+APP_DISPLAY_NAME = BGT Dev
+BGT_SUPABASE_URL = http:/$()/127.0.0.1:54321
+BGT_SUPABASE_ANON_KEY = $(DEV_SUPABASE_ANON_KEY)
+BGT_API_BASE_URL = http:/$()/127.0.0.1:8080/

@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "deny": [
+      "Edit(//Users/aabhashrai/Documents/ios_projects/Babe_get_this_parent_folder/android/**)",
+      "Write(//Users/aabhashrai/Documents/ios_projects/Babe_get_this_parent_folder/android/**)",
+      "Edit(//Users/aabhashrai/Documents/android_projects/**)",
+      "Write(//Users/aabhashrai/Documents/android_projects/**)",
+      "Bash(git push:*)",
+      "Bash(*fpzjyusgqdzqituokrwq*)"
+    ]
+  }
+}

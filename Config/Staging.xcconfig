@@ -1,0 +1,9 @@
+#include "Shared.xcconfig"
+
+// Real staging: Supabase "babe-get-this-real-staging" (vdiheceziirgvbudxdxg).
+BGT_ENVIRONMENT = staging
+APP_BUNDLE_ID = com.babegetthis.ios.staging
+APP_DISPLAY_NAME = BGT Staging
+BGT_SUPABASE_URL = $(STAGING_SUPABASE_URL)
+BGT_SUPABASE_ANON_KEY = $(STAGING_SUPABASE_ANON_KEY)
+BGT_API_BASE_URL = https:/$()/babegetthisapis-staging.up.railway.app/

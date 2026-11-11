@@ -1,0 +1,9 @@
+#include "Shared.xcconfig"
+
+// PRODUCTION. Never used by the autonomous build loop.
+BGT_ENVIRONMENT = prod
+APP_BUNDLE_ID = com.babegetthis.ios
+APP_DISPLAY_NAME = Babe, Get This
+BGT_SUPABASE_URL = $(PROD_SUPABASE_URL)
+BGT_SUPABASE_ANON_KEY = $(PROD_SUPABASE_ANON_KEY)
+BGT_API_BASE_URL = https:/$()/babegetthisapis-production.up.railway.app/

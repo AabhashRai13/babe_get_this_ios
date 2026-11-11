@@ -1,0 +1,4 @@
+// Settings shared by every environment. `//` starts a comment in xcconfig,
+// so URLs use the `$()` trick: https:/$()/host
+#include? "Secrets.xcconfig"
+
