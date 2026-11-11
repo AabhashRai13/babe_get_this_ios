@@ -11,6 +11,18 @@ You are one of five unattended workers. Nobody will answer questions. Work in th
   and list files with `git -C /Users/aabhashrai/Documents/ios_projects/Babe_get_this_parent_folder/android/Babe-get-this ls-tree -r --name-only origin/feat/got-this`.
   Never check out branches there and never write there.
 
+## Bash: one simple command per call (READ THIS FIRST)
+Bash permission rules match **one plain command**. Anything else is denied automatically:
+no `;`, `&&`, `||`, `|`, `$VAR` or `VAR=...`, `$(...)`, backticks, `cd`, redirects (`>`), loops, or heredocs.
+Write paths out in full every time. The only Bash commands that are allowed:
+- `./scripts/verify.sh <your-simulator>` (task 4 also: `./scripts/screenshots.sh bgt-night-4`; task 5 also: `python3 harness/night/validate_parity.py`)
+- `git status`, `git diff ...`, `git log ...`, `git show ...`, `git add <paths>`, `git commit -m "<one-line message>"`
+- `git -C <android-path> show origin/feat/got-this:<path>`, and likewise `ls-tree`, `log` and `grep` with `-C <android-path>`
+- `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `sort` on a single path
+Prefer the Read, Grep, Glob, Edit and Write tools for files. **Write creates missing folders itself**; don't use mkdir.
+If a call is denied, first check its shape. Retry it **once** as a single simple command from the list above.
+Only if the simple form is also denied does the stuck rule apply.
+
 ## How to work
 1. Test first: write or port the failing test, then the code, then run `./scripts/verify.sh <your-simulator>`.
    Never call xcodebuild or xcrun directly: verify.sh is the only build entry point (it limits machine-wide builds to two).
@@ -27,4 +39,5 @@ You are one of five unattended workers. Nobody will answer questions. Work in th
 6. Before finishing, write `docs/night/<your-task>.md` with: Summary, Acceptance checklist (each item: done / not done),
    real numbers from the last `./scripts/verify.sh` (copy its final line), Blocked, Follow-ups.
    Commit it. Leave the worktree clean (`git status` shows nothing to commit).
-7. Permission denials are final. Do not try to work around them; note them in the report.
+7. Never try to get around a denial for a command that isn't on the allowed list (another tool, a script, an encoding).
+   Note it in the report. Reshaping an allowed command into its simple form, as above, is fine.

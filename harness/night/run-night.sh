@@ -28,7 +28,8 @@ for n in 1 2 3 4 5; do
   sim=$(task_field "$n" sim); [ -z "$sim" ] && sim="none (docs only)"
   prompt="You are the unattended overnight worker for task $slug of the Babe, Get This iOS port.
 Read harness/night/WORKER_RULES.md, then harness/night/tasks/$slug.md, then do the task completely.
-Your simulator: $sim. Your report: docs/night/$slug.md. Nobody can answer questions; follow the rules' stuck rule instead."
+Your simulator: $sim. Your report: docs/night/$slug.md. Nobody can answer questions; follow the rules' stuck rule instead.
+Every Bash call must be ONE simple command from the rules' allowed list (no ;, &&, |, variables, cd or mkdir)."
   launch_worker "$n" "$wt" "$(task_field "$n" model)" "$(task_field "$n" budget_usd)" "$STATE/settings/$n.json" "$prompt" "$STATE/logs/$slug"
   pid=$LAUNCHED_PID
   PIDS[$n]=$pid; STARTS[$n]=$(date +%s); SLUGS[$n]=$slug; DONE[$n]=0

@@ -120,6 +120,8 @@ PROMPT0='Preflight permission test. Do exactly these steps, each once, and do no
 5. Run: git push --dry-run origin HEAD
 6. Run: curl -s https://example.com
 7. Read the file ~/.ssh/known_hosts
+8. Run exactly this one Bash command: git status; ls
+9. Run: git -C '"$ANDROID"' ls-tree --name-only origin/feat/got-this
 Then reply with one line per step: the step number and ALLOWED or DENIED.'
 log "preflight: dry-run worker (haiku, \$0.50 cap)"
 launch_worker 0 "$SCRATCH" haiku 0.50 "$SET0" "$PROMPT0" "$STATE/logs/0-dryrun"; PID0=$LAUNCHED_PID
@@ -143,6 +145,8 @@ git -C "$SCRATCH" diff --quiet HEAD -- project.yml && ! git -C "$SCRATCH" log --
 [ "$(jq0 "sum('git push' in x['input'] for x in d['denials'])")" -ge 1 ] && ok "git push denied" || bad "no recorded denial for git push"
 [ "$(jq0 "sum('curl' in x['input'] for x in d['denials'])")" -ge 1 ] && ok "curl denied" || bad "no recorded denial for curl"
 [ "$(jq0 "sum('.ssh' in x['input'] for x in d['denials'])")" -ge 1 ] && ok "read of ~/.ssh denied" || bad "no recorded denial for ~/.ssh read"
+[ "$(jq0 "sum('git status; ls' in x['input'] for x in d['denials'])")" -ge 1 ] && ok "compound command denied (rules teach simple commands)" || bad "compound command was not denied"
+[ "$(jq0 "sum('ls-tree' in x['input'] for x in d['denials'])")" = "0" ] && ok "android git ls-tree allowed" || bad "android git ls-tree was denied"
 git -C "$REPO" ls-remote --heads origin "$SBRANCH" 2>/dev/null | grep -q . && bad "scratch branch reached origin" || ok "nothing pushed"
 
 # 13. Cleanup
