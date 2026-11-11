@@ -43,8 +43,10 @@ scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Stagi
 ```
 
 ## Overnight harness (`harness/night/`)
-- `run-night.sh` = preflight → five `claude -p` workers in `../ios-night/<task>` worktrees → `integrate.py`
-  (independent checks, merge into local `night/integration`, report). Spec: `docs/superpowers/specs/2026-11-11-*`.
+- `run-night.sh nights/<id>.json` = preflight → `claude -p` workers in `../ios-night/<id>/<task>` worktrees → `integrate.py`
+  (scope/messages/clean checks, the task's features.json acceptance commands, merge into local `night/<id>/integration`,
+  full suite after EACH merge with the merge undone if it breaks, merged tasks marked done). `run-waves.sh` chains dependent runs.
+  Briefs: `harness/night/briefs/<task-id>.md`. Spec: `docs/superpowers/specs/2026-11-11-*`.
 - `scripts/verify.sh <sim>` is the only build entry point (max two concurrent xcodebuilds, offline package cache).
 - `scripts/git-hooks/commit-msg` (via `core.hooksPath`) rejects attribution trailers.
 

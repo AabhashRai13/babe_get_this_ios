@@ -1,18 +1,28 @@
 # Shared helpers for preflight.sh / run-night.sh. Source it; don't run it.
+# Requires BGT_NIGHT_CONFIG = path to a night config (harness/night/nights/<id>.json).
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 PARENT="$(dirname "$REPO")"
 NIGHT="$PARENT/ios-night"
-STATE="$NIGHT/_state"
+STATE="$NIGHT/_state"                 # shared across runs: package cache, build-slot locks
 ANDROID="$PARENT/android/Babe-get-this"
 GIT_COMMON="$(cd "$REPO/.git" && pwd)"
-TASKS="$REPO/harness/night/tasks.json"
 CLAUDE_BIN="$(command -v claude || true)"
-BASE_TAG="night-2026-11-11-base"
-mkdir -p "$STATE/logs" "$STATE/tmp" "$STATE/settings"
 
-log() { echo "[$(date '+%H:%M:%S')] $*" | tee -a "$STATE/run.log" >&2; }
+CONFIG="${BGT_NIGHT_CONFIG:?set BGT_NIGHT_CONFIG to harness/night/nights/<id>.json}"
+case "$CONFIG" in /*) ;; *) CONFIG="$REPO/$CONFIG" ;; esac
+cfg() { python3 -c "import json,sys;v=json.load(open('$CONFIG'))[sys.argv[1]];print(v)" "$1"; }
+NIGHT_ID="$(cfg night_id)"
+BASE_REF="$(cfg base_ref)"
+RUN="$NIGHT/$NIGHT_ID"                # per-run worktrees and logs
+RUNSTATE="$RUN/_run"
+BASE_TAG="night-$NIGHT_ID-base"
+INTEG_BRANCH="night/$NIGHT_ID/integration"
+mkdir -p "$STATE/locks" "$RUNSTATE/logs" "$RUNSTATE/tmp" "$RUNSTATE/settings"
+
+log() { echo "[$(date '+%H:%M:%S')] [$NIGHT_ID] $*" | tee -a "$RUNSTATE/run.log" >&2; }
 die() { log "ABORT: $*"; exit 1; }
-task_field() { python3 -c "import json,sys;t=[t for t in json.load(open('$TASKS'))['tasks'] if t['n']==int(sys.argv[1])][0];v=t.get(sys.argv[2]);print('' if v is None else v)" "$1" "$2"; }
+task_ns() { python3 -c "import json;print(' '.join(str(t['n']) for t in json.load(open('$CONFIG'))['tasks']))"; }
+task_field() { python3 -c "import json,sys;t=[t for t in json.load(open('$CONFIG'))['tasks'] if t['n']==int(sys.argv[1])][0];v=t.get(sys.argv[2]);print('' if v is None else v)" "$1" "$2"; }
 
 # Epoch seconds of the next occurrence of HH:MM (today, or tomorrow if already past).
 next_epoch() { python3 -c "
@@ -27,7 +37,7 @@ t=t if t>now else t+d.timedelta(days=1); print(int(t.timestamp()))" "$1"; }
 # The worker's exit code is written to <logbase>.rc when it ends; no file = it was killed.
 launch_worker() {
   local n="$1" wt="$2" model="$3" budget="$4" settings="$5" prompt="$6" logbase="$7"
-  local tmp="$STATE/tmp/$n"; mkdir -p "$tmp"; rm -f "$logbase.rc"
+  local tmp="$RUNSTATE/tmp/$n"; mkdir -p "$tmp"; rm -f "$logbase.rc"
   set -m
   ( cd "$wt" || exit 90
     env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" SHELL=/bin/zsh LANG=en_US.UTF-8 \
@@ -59,10 +69,10 @@ stop_group() {
 save_uncommitted() {
   local n="$1" wt="$2"
   if [ -n "$(git -C "$wt" status --porcelain)" ]; then
-    git -C "$wt" diff HEAD > "$STATE/$n.uncommitted.patch"
-    git -C "$wt" ls-files --others --exclude-standard > "$STATE/$n.untracked.txt"
-    mkdir -p "$STATE/$n.untracked"
-    (cd "$wt" && while IFS= read -r f; do mkdir -p "$STATE/$n.untracked/$(dirname "$f")"; cp "$f" "$STATE/$n.untracked/$f"; done < "$STATE/$n.untracked.txt")
-    log "task $n: uncommitted work saved to $STATE/$n.uncommitted.patch (+ $n.untracked/)"
+    git -C "$wt" diff HEAD > "$RUNSTATE/$n.uncommitted.patch"
+    git -C "$wt" ls-files --others --exclude-standard > "$RUNSTATE/$n.untracked.txt"
+    mkdir -p "$RUNSTATE/$n.untracked"
+    (cd "$wt" && while IFS= read -r f; do mkdir -p "$RUNSTATE/$n.untracked/$(dirname "$f")"; cp "$f" "$RUNSTATE/$n.untracked/$f"; done < "$RUNSTATE/$n.untracked.txt")
+    log "task $n: uncommitted work saved to $RUNSTATE/$n.uncommitted.patch (+ $n.untracked/)"
   fi
 }

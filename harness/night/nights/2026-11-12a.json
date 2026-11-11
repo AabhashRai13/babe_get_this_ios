@@ -1,0 +1,60 @@
+{
+  "night_id": "2026-11-12a",
+  "base_ref": "development",
+  "worker_deadline": "03:45",
+  "total_deadline": "04:30",
+  "merge_order": [
+    1,
+    2,
+    3
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F01",
+      "slug": "f01-errors",
+      "model": "opus",
+      "timeout_min": 120,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "owned": [
+        "BabeGetThis/Core/Errors/",
+        "BabeGetThis/Core/Network/",
+        "BabeGetThisTests/Errors/",
+        "BabeGetThisTests/Network/",
+        "docs/night/2026-11-12a-f01-errors.md"
+      ],
+      "brief": "harness/night/briefs/F01.md"
+    },
+    {
+      "n": 2,
+      "id": "F02",
+      "slug": "f02-sync-stores",
+      "model": "sonnet",
+      "timeout_min": 90,
+      "budget_usd": 10,
+      "sim": "bgt-night-2",
+      "owned": [
+        "BabeGetThis/Core/Sync/Stores/",
+        "BabeGetThisTests/SyncStores/",
+        "docs/night/2026-11-12a-f02-sync-stores.md"
+      ],
+      "brief": "harness/night/briefs/F02.md"
+    },
+    {
+      "n": 3,
+      "id": "F03",
+      "slug": "f03-ui-components",
+      "model": "sonnet",
+      "timeout_min": 120,
+      "budget_usd": 15,
+      "sim": "bgt-night-3",
+      "owned": [
+        "BabeGetThis/Core/DesignSystem/Components/",
+        "BabeGetThisTests/DesignSystem/",
+        "docs/night/2026-11-12a-f03-ui-components.md"
+      ],
+      "brief": "harness/night/briefs/F03.md"
+    }
+  ]
+}

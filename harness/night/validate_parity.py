@@ -48,7 +48,7 @@ for t in tasks:
         if d not in idset: errors.append(f"{t.get('id')}: depends_on unknown id {d}")
     for p in t.get("parity_ids") or []:
         if p not in id_lines: errors.append(f"{t.get('id')}: parity id {p} not in PARITY.md")
-    if t.get("status") != "todo": errors.append(f"{t.get('id')}: status must be 'todo'")
+    if t.get("status") not in ("todo", "done"): errors.append(f"{t.get('id')}: status must be 'todo' or 'done'")
     if not t.get("acceptance"): errors.append(f"{t.get('id')}: empty acceptance")
     if not str(t.get("id")).startswith("NIGHT-") and not t.get("parity_ids"): errors.append(f"{t.get('id')}: no parity_ids")
 

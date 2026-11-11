@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Writes the restrictive per-worker Claude Code settings file.
-Usage: make_settings.py <tasks.json> <n|0> <worktree-abs> <repo-git-common-abs> <android-abs> <home> <out.json>
+Usage: make_settings.py <night-config.json> <n|0> <worktree-abs> <repo-git-common-abs> <android-abs> <home> <out.json>
 n=0 is the preflight dry-run worker, which owns only docs/night/0-dryrun.md."""
 import json, sys
 tasks_json, n, wt, git_common, android, home, out = sys.argv[1:8]
@@ -22,8 +22,8 @@ allow = ["Read", "Grep", "Glob", "TodoWrite",
          f"Bash(git -C {android} log:*)", f"Bash(git -C {android} grep:*)",
          "Bash(ls:*)", "Bash(wc:*)", "Bash(head:*)", "Bash(tail:*)", "Bash(cat:*)", "Bash(grep:*)", "Bash(sort:*)"]
 allow += [edit_rule(p) for p in task["owned"]]
-if n == 4: allow.append("Bash(./scripts/screenshots.sh:*)")
-if n == 5: allow.append("Bash(python3 harness/night/validate_parity.py:*)")
+if task.get("screenshots"): allow.append("Bash(./scripts/screenshots.sh:*)")
+if task.get("validator"): allow.append("Bash(python3 harness/night/validate_parity.py:*)")
 
 deny = ["WebFetch", "WebSearch",
         "Bash(git push:*)", "Bash(git checkout:*)", "Bash(git switch:*)", "Bash(git reset:*)", "Bash(git rebase:*)",

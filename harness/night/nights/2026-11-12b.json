@@ -1,0 +1,74 @@
+{
+  "night_id": "2026-11-12b",
+  "base_ref": "night/2026-11-12a/integration",
+  "worker_deadline": "07:30",
+  "total_deadline": "08:30",
+  "merge_order": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F04",
+      "slug": "f04-auth-state",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-1",
+      "owned": [
+        "BabeGetThis/Core/Auth/",
+        "BabeGetThisTests/Auth/",
+        "docs/night/2026-11-12b-f04-auth-state.md"
+      ],
+      "brief": "harness/night/briefs/F04.md"
+    },
+    {
+      "n": 2,
+      "id": "F09",
+      "slug": "f09-category-repo",
+      "model": "sonnet",
+      "timeout_min": 120,
+      "budget_usd": 12,
+      "sim": "bgt-night-2",
+      "owned": [
+        "BabeGetThis/Core/Repositories/Category/",
+        "BabeGetThisTests/Repositories/Category/",
+        "docs/night/2026-11-12b-f09-category-repo.md"
+      ],
+      "brief": "harness/night/briefs/F09.md"
+    },
+    {
+      "n": 3,
+      "id": "F25",
+      "slug": "f25-shared-list-remote",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-3",
+      "owned": [
+        "BabeGetThis/Core/Remote/SharedList/",
+        "BabeGetThisTests/Remote/SharedList/",
+        "docs/night/2026-11-12b-f25-shared-list-remote.md"
+      ],
+      "brief": "harness/night/briefs/F25.md"
+    },
+    {
+      "n": 4,
+      "id": "F39",
+      "slug": "f39-voice-recorder",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-4",
+      "owned": [
+        "BabeGetThis/Features/VoiceCapture/",
+        "BabeGetThisTests/VoiceCapture/",
+        "docs/night/2026-11-12b-f39-voice-recorder.md"
+      ],
+      "brief": "harness/night/briefs/F39.md"
+    }
+  ]
+}
