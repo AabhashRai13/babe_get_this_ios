@@ -39,7 +39,15 @@ project.yml            XcodeGen spec (targets, configs, schemes)
 Config/*.xcconfig      Dev / Staging / Prod settings; Secrets.xcconfig is git-ignored
 BabeGetThis/           App sources (App/, Core/, Features/, Resources/)
 BabeGetThisTests/      XCTest unit tests
+scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Staging from the Android icon)
 ```
+
+## UI
+- Colours live in the asset catalog (light + dark), ported from Android `ui/theme/Color.kt`.
+  Use `AppColors.*` and `ListAccent(listId:)`; never hard-code hex values in views.
+- Spacing and radii: `AppMetrics`. Buttons: `PrimaryButtonStyle`, `OutlinedButtonStyle`, `TonalFABStyle`.
+- System font (SF) with Dynamic Type text styles; Android uses default Roboto, so there is nothing to port.
+- Launch argument `-sampleData` (non-prod only) skips Welcome and shows sample lists, for screenshots.
 
 ## Commands
 ```bash

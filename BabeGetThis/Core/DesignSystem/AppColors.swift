@@ -1,0 +1,66 @@
+import SwiftUI
+
+/// Brand colours ported from the Android Compose theme (ui/theme/Color.kt, Theme.kt).
+/// Each asset has a light and a dark variant. `primary` is the app's global tint (AccentColor).
+enum AppColors {
+    static let primary = Color.accentColor
+    static let onPrimary = Color("OnPrimary")
+    static let primaryContainer = Color("PrimaryContainer")
+    static let onPrimaryContainer = Color("OnPrimaryContainer")
+
+    static let secondary = Color("Secondary")
+    static let secondaryContainer = Color("SecondaryContainer")
+    static let onSecondaryContainer = Color("OnSecondaryContainer")
+
+    static let tertiary = Color("Tertiary")
+    static let tertiaryContainer = Color("TertiaryContainer")
+    static let onTertiaryContainer = Color("OnTertiaryContainer")
+
+    static let background = Color("Background")
+    static let surface = Color("Surface")
+    static let surfaceContainerLowest = Color("SurfaceContainerLowest")
+    /// Card fill. Lifts off `background` in both light and dark mode.
+    static let surfaceContainerLow = Color("SurfaceContainerLow")
+    static let surfaceContainer = Color("SurfaceContainer")
+    static let surfaceContainerHigh = Color("SurfaceContainerHigh")
+    static let surfaceContainerHighest = Color("SurfaceContainerHighest")
+
+    static let textPrimary = Color("TextPrimary")
+    static let textSecondary = Color("TextSecondary")
+    static let outline = Color("Outline")
+
+    /// Every named colour asset, so a test can prove none is missing.
+    static let assetNames = [
+        "AccentColor", "OnPrimary", "PrimaryContainer", "OnPrimaryContainer",
+        "Secondary", "SecondaryContainer", "OnSecondaryContainer",
+        "Tertiary", "TertiaryContainer", "OnTertiaryContainer",
+        "Background", "Surface", "SurfaceContainerLowest", "SurfaceContainerLow",
+        "SurfaceContainer", "SurfaceContainerHigh", "SurfaceContainerHighest",
+        "TextPrimary", "TextSecondary", "Outline",
+    ] + (0..<ListAccent.count).flatMap { ["ListAccent\($0)Container", "ListAccent\($0)OnContainer"] }
+}
+
+/// Muted per-list accent (icon tile behind the cart), picked from the list id exactly like
+/// Android's `getAccentForList`, so a shared list has the same colour on both platforms.
+struct ListAccent: Equatable {
+    static let count = 8
+
+    let index: Int
+    var container: Color { Color("ListAccent\(index)Container") }
+    var onContainer: Color { Color("ListAccent\(index)OnContainer") }
+
+    init(index: Int) {
+        precondition((0..<Self.count).contains(index))
+        self.index = index
+    }
+
+    /// Android: `abs(listId.hashCode()) % palette.size`.
+    init(listId: String) {
+        self.init(index: Int(javaHashCode(listId).magnitude % UInt32(Self.count)))
+    }
+}
+
+/// `java.lang.String.hashCode()`: s[0]*31^(n-1) + … + s[n-1] over UTF-16 units, wrapping Int32.
+func javaHashCode(_ string: String) -> Int32 {
+    string.utf16.reduce(Int32(0)) { hash, unit in hash &* 31 &+ Int32(unit) }
+}
