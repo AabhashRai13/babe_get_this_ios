@@ -29,7 +29,8 @@ for n in 1 2 3 4 5; do
   prompt="You are the unattended overnight worker for task $slug of the Babe, Get This iOS port.
 Read harness/night/WORKER_RULES.md, then harness/night/tasks/$slug.md, then do the task completely.
 Your simulator: $sim. Your report: docs/night/$slug.md. Nobody can answer questions; follow the rules' stuck rule instead."
-  pid=$(launch_worker "$n" "$wt" "$(task_field "$n" model)" "$(task_field "$n" budget_usd)" "$STATE/settings/$n.json" "$prompt" "$STATE/logs/$slug")
+  launch_worker "$n" "$wt" "$(task_field "$n" model)" "$(task_field "$n" budget_usd)" "$STATE/settings/$n.json" "$prompt" "$STATE/logs/$slug"
+  pid=$LAUNCHED_PID
   PIDS[$n]=$pid; STARTS[$n]=$(date +%s); SLUGS[$n]=$slug; DONE[$n]=0
   echo "{\"n\":$n,\"slug\":\"$slug\",\"pid\":$pid,\"state\":\"running\",\"started\":${STARTS[$n]}}" > "$STATE/$n.status.json"
   log "task $n ($slug) started: pid $pid, model $(task_field "$n" model), budget \$$(task_field "$n" budget_usd), timeout $(task_field "$n" timeout_min) min"
@@ -51,7 +52,7 @@ while :; do
     [ "${DONE[$n]}" = "1" ] && continue
     pid=${PIDS[$n]}
     if ! kill -0 "$pid" 2>/dev/null; then
-      wait "$pid" 2>/dev/null; rc=$?; DONE[$n]=1; finish "$n" exited "$rc"; continue
+      wait "$pid" 2>/dev/null; rc=$(worker_rc "$STATE/logs/${SLUGS[$n]}"); DONE[$n]=1; finish "$n" exited "$rc"; continue
     fi
     limit=$(( ${STARTS[$n]} + 60 * $(task_field "$n" timeout_min) ))
     if [ "$now" -ge "$limit" ] || [ "$now" -ge "$WORKER_DL" ]; then

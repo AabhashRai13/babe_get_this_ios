@@ -22,12 +22,15 @@ t=now.replace(hour=h,minute=m,second=0,microsecond=0)
 t=t if t>now else t+d.timedelta(days=1); print(int(t.timestamp()))" "$1"; }
 
 # launch_worker <n> <worktree> <model> <budget> <settings.json> <prompt> <logbase>
-# Starts claude -p in its own process group with a scrubbed environment. Prints the PID (= PGID).
+# Starts claude -p in its own process group with a scrubbed environment.
+# Sets LAUNCHED_PID (= PGID). Do NOT call inside $(...): the worker must stay a child of the caller.
+# The worker's exit code is written to <logbase>.rc when it ends; no file = it was killed.
 launch_worker() {
   local n="$1" wt="$2" model="$3" budget="$4" settings="$5" prompt="$6" logbase="$7"
-  local tmp="$STATE/tmp/$n"; mkdir -p "$tmp"
+  local tmp="$STATE/tmp/$n"; mkdir -p "$tmp"; rm -f "$logbase.rc"
   set -m
-  ( cd "$wt" && exec env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" SHELL=/bin/zsh LANG=en_US.UTF-8 \
+  ( cd "$wt" || exit 90
+    env -i HOME="$HOME" USER="$USER" LOGNAME="$USER" SHELL=/bin/zsh LANG=en_US.UTF-8 \
       PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin" TMPDIR="$tmp/" \
       ENABLE_CLAUDEAI_MCP_SERVERS=false BGT_STATE_DIR="$STATE" \
       "$CLAUDE_BIN" -p "$prompt" --model "$model" \
@@ -35,11 +38,14 @@ launch_worker() {
       --setting-sources project --settings "$settings" --strict-mcp-config --disable-slash-commands \
       --no-session-persistence --output-format stream-json --verbose \
       --max-budget-usd "$budget" --max-turns 400 \
-      >"$logbase.jsonl" 2>"$logbase.err" </dev/null ) &
-  local pid=$!
+      >"$logbase.jsonl" 2>"$logbase.err" </dev/null
+    echo $? > "$logbase.rc" ) &
+  LAUNCHED_PID=$!
   set +m
-  echo "$pid"
 }
+
+# worker_rc <logbase>: exit code recorded by the worker, or 137 if it was killed before writing one.
+worker_rc() { if [ -s "$1.rc" ]; then cat "$1.rc"; else echo 137; fi; }
 
 # stop_group <pid>: TERM the process group, KILL after 60 s.
 stop_group() {

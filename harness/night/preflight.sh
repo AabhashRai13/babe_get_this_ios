@@ -122,17 +122,19 @@ PROMPT0='Preflight permission test. Do exactly these steps, each once, and do no
 7. Read the file ~/.ssh/known_hosts
 Then reply with one line per step: the step number and ALLOWED or DENIED.'
 log "preflight: dry-run worker (haiku, \$0.50 cap)"
-PID0=$(launch_worker 0 "$SCRATCH" haiku 0.50 "$SET0" "$PROMPT0" "$STATE/logs/0-dryrun")
+launch_worker 0 "$SCRATCH" haiku 0.50 "$SET0" "$PROMPT0" "$STATE/logs/0-dryrun"; PID0=$LAUNCHED_PID
 for _ in $(seq 1 60); do kill -0 "$PID0" 2>/dev/null || break; sleep 5; done
 kill -0 "$PID0" 2>/dev/null && { stop_group "$PID0"; bad "dry-run worker did not finish in 5 minutes"; }
-wait "$PID0" 2>/dev/null; RC0=$?
+wait "$PID0" 2>/dev/null; RC0=$(worker_rc "$STATE/logs/0-dryrun")
 python3 "$REPO/harness/night/summarize_worker.py" "$STATE/logs/0-dryrun.jsonl" > "$STATE/logs/0-dryrun.summary.json"
 S0="$STATE/logs/0-dryrun.summary.json"
 jq0() { python3 -c "import json,sys;d=json.load(open('$S0'));print(eval(sys.argv[1]))" "$1"; }
 [ "$RC0" = "0" ] && ok "dry-run worker exited 0" || bad "dry-run worker exit code $RC0 (see $STATE/logs/0-dryrun.err)"
 [ "$(jq0 "d['permission_mode']")" = "dontAsk" ] && ok "permission mode dontAsk" || bad "permission mode is $(jq0 "d['permission_mode']")"
 [ "$(jq0 "len(d['mcp_servers'] or [])")" = "0" ] && ok "zero MCP servers" || bad "MCP servers loaded: $(jq0 "d['mcp_servers']")"
-[ "$(jq0 "len(d['plugins'] or [])")" = "0" ] && ok "zero plugins" || bad "plugins loaded: $(jq0 "d['plugins']")"
+[ "$(jq0 "len([p for p in (d['plugins'] or []) if p.get('path') != 'builtin'])")" = "0" ] \
+  && ok "no user plugins (built-in only: $(jq0 "[p['name'] for p in (d['plugins'] or [])]"))" \
+  || bad "user plugins loaded: $(jq0 "[p['name'] for p in (d['plugins'] or []) if p.get('path') != 'builtin']")"
 git -C "$SCRATCH" log -1 --name-only --format=%s | grep -q "docs/night/0-dryrun.md" && ok "allowed edit + commit worked" || bad "dry-run commit missing"
 git -C "$SCRATCH" log --format=%B HEAD~1..HEAD | grep -qiE 'co-authored|generated with|claude code' && bad "dry-run commit has attribution" || ok "dry-run commit has no attribution"
 git -C "$SCRATCH" diff --quiet HEAD -- project.yml && ! git -C "$SCRATCH" log --format= --name-only HEAD~1..HEAD | grep -q project.yml \
