@@ -28,6 +28,10 @@ enum AppColors {
     static let textPrimary = Color("TextPrimary")
     static let textSecondary = Color("TextSecondary")
     static let outline = Color("Outline")
+    /// Card and FAB drop shadow. Black in light mode, clear in dark mode, where Android's
+    /// card elevation is tonal (the lighter container fill) rather than a shadow.
+    /// Apply the elevation's strength with `.opacity(_:)`.
+    static let shadow = Color("Shadow")
 
     /// Every named colour asset, so a test can prove none is missing.
     static let assetNames = [
@@ -36,7 +40,7 @@ enum AppColors {
         "Tertiary", "TertiaryContainer", "OnTertiaryContainer",
         "Background", "Surface", "SurfaceContainerLowest", "SurfaceContainerLow",
         "SurfaceContainer", "SurfaceContainerHigh", "SurfaceContainerHighest",
-        "TextPrimary", "TextSecondary", "Outline",
+        "TextPrimary", "TextSecondary", "Outline", "Shadow",
     ] + (0..<ListAccent.count).flatMap { ["ListAccent\($0)Container", "ListAccent\($0)OnContainer"] }
 }
 

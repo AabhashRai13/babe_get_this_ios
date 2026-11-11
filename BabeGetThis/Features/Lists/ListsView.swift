@@ -140,7 +140,7 @@ struct ListCard: View {
             RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
                 .strokeBorder(AppColors.outline.opacity(0.6), lineWidth: 0.5)
         }
-        .shadow(color: .black.opacity(0.04), radius: 4, y: 2)
+        .shadow(color: AppColors.shadow.opacity(0.04), radius: 4, y: 2)
         .accessibilityElement(children: .combine)
     }
 }

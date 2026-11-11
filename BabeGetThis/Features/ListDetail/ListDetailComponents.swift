@@ -49,7 +49,7 @@ struct ProgressCardView: View {
                     .strokeBorder(AppColors.outline.opacity(0.3), lineWidth: 0.5)
             }
         }
-        .shadow(color: .black.opacity(0.08), radius: 4, y: 2)
+        .shadow(color: AppColors.shadow.opacity(0.08), radius: 4, y: 2)
         .accessibilityElement(children: .combine)
     }
 }
@@ -165,7 +165,7 @@ struct ItemCardView: View {
                     .strokeBorder(AppColors.outline.opacity(0.3), lineWidth: 0.5)
             }
         }
-        .shadow(color: .black.opacity(item.isPickedUp ? 0 : 0.06), radius: 3, y: 1)
+        .shadow(color: AppColors.shadow.opacity(item.isPickedUp ? 0 : 0.06), radius: 3, y: 1)
         .animation(.easeOut(duration: 0.22), value: item.isPickedUp)
     }
 }
