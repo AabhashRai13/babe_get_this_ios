@@ -4,369 +4,869 @@
     {
       "id": "F01",
       "title": "AppError, safeCall mapping and network monitor (port AppErrorTest, SafeCallTest, NetworkMonitorTest)",
-      "parity_ids": ["ERR-01", "ERR-02", "ERR-04", "STR-14"],
+      "parity_ids": [
+        "ERR-01",
+        "ERR-02",
+        "ERR-04",
+        "STR-14"
+      ],
       "depends_on": [],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AppErrorTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SafeCallTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 23)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/NetworkMonitorTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AppErrorTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SafeCallTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 23)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/NetworkMonitorTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F02",
       "title": "Sync point store and list ownership store on UserDefaults suites (port PrefsSyncPointStoreTest, PrefsListOwnershipStoreTest)",
-      "parity_ids": ["SYNC-14", "ACCT-05"],
+      "parity_ids": [
+        "SYNC-14",
+        "ACCT-05"
+      ],
       "depends_on": [],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncPointStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListOwnershipStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncPointStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListOwnershipStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F03",
       "title": "Shared UI components: haptics map, swipeable card, settings row (port the 4 SettingsRow cases of SettingsTest), top app bar variants",
-      "parity_ids": ["UI-03", "UI-04", "UI-05", "UI-06"],
+      "parity_ids": [
+        "UI-03",
+        "UI-04",
+        "UI-05",
+        "UI-06"
+      ],
       "depends_on": [],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/HapticsTests/testHapticMapMatchesAndroid && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SwipeableCardTests/testSwipeFiresOncePerSettledSwipe && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TopAppBarTests/testNavAndActionTapsPlayLightHaptic && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsRowTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/HapticsTests/testHapticMapMatchesAndroid && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SwipeableCardTests/testSwipeFiresOncePerSettledSwipe && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TopAppBarTests/testNavAndActionTapsPlayLightHaptic && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsRowTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F04",
       "title": "Auth state model, Keychain token storage and AuthStateManager with session restore (port AuthStateManagerTest, TokenManagerTest)",
-      "parity_ids": ["SESS-01", "SESS-02", "SESS-04"],
-      "depends_on": ["F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthStateManagerTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 28)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TokenStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SESS-01",
+        "SESS-02",
+        "SESS-04"
+      ],
+      "depends_on": [
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthStateManagerTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 28)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TokenStoreTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F05",
       "title": "Persist the Welcome choice and pick the start screen from auth state (port WelcomeViewModelTest)",
-      "parity_ids": ["WEL-02", "WEL-03", "NAV-02", "STR-02"],
-      "depends_on": ["F04"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/WelcomeViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 2)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/WelcomeRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "WEL-02",
+        "WEL-03",
+        "NAV-02",
+        "STR-02"
+      ],
+      "depends_on": [
+        "F04"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/WelcomeViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 2)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/WelcomeRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F06",
       "title": "ShoppingListRepository on GRDB: create, createWithItems, rename, addItems, owner routing and pushSoon kicker (port 31 ShoppingListRepositoryTest + 5 ShoppingListRepositorySharedTest cases)",
-      "parity_ids": ["DATA-04", "TRIG-03", "ACCT-01"],
-      "depends_on": ["F01", "F04"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DATA-04",
+        "TRIG-03",
+        "ACCT-01"
+      ],
+      "depends_on": [
+        "F01",
+        "F04"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F07",
       "title": "List delete (soft vs hard), undo restore and never-sent tombstone cleanup (port 5 + 4 delete/undo repository cases)",
-      "parity_ids": ["DATA-05", "DATA-09"],
-      "depends_on": ["F06"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDeleteUndoTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DATA-05",
+        "DATA-09"
+      ],
+      "depends_on": [
+        "F06"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDeleteUndoTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F08",
       "title": "ShoppingItemRepository: add, update, delete, restore, toggle picked up (port ShoppingItemRepositorySharedTest minus Got This)",
-      "parity_ids": ["DATA-07"],
-      "depends_on": ["F06"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DATA-07"
+      ],
+      "depends_on": [
+        "F06"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F09",
       "title": "CategoryRepository with custom categories (port CategoryDataTest)",
-      "parity_ids": ["DATA-08", "CAT-01"],
-      "depends_on": ["F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 22)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DATA-08",
+        "CAT-01"
+      ],
+      "depends_on": [
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 22)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F10",
       "title": "Lists overview on the database: owner query, date buckets, greeting card on Active only, list card deltas, tab pills and motion (port DateGroupingTest)",
-      "parity_ids": ["HOME-03", "HOME-05", "HOME-17", "HOME-18", "HOME-08", "UI-07", "STR-03"],
-      "depends_on": ["F06", "F03"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/DateGroupingTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testGreetingShowsOnActiveTabOnly && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testCompletedCardShowsCheckAndItemCount && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testEmptyListSubtitleIsNoItemsYet && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "HOME-03",
+        "HOME-05",
+        "HOME-17",
+        "HOME-18",
+        "HOME-08",
+        "UI-07",
+        "STR-03"
+      ],
+      "depends_on": [
+        "F06",
+        "F03"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/DateGroupingTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testGreetingShowsOnActiveTabOnly && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testCompletedCardShowsCheckAndItemCount && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testEmptyListSubtitleIsNoItemsYet && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F11",
       "title": "Lists overview actions: swipe-delete with Undo snackbar, long-press rename, create/rename dialog with 40-char limit (port CreateListDialogTest)",
-      "parity_ids": ["HOME-09", "HOME-10", "HOME-11", "STR-01", "STR-04"],
-      "depends_on": ["F07", "F10"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testDeleteThenUndoRestoresList && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CreateListDialogTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "HOME-09",
+        "HOME-10",
+        "HOME-11",
+        "STR-01",
+        "STR-04"
+      ],
+      "depends_on": [
+        "F07",
+        "F10"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testDeleteThenUndoRestoresList && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CreateListDialogTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F12",
       "title": "Create-list chooser sheet (Type / Voice) and the auth prompt dialog gating voice",
-      "parity_ids": ["HOME-12", "AUTH-10", "VOICE-08"],
-      "depends_on": ["F11", "F04"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testVoiceRequiresAuthenticated && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthPromptTests/testPromptNamesTheGatedFeature && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "HOME-12",
+        "AUTH-10",
+        "VOICE-08"
+      ],
+      "depends_on": [
+        "F11",
+        "F04"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testVoiceRequiresAuthenticated && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthPromptTests/testPromptNamesTheGatedFeature && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F13",
       "title": "Port the core ShoppingListViewModelTest cases (minus telemetry)",
-      "parity_ids": ["HOME-16"],
-      "depends_on": ["F11", "F12"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "HOME-16"
+      ],
+      "depends_on": [
+        "F11",
+        "F12"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F14",
       "title": "List detail on the database: live items through the repositories, progress card celebration",
-      "parity_ids": ["DET-02", "DET-16", "STR-05"],
-      "depends_on": ["F08"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailViewModelTests/testItemsAreObservedLiveFromTheDatabase && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProgressCardTests/testCelebrationPlaysOnlyOnTransitionToFinished && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-02",
+        "DET-16",
+        "STR-05"
+      ],
+      "depends_on": [
+        "F08"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailViewModelTests/testItemsAreObservedLiveFromTheDatabase && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProgressCardTests/testCelebrationPlaysOnlyOnTransitionToFinished && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F15",
       "title": "Item card swipe-right toggle, tap to edit, add/edit dialog counter at the limit",
-      "parity_ids": ["DET-05", "DET-06", "DET-17"],
-      "depends_on": ["F14", "F03"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemEditTests/testEditKeepsIdListIdCreatedAtAndPickedUp && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemCardTests/testSwipeRightTogglesPickedUp && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemDraftTests/testCounterShowsAtTheLimit && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-05",
+        "DET-06",
+        "DET-17"
+      ],
+      "depends_on": [
+        "F14",
+        "F03"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemEditTests/testEditKeepsIdListIdCreatedAtAndPickedUp && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemCardTests/testSwipeRightTogglesPickedUp && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ItemDraftTests/testCounterShowsAtTheLimit && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F16",
       "title": "Searchable category picker with None and Other (new custom category)",
-      "parity_ids": ["DET-08", "STR-06"],
-      "depends_on": ["F15", "F09"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testCategoryFilterIsCaseInsensitive && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testNoMatchShowsMessage && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testOtherCreatesCategoryAndSavesItemWithIt && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-08",
+        "STR-06"
+      ],
+      "depends_on": [
+        "F15",
+        "F09"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testCategoryFilterIsCaseInsensitive && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testNoMatchShowsMessage && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CategoryPickerTests/testOtherCreatesCategoryAndSavesItemWithIt && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F17",
       "title": "List detail chrome: voice FAB with sign-in gate, Share live and Share as text top-bar actions",
-      "parity_ids": ["DET-10", "DET-11"],
-      "depends_on": ["F14", "F12"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailChromeTests/testVoiceFabPromptsSignInUnlessAuthenticated && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailChromeTests/testTopBarActionsAreShareLiveThenShareAsText && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-10",
+        "DET-11"
+      ],
+      "depends_on": [
+        "F14",
+        "F12"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailChromeTests/testVoiceFabPromptsSignInUnlessAuthenticated && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailChromeTests/testTopBarActionsAreShareLiveThenShareAsText && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F18",
       "title": "List-completed event with Success haptic (port the 5 ListJustCompleted cases); share as text (port ShoppingListShareTextTest)",
-      "parity_ids": ["DET-13", "DET-15"],
-      "depends_on": ["F14"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListShareTextTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListCompletedEventTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 5)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-13",
+        "DET-15"
+      ],
+      "depends_on": [
+        "F14"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListShareTextTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListCompletedEventTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 5)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F19",
       "title": "Supabase auth repository: email sign-in/up/reset, sign-out, delete account, update name, error mapper, offline guard (port AuthErrorMapperTest)",
-      "parity_ids": ["AUTH-07", "AUTH-08", "AUTH-09", "SESS-05"],
-      "depends_on": ["F04", "F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthErrorMapperTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthRepositoryTests/testEveryCallButLogoutFailsFastOffline && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "AUTH-07",
+        "AUTH-08",
+        "AUTH-09",
+        "SESS-05"
+      ],
+      "depends_on": [
+        "F04",
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthErrorMapperTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthRepositoryTests/testEveryCallButLogoutFailsFastOffline && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F20",
       "title": "Session observer (token rotation, expireSession) and bearer/401 handling on the transcribe API (port SessionObserverTest, AuthNetworkTest)",
-      "parity_ids": ["SESS-03", "SESS-06"],
-      "depends_on": ["F19"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SessionObserverTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthNetworkTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SESS-03",
+        "SESS-06"
+      ],
+      "depends_on": [
+        "F19"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SessionObserverTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthNetworkTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F21",
       "title": "Login screen and view model with validation (port LoginViewModelTest)",
-      "parity_ids": ["AUTH-01", "AUTH-02", "STR-09"],
-      "depends_on": ["F19"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/LoginViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "AUTH-01",
+        "AUTH-02",
+        "STR-09"
+      ],
+      "depends_on": [
+        "F19"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/LoginViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F22",
-      "title": "Register and forgot-password screens (port RegisterViewModelTest, ForgotPasswordViewModelTest); the reset-code length is an OPEN DECISION (owner), see AUTH-04: do not start the forgot-password part until it is decided",
-      "parity_ids": ["AUTH-03", "AUTH-04"],
-      "depends_on": ["F21"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/RegisterViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ForgotPasswordViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "title": "Register and forgot-password screens (port RegisterViewModelTest, ForgotPasswordViewModelTest); the reset code is 8 digits (AUTH-04)",
+      "parity_ids": [
+        "AUTH-03",
+        "AUTH-04"
+      ],
+      "depends_on": [
+        "F21"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/RegisterViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ForgotPasswordViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F23",
       "title": "Google sign-in and Sign in with Apple via Supabase id-token with nonce",
-      "parity_ids": ["AUTH-05", "AUTH-06"],
-      "depends_on": ["F21"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testNonceIsSha256Hashed && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testCancelIsNotAnError && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testAppleFullNameIsSentAsUserMetadataName && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "AUTH-05",
+        "AUTH-06"
+      ],
+      "depends_on": [
+        "F21"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testNonceIsSha256Hashed && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testCancelIsNotAnError && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/IdTokenSignInTests/testAppleFullNameIsSentAsUserMetadataName && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F24",
       "title": "Auth navigation and back stack, home account control, session-expired banner (port AuthScreensTest)",
-      "parity_ids": ["NAV-01", "NAV-03", "NAV-05", "HOME-13", "HOME-14", "AUTH-11"],
-      "depends_on": ["F22", "F23", "F10"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthScreensTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 27)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthNavigationTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "NAV-01",
+        "NAV-03",
+        "NAV-05",
+        "HOME-13",
+        "HOME-14",
+        "AUTH-11"
+      ],
+      "depends_on": [
+        "F22",
+        "F23",
+        "F10"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthScreensTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 27)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthNavigationTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F25",
       "title": "SharedListRemote protocol, Supabase implementation and keyset paging (first push = plain INSERT, duplicate detection)",
-      "parity_ids": ["SYNC-05", "SYNC-12", "SYNC-15", "SRV-01", "SRV-03"],
-      "depends_on": ["F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/PagingTests/testKeysetPagingStopsAtTheFirstShortPage && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SharedListRemoteTests/testDuplicateInsertReturnsFalse && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SYNC-05",
+        "SYNC-12",
+        "SYNC-15",
+        "SRV-01",
+        "SRV-03"
+      ],
+      "depends_on": [
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/PagingTests/testKeysetPagingStopsAtTheFirstShortPage && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SharedListRemoteTests/testDuplicateInsertReturnsFalse && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F26",
       "title": "SyncEngine actor: serial gate, push lists before items, guarded flag clearing, hasUnsyncedChanges (port the 17 push/outbox/unsynced SyncEngineTest cases)",
-      "parity_ids": ["SYNC-02", "SYNC-03", "SYNC-04", "SYNC-06", "SYNC-13", "SYNC-16"],
-      "depends_on": ["F25", "F02", "F07", "F08", "F04"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEnginePushTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 17)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SYNC-02",
+        "SYNC-03",
+        "SYNC-04",
+        "SYNC-06",
+        "SYNC-13",
+        "SYNC-16"
+      ],
+      "depends_on": [
+        "F25",
+        "F02",
+        "F07",
+        "F08",
+        "F04"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEnginePushTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 17)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F27",
       "title": "SyncEngine catchUp, fullCatchUp and apply rules (never REPLACE, shouldSkip, FK guard); port the 13 catch-up SyncEngineTest cases",
-      "parity_ids": ["SYNC-07", "SYNC-08", "SYNC-10", "SYNC-11", "SYNC-19"],
-      "depends_on": ["F26"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineCatchUpTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SYNC-07",
+        "SYNC-08",
+        "SYNC-10",
+        "SYNC-11",
+        "SYNC-19"
+      ],
+      "depends_on": [
+        "F26"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineCatchUpTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F28",
       "title": "SyncEngine catchUpAccount discovery (port SyncEngineAccountCatchUpTest minus Got This and lock cases)",
-      "parity_ids": ["SYNC-09", "SYNC-17", "SRV-05"],
-      "depends_on": ["F27"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineAccountCatchUpTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 14)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SYNC-09",
+        "SYNC-17",
+        "SRV-05"
+      ],
+      "depends_on": [
+        "F27"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineAccountCatchUpTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 14)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F29",
       "title": "Guest/account lists: onAuthState, claimDeviceLists, finishFirstRun, releaseUnverifiedClaims, evictAccountLists (port SyncEngineClaimTest and the 5 eviction SyncEngineTest cases)",
-      "parity_ids": ["ACCT-02", "ACCT-03", "ACCT-04", "ACCT-06", "ACCT-07", "ACCT-08", "SYNC-20"],
-      "depends_on": ["F28"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineClaimTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 12)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineEvictionTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 5)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "ACCT-02",
+        "ACCT-03",
+        "ACCT-04",
+        "ACCT-06",
+        "ACCT-07",
+        "ACCT-08",
+        "SYNC-20"
+      ],
+      "depends_on": [
+        "F28"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineClaimTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 12)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineEvictionTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 5)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F30",
       "title": "SyncTrigger: kick on auth, network available and app active; wire app start (port SyncTriggerTest)",
-      "parity_ids": ["TRIG-01", "TRIG-02", "APP-05"],
-      "depends_on": ["F29"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncTriggerTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AppStartTests/testAuthIsRestoredBeforeTheFirstScreenDecision && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "TRIG-01",
+        "TRIG-02",
+        "APP-05"
+      ],
+      "depends_on": [
+        "F29"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncTriggerTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AppStartTests/testAuthIsRestoredBeforeTheFirstScreenDecision && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F31",
       "title": "Leave-empty-list confirmation and deleteListIfEmpty (port DeleteListIfEmptyTest and the 13 deleteListIfEmpty repository cases)",
-      "parity_ids": ["DET-12", "DATA-06"],
-      "depends_on": ["F27", "F14"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/DeleteListIfEmptyTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-12",
+        "DATA-06"
+      ],
+      "depends_on": [
+        "F27",
+        "F14"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/DeleteListIfEmptyTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F32",
       "title": "Port the core ShoppingItemsViewModelTest cases not ported with their features (37)",
-      "parity_ids": ["DET-14"],
-      "depends_on": ["F15", "F16", "F17", "F18", "F31"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemsViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 37)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "DET-14"
+      ],
+      "depends_on": [
+        "F15",
+        "F16",
+        "F17",
+        "F18",
+        "F31"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemsViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 37)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F33",
       "title": "ShareRepository: share code generation and join_list_by_code (port ShareRepositoryTest)",
-      "parity_ids": ["SHARE-01", "SHARE-02", "SHARE-03", "SRV-02"],
-      "depends_on": ["F27"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShareRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SHARE-01",
+        "SHARE-02",
+        "SHARE-03",
+        "SRV-02"
+      ],
+      "depends_on": [
+        "F27"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShareRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F34",
       "title": "Join dialog and Share live dialog (port the 3 share-live view-model cases)",
-      "parity_ids": ["SHARE-04", "SHARE-05", "SHARE-06", "STR-07"],
-      "depends_on": ["F33", "F12", "F17"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/JoinListViewModelTests/testJoinEnabledOnlyAtSixChars && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShareLiveViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 3)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SHARE-04",
+        "SHARE-05",
+        "SHARE-06",
+        "STR-07"
+      ],
+      "depends_on": [
+        "F33",
+        "F12",
+        "F17"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/JoinListViewModelTests/testJoinEnabledOnlyAtSixChars && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShareLiveViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 3)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F35",
       "title": "Realtime channel list-<id> while the detail screen is open; every event or (re)subscribe calls catchUp (port the 4 realtime view-model cases)",
-      "parity_ids": ["RT-01", "RT-02", "RT-03"],
-      "depends_on": ["F34"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/RealtimeLifecycleTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "RT-01",
+        "RT-02",
+        "RT-03"
+      ],
+      "depends_on": [
+        "F34"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/RealtimeLifecycleTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F36",
       "title": "Adoption notice dialog after guest lists are claimed",
-      "parity_ids": ["HOME-15"],
-      "depends_on": ["F29"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testAdoptionNoticeShownOnce && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "HOME-15"
+      ],
+      "depends_on": [
+        "F29"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testAdoptionNoticeShownOnce && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F37",
       "title": "Profile sheet: edit name, log out with unsynced warning, delete account (port ProfileViewModelTest)",
-      "parity_ids": ["PROF-01", "PROF-02", "PROF-03", "NAV-04", "STR-10"],
-      "depends_on": ["F29", "F24"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProfileViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 27)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "PROF-01",
+        "PROF-02",
+        "PROF-03",
+        "NAV-04",
+        "STR-10"
+      ],
+      "depends_on": [
+        "F29",
+        "F24"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProfileViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 27)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F38",
-      "title": "Integration tests against local Docker Supabase (migrations 001-006 copied from the Android repo into supabase/): insert/upsert, join, realtime catch-up, delete_user, legacy tick trigger. Own test target BabeGetThisIntegrationTests in an Integration test plan, kept out of the default verify run; fails, not skips, when Supabase is down",
-      "parity_ids": ["SRV-04", "SRV-06", "SYNC-18"],
-      "depends_on": ["F35", "F37"],
-      "acceptance": ["test -f supabase/config.toml && test \"$(ls supabase/migrations)\" = \"$(printf '001_realtime_list_sharing.sql\\n002_created_by_survives_account_deletion.sql\\n003_account_lists.sql\\n004_delete_user_purges_solo_lists.sql\\n005_items_updated_at_index.sql\\n006_got_this.sql')\"", "supabase start", "supabase db reset --local", "./scripts/verify.sh \"iPhone 18 Pro\" -testPlan Integration -only-testing:BabeGetThisIntegrationTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "supabase stop", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "title": "Integration tests against local Docker Supabase (migrations 001-006 copied from the Android repo into supabase/): insert/upsert, join, realtime catch-up, delete_user, legacy tick trigger. Own test target BabeGetThisIntegrationTests in an Integration test plan, kept out of the default verify run; fails, not skips, when Supabase is down; its supabase/config.toml sets [auth.email] otp_length = 8 (AUTH-04)",
+      "parity_ids": [
+        "SRV-04",
+        "SRV-06",
+        "SYNC-18",
+        "AUTH-04"
+      ],
+      "depends_on": [
+        "F35",
+        "F37"
+      ],
+      "acceptance": [
+        "test -f supabase/config.toml && test \"$(ls supabase/migrations)\" = \"$(printf '001_realtime_list_sharing.sql\\n002_created_by_survives_account_deletion.sql\\n003_account_lists.sql\\n004_delete_user_purges_solo_lists.sql\\n005_items_updated_at_index.sql\\n006_got_this.sql')\"",
+        "supabase start",
+        "supabase db reset --local",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -testPlan Integration -only-testing:BabeGetThisIntegrationTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "supabase stop",
+        "./scripts/verify.sh \"iPhone 18 Pro\"",
+        "grep -Eq '^otp_length = 8' supabase/config.toml"
+      ],
       "status": "todo"
     },
     {
       "id": "F39",
       "title": "Voice recorder (AVAudioRecorder, start tone, 30 s cap) and capture view model (port VoiceCaptureViewModelTest, ToItemDraftTest)",
-      "parity_ids": ["VOICE-02", "VOICE-03", "VOICE-04"],
-      "depends_on": ["F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 30)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ToItemDraftTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AudioRecorderTests/testRecordingFileIsDeletedAfterUse && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "VOICE-02",
+        "VOICE-03",
+        "VOICE-04"
+      ],
+      "depends_on": [
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 30)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ToItemDraftTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AudioRecorderTests/testRecordingFileIsDeletedAfterUse && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F40",
       "title": "Voice capture sheet UI with microphone permission",
-      "parity_ids": ["VOICE-05", "STR-08"],
-      "depends_on": ["F39"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureSheetTests/testNeedsPermissionOffersAllowMicrophone && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureSheetTests/testTranscribingCopyAdvancesEvery2_5Seconds && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "VOICE-05",
+        "STR-08"
+      ],
+      "depends_on": [
+        "F39"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureSheetTests/testNeedsPermissionOffersAllowMicrophone && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureSheetTests/testTranscribingCopyAdvancesEvery2_5Seconds && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F41",
       "title": "Voice entry points: create list by voice with auto-name, mic inside a list (port AutoNameVoiceListTest)",
-      "parity_ids": ["VOICE-06", "VOICE-07"],
-      "depends_on": ["F40", "F12", "F17"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AutoNameVoiceListTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 10)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "VOICE-06",
+        "VOICE-07"
+      ],
+      "depends_on": [
+        "F40",
+        "F12",
+        "F17"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AutoNameVoiceListTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 10)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F42",
       "title": "Settings screen skeleton with Privacy and About sections (rate, privacy policy) and version footer",
-      "parity_ids": ["SET-01", "SET-02", "STR-11"],
-      "depends_on": ["F03", "F24"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testSectionsArePrivacyThenAbout && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testVersionFooterFormat && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SET-01",
+        "SET-02",
+        "STR-11"
+      ],
+      "depends_on": [
+        "F03",
+        "F24"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testSectionsArePrivacyThenAbout && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testVersionFooterFormat && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F44",
       "title": "Telemetry: Firebase analytics (no ad-id support, no ATT) and crash reporter behind protocols, consent toggles, event mapper, error reporting policy",
-      "parity_ids": ["TEL-01", "TEL-02", "TEL-03", "TEL-05", "ERR-03"],
-      "depends_on": ["F42", "F01"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AnalyticsEventMapperTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 18)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/BucketsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/FailureReasonsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 2)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryMarkersTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryContextTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryConsentTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SafeCallReportingTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ErrorReportingPolicyTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'", "! grep -rq NSUserTrackingUsageDescription BabeGetThis project.yml", "! for f in build/DerivedData/Build/Products/Dev-iphonesimulator/BabeGetThis.app/BabeGetThis*; do otool -L \"$f\"; done | grep -q AdSupport.framework", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "TEL-01",
+        "TEL-02",
+        "TEL-03",
+        "TEL-05",
+        "ERR-03"
+      ],
+      "depends_on": [
+        "F42",
+        "F01"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AnalyticsEventMapperTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 18)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/BucketsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/FailureReasonsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 2)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryMarkersTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryContextTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/TelemetryConsentTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SafeCallReportingTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ErrorReportingPolicyTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 8)'",
+        "! grep -rq NSUserTrackingUsageDescription BabeGetThis project.yml",
+        "! for f in build/DerivedData/Build/Products/Dev-iphonesimulator/BabeGetThis.app/BabeGetThis*; do otool -L \"$f\"; done | grep -q AdSupport.framework",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F45",
       "title": "Wire telemetry events into the view models (telemetry cases of the list, items and settings tests)",
-      "parity_ids": ["TEL-04"],
-      "depends_on": ["F44", "F13", "F32", "F41", "F34"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListViewModelTelemetryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemsViewModelTelemetryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "TEL-04"
+      ],
+      "depends_on": [
+        "F44",
+        "F13",
+        "F32",
+        "F41",
+        "F34"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListViewModelTelemetryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemsViewModelTelemetryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F50",
       "title": "Port the remaining SettingsTest cases: privacy toggles and the privacy-policy row",
-      "parity_ids": ["SET-03"],
-      "depends_on": ["F42", "F44"],
-      "acceptance": ["./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "SET-03"
+      ],
+      "depends_on": [
+        "F42",
+        "F44"
+      ],
+      "acceptance": [
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 6)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     },
     {
       "id": "F51",
       "title": "Launch screen and polish pass: String Catalog complete, VoiceOver labels, Dynamic Type",
-      "parity_ids": ["APP-04", "UI-08"],
-      "depends_on": ["F50", "F45", "F38"],
-      "acceptance": ["test -f BabeGetThis/Resources/Localizable.xcstrings", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/StringCatalogTests/testEveryAndroidStringKeyIsInTheCatalog && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/LaunchScreenTests/testLaunchColoursMatchAndroidSplash && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'", "./scripts/verify.sh \"iPhone 18 Pro\""],
+      "parity_ids": [
+        "APP-04",
+        "UI-08"
+      ],
+      "depends_on": [
+        "F50",
+        "F45",
+        "F38"
+      ],
+      "acceptance": [
+        "test -f BabeGetThis/Resources/Localizable.xcstrings",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/StringCatalogTests/testEveryAndroidStringKeyIsInTheCatalog && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/LaunchScreenTests/testLaunchColoursMatchAndroidSplash && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\""
+      ],
       "status": "todo"
     }
   ]

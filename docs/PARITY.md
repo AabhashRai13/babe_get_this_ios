@@ -38,7 +38,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - The Play in-app update flow.
   - The debug-only settings section.
 - **Docs vs code conflicts (code wins, except where the owner has decided):**
-  - The reset-code length is an open owner decision, not a code-wins case: see AUTH-04.
+  - The reset code is 8 digits, as in Android's code. The owner decided this on 2026-11-12, over the handoff's "6-digit" (see AUTH-04).
   - Voice has no review step and does have a mic inside lists (technical decision 002 predates this).
   - A 401 expires the session; it does not log out (`D/auth-network-layer.md` is outdated).
   - Account item catch-up is one RLS-scoped request, not chunks of 50 list ids (the 2026-10-14 spec is outdated).
@@ -211,14 +211,15 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Name, email, password ≥ 6 and confirm, with live "Password must be at least 6 characters" / "Passwords do not match".
   - The name is sent as `user_metadata.name`.
   - No session returned → "Check your email to confirm your account, then sign in."
-- **AUTH-04** [todo] OPEN DECISION (owner): 6 vs 8 digits. (K/core/auth/ui/ForgotPasswordViewModel.kt) Forgot password. Port ForgotPasswordViewModelTest (9).
+- **AUTH-04** [todo] (K/core/auth/ui/ForgotPasswordViewModel.kt) Forgot password. Port ForgotPasswordViewModelTest (9).
   - Step 1: email → "Send code". It never reveals whether the account exists.
-  - Step 2: an N-digit code (digits only, truncated to N) and a new password ≥ 6. N is the open decision:
-    - 8: Android's code, `ForgotPasswordViewModel.kt` `CODE_LENGTH = 8`, which ForgotPasswordViewModelTest exercises.
-    - 6: the owner's handoff ("6-digit email OTP"). Android's `AuthRepository.kt` comment also says 6, and the
-      Android repo's `supabase/config.toml` sets `otp_length = 6` under `[auth.email]`, which is the local Docker
-      stack that Dev and the tests here run against.
-  - Whichever is chosen, the hosted staging and prod Supabase Auth OTP length must match it; confirm it there.
+  - Step 2: an **8-digit** code (digits only, truncated to 8) and a new password ≥ 6.
+    - Decided by the owner on 2026-11-12: 8 digits, matching Android's `ForgotPasswordViewModel.kt` `CODE_LENGTH = 8`
+      and ForgotPasswordViewModelTest. This replaces the handoff's "6-digit email OTP".
+    - The Android repo's local `supabase/config.toml` sets `otp_length = 6` under `[auth.email]`. The iOS local Docker
+      stack must set `otp_length = 8`, otherwise Dev and integration tests get 6-digit codes the app rejects.
+      Set it in the iOS repo's own Supabase config (planned with the integration-test task), not in the Android repo.
+    - Staging and prod Supabase Auth must also use 8. Confirm this in each project's Auth settings before release.
   - Verify the OTP (type recovery), update the password, and end up signed in.
 - **AUTH-05** [todo] (K/core/auth/ui/GoogleSignIn.kt) Google sign-in:
   - Generate a raw nonce, send its SHA-256 to Google, then pass the id token and raw nonce to Supabase `signInWithIdToken(provider: google)`.
