@@ -12,8 +12,9 @@ You are one of five unattended workers. Nobody will answer questions. Work in th
   Never check out branches there and never write there.
 
 ## Bash: one simple command per call (READ THIS FIRST)
-Bash permission rules match **one plain command**. Anything else is denied automatically:
-no `;`, `&&`, `||`, `|`, `$VAR` or `VAR=...`, `$(...)`, backticks, `cd`, redirects (`>`), loops, or heredocs.
+Bash permission rules match plain commands. A compound command (`;`, `&&`, `|`) runs only if **every** part is on
+the list below. Variables (`$VAR`, `VAR=...`), `$(...)`, backticks, `cd`, `mkdir`, redirects (`>`), loops and heredocs
+are never allowed. Simplest and safest: one command per call.
 Write paths out in full every time. The only Bash commands that are allowed:
 - `./scripts/verify.sh <your-simulator>` (task 4 also: `./scripts/screenshots.sh bgt-night-4`; task 5 also: `python3 harness/night/validate_parity.py`)
 - `git status`, `git diff ...`, `git log ...`, `git show ...`, `git add <paths>`, `git commit -m "<one-line message>"`
