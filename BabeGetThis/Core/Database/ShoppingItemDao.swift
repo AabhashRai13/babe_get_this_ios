@@ -36,19 +36,19 @@ struct ShoppingItemDao: Sendable {
         }
     }
 
-    /// Plain INSERT of a brand-new item; throws if the id exists.
+    /// Android's `insertItem` is `@Insert(onConflict = REPLACE)`, and its callers
+    /// rely on that upsert: `SyncEngine.apply` writes every incoming item row through
+    /// it, and `ShoppingItemRepository.restoreItem` revives a tombstoned item with it.
+    /// Same semantics here, as an `INSERT … ON CONFLICT DO UPDATE` upsert. Never
+    /// REPLACE: that deletes the old row first.
     func insertItem(_ item: ShoppingItemRecord) async throws {
-        try await writer.write { db in try item.insert(db) }
+        try await writer.write { db in try item.upsert(db) }
     }
 
-    /// UPDATE the row if it exists, otherwise INSERT it. Never REPLACE.
-    func saveItem(_ item: ShoppingItemRecord) async throws {
-        try await writer.write { db in try item.save(db) }
-    }
-
-    func saveItems(_ items: [ShoppingItemRecord]) async throws {
+    /// Batch `insertItem`, in one transaction.
+    func insertItems(_ items: [ShoppingItemRecord]) async throws {
         try await writer.write { db in
-            for item in items { try item.save(db) }
+            for item in items { try item.upsert(db) }
         }
     }
 

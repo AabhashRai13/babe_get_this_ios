@@ -1,3 +1,4 @@
+import GRDB
 import XCTest
 @testable import BabeGetThis
 
@@ -12,7 +13,7 @@ final class ShoppingItemDaoTests: XCTestCase {
 
     func testItemsAreOrderedByShopThenCategoryThenNameWithNullsLast() async throws {
         try await listDao.insertList(TestData.listEntity(id: "l1"))
-        try await itemDao.saveItems([
+        try await itemDao.insertItems([
             TestData.itemEntity(id: "no-shop", listId: "l1", name: "A"),
             TestData.itemEntity(id: "costco-dairy", listId: "l1", name: "Milk", categoryId: "cat-dairy-eggs", shop: "Costco"),
             TestData.itemEntity(id: "costco-none", listId: "l1", name: "Batteries", shop: "Costco"),
@@ -58,18 +59,55 @@ final class ShoppingItemDaoTests: XCTestCase {
         XCTAssertEqual(item?.pendingSync, true)
     }
 
-    func testSaveItemUpdatesAnExistingItemInPlace() async throws {
+    func testInsertItemUpdatesAnExistingItemInPlace() async throws {
         try await listDao.insertList(TestData.listEntity(id: "l1"))
         let item = TestData.itemEntity(id: "i1", listId: "l1", name: "Milk")
         try await itemDao.insertItem(item)
 
-        try await itemDao.saveItem(item.with { $0.name = "Oat milk"; $0.note = "barista" })
+        try await itemDao.insertItem(item.with { $0.name = "Oat milk"; $0.note = "barista" })
         try await itemDao.updateItem(item.with { $0.name = "Oat milk"; $0.quantity = "2" })
 
         let items = try await itemDao.itemsByListIdOnce("l1")
         XCTAssertEqual(items.count, 1)
         XCTAssertEqual(items.first?.name, "Oat milk")
         XCTAssertEqual(items.first?.quantity, "2")
+    }
+
+    // Android's restoreItem: re-inserting the live snapshot of a tombstoned item
+    // revives it (clears deletedAt) in place, as one row.
+    func testInsertItemRevivesASoftDeletedItem() async throws {
+        try await listDao.insertList(TestData.listEntity(id: "l1"))
+        let item = TestData.itemEntity(id: "i1", listId: "l1")
+        try await itemDao.insertItem(item)
+        try await itemDao.softDeleteItem(id: "i1", now: 50)
+
+        try await itemDao.insertItem(item)
+
+        let raw = try await itemDao.itemRaw(id: "i1")
+        let rows = try await db.writer.read { try Int.fetchOne($0, sql: "SELECT COUNT(*) FROM shopping_items") }
+        XCTAssertNil(raw?.deletedAt)
+        XCTAssertEqual(rows, 1)
+    }
+
+    // The upsert must never delete the old row, as INSERT OR REPLACE does. With
+    // recursive triggers on, SQLite fires delete triggers for REPLACE's implicit
+    // delete, so this trigger fails the test if insertItem ever becomes a REPLACE.
+    func testInsertItemDoesNotDeleteTheExistingRow() async throws {
+        try await listDao.insertList(TestData.listEntity(id: "l1"))
+        let item = TestData.itemEntity(id: "i1", listId: "l1")
+        try await itemDao.insertItem(item)
+        try await db.writer.writeWithoutTransaction { db in
+            try db.execute(sql: "PRAGMA recursive_triggers = ON")
+            try db.execute(sql: """
+                CREATE TEMP TRIGGER item_deleted AFTER DELETE ON shopping_items
+                BEGIN SELECT RAISE(ABORT, 'row deleted'); END
+                """)
+        }
+
+        try await itemDao.insertItems([item.with { $0.name = "Oat milk" }])
+
+        let name = try await itemDao.itemRaw(id: "i1")?.name
+        XCTAssertEqual(name, "Oat milk")
     }
 
     func testDeleteItemRemovesOnlyThatItem() async throws {
