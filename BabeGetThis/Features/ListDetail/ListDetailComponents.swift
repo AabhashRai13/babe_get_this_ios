@@ -106,7 +106,7 @@ struct ItemCardView: View {
     let onToggle: () -> Void
 
     var body: some View {
-        HStack(alignment: .center, spacing: 14) {
+        HStack(alignment: .center, spacing: 7) {
             Button(action: onToggle) {
                 ZStack {
                     Circle()

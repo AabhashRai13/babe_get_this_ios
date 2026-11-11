@@ -47,6 +47,7 @@ struct ListDetailPlaceholderView: View {
             Color.clear.frame(height: 80).plainRow()
         }
         .listStyle(.plain)
+        .environment(\.defaultMinListRowHeight, 1)
         .scrollContentBackground(.hidden)
         .background(AppColors.background)
         .overlay(alignment: .bottomTrailing) {
