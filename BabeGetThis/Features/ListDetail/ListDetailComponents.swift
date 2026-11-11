@@ -212,3 +212,31 @@ struct UndoSnackbar: View {
         .accessibilityElement(children: .contain)
     }
 }
+
+/// Empty-list state shown instead of the item list (Android `FirstItemPrompt`).
+struct FirstItemPromptView: View {
+    let onAddItem: () -> Void
+
+    var body: some View {
+        VStack(spacing: 0) {
+            BrandMark()
+            Text("List created!")
+                .font(.title2.bold())
+                .foregroundStyle(AppColors.textPrimary)
+                .padding(.top, 24)
+            Text("Add your first item to get started")
+                .font(.body)
+                .foregroundStyle(AppColors.textSecondary)
+                .multilineTextAlignment(.center)
+                .padding(.top, 8)
+            Button(action: onAddItem) {
+                Label("Add first item", systemImage: "plus")
+            }
+            .buttonStyle(PrimaryButtonStyle())
+            .padding(.top, 32)
+            .accessibilityIdentifier("add-first-item-button")
+        }
+        .padding(.horizontal, 32)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+}
