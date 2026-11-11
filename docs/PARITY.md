@@ -15,7 +15,10 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - Path prefixes: `K/` = `app/src/main/java/com/babegetthis/android/`, `T/` = `app/src/test/java/com/babegetthis/android/`,
   `D/` = `docs/`. The other paths are relative to the Android repo root.
 - Ported Android tests are the acceptance bar. A behaviour is at parity when the matching Android test cases
-  (minus the Got This ones) are ported to XCTest and pass.
+  (minus the Got This ones and those of other excluded features) are ported to XCTest and pass.
+  Each task's acceptance runs its own test classes with `./scripts/verify.sh <sim> -only-testing:BabeGetThisTests/<Class>`
+  and checks `executed` in `build/results/latest.json` against the case count named here, so an empty class can't pass.
+- `OPEN DECISION (owner)` marks a point where the sources disagree and the owner has to choose. Don't build it until decided.
 
 ## v1 scope decisions (the owner's v1 scope, then decisions taken from the Android docs)
 
@@ -52,7 +55,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **UI-02** [done] (K/ui/theme/Theme.kt) Spacing/radii (`AppMetrics`) and button styles (primary 56pt radius 16, outlined, tonal FAB).
 - **UI-03** [todo] (K/core/ui/components/BgtTopAppBar.kt) Top app bar: large collapsing variant on home (bold title) and small variant on detail and settings; Light haptic on nav and action taps.
 - **UI-04** [todo] (K/core/ui/components/SwipeableCard.kt) Swipeable card: left = delete (red #E53935 at 90%, trash icon), optional right = action (green #43A047, check). Fires once per settled swipe, then snaps back. Radius 14.
-- **UI-05** [todo] (K/core/ui/components/SettingsRow.kt) Settings row: 24pt icon, tinted title, optional subtitle, optional trailing control, whole row tappable.
+- **UI-05** [todo] (K/core/ui/components/SettingsRow.kt) Settings row: 24pt icon, tinted title, optional subtitle, optional trailing control, whole row tappable. Port the 4 SettingsRow cases of SettingsTest.
 - **UI-06** [todo] (K/core/ui/haptics/Haptics.kt) Haptics map:
   - Light: nav, top-bar actions, checkbox, swipe-toggle, undo.
   - Medium: FABs, tab switch, swipe-delete.
@@ -62,7 +65,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 
 ## Navigation
 
-- **NAV-01** [todo] (K/navigation/BgtNavGraph.kt) Routes: welcome, login, register, forgot password, lists, list detail (id + name; the title uses the passed name), settings.
+- **NAV-01** [todo] (K/navigation/BgtNavGraph.kt) Routes: welcome, login, register, forgot password, lists, list detail (id + name; the title uses the passed name), settings. Port BgtNavGraphTest (8).
 - **NAV-02** [todo] (K/MainActivity.kt) Start screen: Welcome when signed out and Welcome not yet answered, otherwise the lists. No login wall.
 - **NAV-03** [todo] (K/navigation/BgtNavGraph.kt) Auth stack:
   - Login and Register replace each other; Forgot stacks on Login.
@@ -75,7 +78,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 
 - **WEL-01** [done] (K/feature/welcome/ui/WelcomeScreen.kt) Welcome layout: layered circle mark, "Babe, Get This", filled "Sign in" and outlined "Continue as guest".
 - **WEL-02** [todo] (K/feature/welcome/ui/WelcomeViewModel.kt) "Continue as guest" persists `welcome_done=true` and replaces Welcome with the lists. "Sign in" pushes Login without persisting, so back returns to Welcome. Port WelcomeViewModelTest (2).
-- **WEL-03** [todo] (K/core/onboarding/data/repository/WelcomeRepository.kt) Welcome shows only when Unauthenticated and not answered. `reset()` runs on explicit sign-out and on account deletion.
+- **WEL-03** [todo] (K/core/onboarding/data/repository/WelcomeRepository.kt) Welcome shows only when Unauthenticated and not answered. `reset()` runs on explicit sign-out and on account deletion. Port WelcomeRepositoryTest (6 minus the 2 upgrade-install cases, X-05).
 
 ## Lists overview (home)
 
@@ -101,6 +104,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Max 40 characters; an "n/40" counter appears at the limit.
   - The value is trimmed, and confirm is disabled while blank.
   - Create opens the new list. On failure, a snackbar appears and the dialog stays open.
+  - Port CreateListDialogTest (11).
 - **HOME-12** [todo] (K/feature/shoppinglist/ui/components/CreateListChooserSheet.kt) The FAB "Create list" is shown on the Active tab only when lists exist. It opens the chooser sheet with "Type" (pencil) and "Voice" (mic, emphasised). Voice when not Authenticated shows the voice sign-in prompt.
 - **HOME-13** [todo] (K/feature/shoppinglist/ui/ShoppingListScreen.kt) Top-bar actions: Join, Settings, then the account control. When an account exists (including an expired session) it is an initial avatar that opens the profile sheet; otherwise a "Sign in" pill.
 - **HOME-14** [todo] (K/feature/shoppinglist/ui/ShoppingListScreen.kt) Session-expired banner "You've been signed out. Sign in again to keep your lists in sync." with a "Sign in" button.
@@ -157,19 +161,20 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - createList, createListWithItems (one transaction), renameList, addItemsToList.
   - Blank name → "List name can't be empty."
   - Account lists (`accountId != nil`) are marked `pendingSync` and kick a push; guest lists stay quiet.
-  - Port the non-Got-This ShoppingListRepositoryTest and ShoppingListRepositorySharedTest cases.
+  - Port the ShoppingListRepositoryTest cases for these methods (31: owner scoping, create, createWithItems and drafts, addItemsToList, rename, reads, error mapping) and 5 ShoppingListRepositorySharedTest cases (share code, rename and voice-add dirtiness). The 6 lock cases and the reminder onLocalEdit case are not ported.
 - **DATA-05** [todo] (K/feature/shoppinglist/data/repository/ShoppingListRepository.kt) List delete and undo:
   - Account lists are soft-deleted (`deletedAt=updatedAt=now`, pending); guest lists are hard-deleted with cascade.
   - Undo restores in place (`deletedAt=nil`, pending, kick), or re-inserts the list with its items for the current owner.
-- **DATA-06** [todo] (K/feature/shoppinglist/data/repository/ShoppingListRepository.kt) deleteListIfEmpty. Port DeleteListIfEmptyTest (2).
+  - Port the 5 delete/restore ShoppingListRepositoryTest cases and the 4 delete/undo ShoppingListRepositorySharedTest cases.
+- **DATA-06** [todo] (K/feature/shoppinglist/data/repository/ShoppingListRepository.kt) deleteListIfEmpty. Port DeleteListIfEmptyTest (2), the 10 deleteListIfEmpty cases of ShoppingListRepositoryTest and the 3 of ShoppingListRepositorySharedTest (15).
   - Shared lists are never deleted. Guest lists: atomic delete.
   - Account lists not yet on the server: soft delete.
   - Account lists on the server: require a live session and a successful `catchUp(listId)` first, then soft delete (counting live items only) and kick.
 - **DATA-07** [todo] (K/feature/shoppingitems/data/repository/ShoppingItemRepository.kt) ShoppingItemRepository: add, update, delete, restore and toggle picked up.
   - Account lists mark the row pending and kick.
   - Delete is soft or hard depending on the list's owner; restore keeps the original id.
-  - Port the non-Got-This ShoppingItemRepositorySharedTest cases (14 minus 3).
-- **DATA-08** [todo] (K/core/data/repository/CategoryRepository.kt) CategoryRepository. Port CategoryDataTest.
+  - Port the non-Got-This ShoppingItemRepositorySharedTest cases (14 minus 3 = 11).
+- **DATA-08** [todo] (K/core/data/repository/CategoryRepository.kt) CategoryRepository. Port CategoryDataTest (22).
   - Categories by name A→Z. Defaults can't be deleted.
   - Custom categories are trimmed; blank → "Category name can't be empty."
   - Voice drafts with an unknown category id are saved with a nil category.
@@ -191,7 +196,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - SQLite → Database. DNS/connect/TLS → Network ("Cannot reach server." / "Secure connection failed."). Timeouts → Timeout.
   - HTTP 401 → Unauthorized; other 4xx → Auth("Request failed."); 5xx → Server. Anything else → Unknown.
   - Raw messages are never shown, and cancellation is always rethrown.
-- **ERR-03** [todo] (K/core/telemetry/data/ErrorReportingPolicy.kt) Only Unknown and Database errors are reported to Crashlytics as non-fatals, from safeCall. Port SafeCallReportingTest (7) and ErrorReportingPolicyTest.
+- **ERR-03** [todo] (K/core/telemetry/data/ErrorReportingPolicy.kt) Only Unknown and Database errors are reported to Crashlytics as non-fatals, from safeCall. Port SafeCallReportingTest (7) and ErrorReportingPolicyTest (8).
 - **ERR-04** [todo] (K/core/network/NetworkMonitor.kt) Network monitor: online means a satisfied NWPath (the iOS equivalent of INTERNET+VALIDATED). It gates only auth and voice calls, never the local DB or sync. Port NetworkMonitorTest (6).
 
 ## Auth and session
@@ -282,7 +287,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Multipart `audio` part (`*.m4a`, `audio/mp4`), Bearer, 60 s timeout.
   - DTO mapping, quantity+unit merge, location→shop, error mapping.
   - The 12 RemoteVoiceRepositoryTest cases.
-- **VOICE-02** [todo] (T/core/voice/data/repository/ToItemDraftTest.kt) Port ToItemDraftTest (11), for whatever the night task 3 port doesn't already cover.
+- **VOICE-02** [todo] (T/core/voice/data/repository/ToItemDraftTest.kt) Port ToItemDraftTest (11) into its own class, including the cases night task 3 already covers indirectly.
 - **VOICE-03** [todo] (K/core/voice/data/AudioRecorder.kt) Recorder:
   - AVAudioRecorder, AAC in an .m4a file, 16 kHz mono, 30 s max, file `voice-<ms>.m4a` in the caches dir.
   - Plays the `record_start` tone and waits for it to finish before the mic opens.
@@ -415,7 +420,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - "Join" is enabled at exactly 6 characters and not while loading.
   - Errors show inline and are cleared when the dialog reopens.
   - The joined list appears through the live query.
-- **SHARE-05** [todo] (K/feature/shoppingitems/ui/ShareCodeDialog.kt) Share live:
+- **SHARE-05** [todo] (K/feature/shoppingitems/ui/ShareCodeDialog.kt) Share live. Port the 3 non-lock share-live cases of ShoppingItemsViewModelTest.
   - Signed out → the sign-in prompt.
   - Otherwise "Share list live": the code in large, letter-spaced type, the hint text, "Copy" (to the clipboard) and "Done".
   - Errors show as a snackbar.
@@ -433,6 +438,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Unshared account list: catch up once, with no socket.
   - Guest list: nothing.
   - Torn down when the list is unshared or the screen closes. The lists overview never subscribes.
+  - Port the 4 realtime cases of ShoppingItemsViewModelTest.
 
 ## Sync triggers
 
@@ -460,11 +466,13 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **SRV-04** [todo] (supabase/migrations/004_delete_user_purges_solo_lists.sql) `delete_user()` removes the caller's solo lists (items cascade), then the auth user. Shared lists stay, with `created_by` set to null.
 - **SRV-05** [todo] (supabase/migrations/005_items_updated_at_index.sql) Index `items(updated_at)` backs the account-wide item query, which relies on RLS rather than a list filter.
 - **SRV-06** [todo] (supabase/tests/database/000_baseline.test.sql) Integration tests against the local Docker Supabase with migrations 001–006: first INSERT, upsert, the join RPC, realtime catch-up and RLS denial. Never against production.
+  - They live in their own test target, run by a separate test plan, so the default `verify.sh` run never needs Docker.
+  - They fail, not skip, when 127.0.0.1:54321 is unreachable.
 
 ## Telemetry (Firebase is in the iOS stack)
 
 - **TEL-01** [todo] (D/technical-decisions/007-telemetry.md) AnalyticsRepository and CrashReporter protocols with Firebase implementations. Staging and Prod use separate Firebase projects; Dev sends nothing.
-- **TEL-02** [todo] (K/core/telemetry/TelemetryConsent.kt) Consent is two independent toggles, "Usage analytics" and "Crash reports". Both are on by default and re-applied at launch. Identity is the Supabase user UUID only. Port TelemetryConsentTest.
+- **TEL-02** [todo] (K/core/telemetry/TelemetryConsent.kt) Consent is two independent toggles, "Usage analytics" and "Crash reports". Both are on by default and re-applied at launch. Identity is the Supabase user UUID only. Port TelemetryConsentTest (7).
 - **TEL-03** [todo] (K/core/telemetry/data/AnalyticsEventMapper.kt) The non-Got-This events, with params limited to enums, buckets and ids (never item names, emails or codes):
   - `screen_view`.
   - Voice: sheet opened, recording started/failed/cancelled, transcription completed/failed, items saved.
