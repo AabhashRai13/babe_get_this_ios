@@ -146,8 +146,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Tables `shopping_lists`, `shopping_items` (FK, index on listId) and `categories`.
   - Outbox fields `pendingSync`, `onServer`, `accountId`, `deletedAt`. No `pickedUpAt`.
   - The 23 ShoppingListDaoTest cases.
-- **DATA-02** [done] (K/core/data/local/DefaultCategories.kt) Default categories, 49 entries with fixed ids, seeded once (night task 1).
-- **DATA-03** [done] (REALTIME_TEST_FINDINGS.md) Existing rows always change with UPDATE, never INSERT OR REPLACE, which would cascade-delete items (night task 1).
+- **DATA-02** [done] (K/core/data/local/DefaultCategories.kt) Default categories, 48 entries with fixed ids, seeded once by migration v1 from a frozen copy (night task 1).
+- **DATA-03** [done] (REALTIME_TEST_FINDINGS.md) Existing rows always change with UPDATE or an `INSERT … ON CONFLICT DO UPDATE` upsert, never INSERT OR REPLACE, which would cascade-delete items (night task 1). `ShoppingItemDao.insertItem(s)` keeps Android's upsert semantics (Android: `@Insert(onConflict = REPLACE)`) as a GRDB upsert.
 - **DATA-04** [todo] (K/feature/shoppinglist/data/repository/ShoppingListRepository.kt) ShoppingListRepository:
   - createList, createListWithItems (one transaction), renameList, addItemsToList.
   - Blank name → "List name can't be empty."
@@ -314,7 +314,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - It covers push, catchUp, catchUpAccount, claimDeviceLists, evictAccountLists and the sign-out branch.
   - Internal `*Locked` helpers never re-enter it.
   - Every entry point returns a Result.
-- **SYNC-03** [todo] (K/core/sync/data/model/SyncRows.kt) The server clock wins: the server trigger sets `updated_at`, and push rows send it as null. Phone and server clocks are never compared.
+- **SYNC-03** [todo] (K/core/sync/data/repository/SyncEngine.kt) The server stamps `updated_at` (push sends null). Incoming rows are compared with the local `updatedAt`, which is the server stamp after an apply but the phone clock after a local edit: `markListSynced` / `markItemSynced` only clear `pendingSync`, so the row keeps its phone-clock `updatedAt` until the next apply. Port `shouldSkip` exactly (`incoming == nil` → skip; no local row → apply; else `localDirty || incoming <= localUpdatedAt`). A phone clock ahead of the server can delay a partner's edit until the row changes again; that is Android's behaviour, so keep it.
 - **SYNC-04** [todo] (K/core/sync/data/repository/SyncEngine.kt) push(), in order:
   1. Drop never-sent tombstones (DATA-09).
   2. Return if there is no live session.
@@ -344,7 +344,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - A local copy with `accountId=nil` is claimed (accountId=user, onServer=1), even when dirty.
   - shouldSkip when the incoming `updated_at` is nil, the local row is dirty, or incoming ≤ local.
   - Otherwise INSERT if new, UPDATE if it exists. Never REPLACE.
-- **SYNC-11** [todo] (K/core/sync/data/repository/SyncEngine.kt) Applying items: skip items whose list is not stored locally (FK guard); skip tombstones for unknown items; apply shouldSkip; otherwise UPDATE or INSERT.
+- **SYNC-11** [todo] (K/core/sync/data/repository/SyncEngine.kt) Applying items: skip items whose list is not stored locally (FK guard); skip tombstones for unknown items; apply shouldSkip; otherwise write with `itemDao.insertItem`. Android's is a REPLACE insert (harmless there: items have no children); the iOS `insertItem` is an `INSERT … ON CONFLICT DO UPDATE` upsert, so DATA-03 holds.
 - **SYNC-12** [todo] (K/core/sync/data/remote/Paging.kt) Paging. Used by fetchItems, fetchAccountItems and fetchAllLists.
   - Page size 1000, which is PostgREST's max_rows; never set it higher.
   - Keyset paging on `(updated_at, id)`, ascending: next page is `updated_at > s OR (updated_at = s AND id > last)`.
