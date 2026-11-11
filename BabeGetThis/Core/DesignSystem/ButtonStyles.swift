@@ -42,7 +42,7 @@ struct TonalFABStyle: ButtonStyle {
             .frame(minHeight: AppMetrics.buttonHeight)
             .background(AppColors.primaryContainer,
                         in: RoundedRectangle(cornerRadius: AppMetrics.buttonRadius, style: .continuous))
-            .shadow(color: .black.opacity(0.12), radius: 8, y: 3)
+            .shadow(color: AppColors.shadow.opacity(0.12), radius: 8, y: 3)
             .scaleEffect(configuration.isPressed ? 0.97 : 1)
     }
 }
