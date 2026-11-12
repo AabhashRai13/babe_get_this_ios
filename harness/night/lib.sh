@@ -13,6 +13,7 @@ CLAUDE_BIN="$(command -v claude || true)"
 CONFIG="${BGT_NIGHT_CONFIG:?set BGT_NIGHT_CONFIG to harness/night/nights/<id>.json}"
 case "$CONFIG" in /*) ;; *) CONFIG="$REPO/$CONFIG" ;; esac
 cfg() { python3 -c "import json,sys;v=json.load(open('$CONFIG'))[sys.argv[1]];print(v)" "$1"; }
+cfg_opt() { python3 -c "import json,sys;v=json.load(open('$CONFIG')).get(sys.argv[1]);print('' if v is None else v)" "$1"; }
 NIGHT_ID="$(cfg night_id)"
 BASE_REF="$(cfg base_ref)"
 RUN="$NIGHT/$NIGHT_ID"                # per-run worktrees and logs
@@ -26,12 +27,31 @@ die() { log "ABORT: $*"; exit 1; }
 task_ns() { python3 -c "import json;print(' '.join(str(t['n']) for t in json.load(open('$CONFIG'))['tasks']))"; }
 task_field() { python3 -c "import json,sys;t=[t for t in json.load(open('$CONFIG'))['tasks'] if t['n']==int(sys.argv[1])][0];v=t.get(sys.argv[2]);print('' if v is None else v)" "$1" "$2"; }
 
-# Epoch seconds of the next occurrence of HH:MM (today, or tomorrow if already past).
-next_epoch() { python3 -c "
-import datetime as d,sys
-h,m=map(int,sys.argv[1].split(':')); now=d.datetime.now()
-t=now.replace(hour=h,minute=m,second=0,microsecond=0)
-t=t if t>now else t+d.timedelta(days=1); print(int(t.timestamp()))" "$1"; }
+# night_deadlines <worker HH:MM> <total HH:MM> [max window hours, default 12]
+# Prints "<worker epoch> <total epoch>": the next occurrence of the total deadline, and the worker deadline
+# as the last occurrence of its HH:MM before that. Fails (exit 1, reason on stderr) instead of rolling a
+# passed deadline into the next day: when the total deadline is more than the window away (the run started
+# after it, e.g. a chained wave that began late or a rerun), or the worker deadline has already passed.
+night_deadlines() { python3 - "$@" <<'PY'
+import datetime as d, sys
+def hm(s):
+    h, m = map(int, s.split(":")); return h, m
+now = d.datetime.now().replace(microsecond=0)
+window = float(sys.argv[3]) if len(sys.argv) > 3 and sys.argv[3] else 12.0
+th, tm = hm(sys.argv[2]); wh, wm = hm(sys.argv[1])
+total = now.replace(hour=th, minute=tm, second=0)
+if total <= now: total += d.timedelta(days=1)
+worker = total.replace(hour=wh, minute=wm)
+if worker >= total: worker -= d.timedelta(days=1)
+if total - now > d.timedelta(hours=window):
+    sys.exit(f"total deadline {sys.argv[2]} is {(total - now) / d.timedelta(hours=1):.1f} h away, more than the "
+             f"{window:g} h window: it has already passed for this run (or the run started far too early); "
+             f"refusing to roll it to tomorrow")
+if worker <= now:
+    sys.exit(f"worker deadline {sys.argv[1]} has already passed (total deadline {sys.argv[2]})")
+print(int(worker.timestamp()), int(total.timestamp()))
+PY
+}
 
 # launch_worker <n> <worktree> <model> <budget> <settings.json> <prompt> <logbase>
 # Starts claude -p in its own process group with a scrubbed environment.

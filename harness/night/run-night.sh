@@ -8,12 +8,15 @@ if [ -z "${BGT_CAFFEINATED:-}" ]; then BGT_CAFFEINATED=1 exec caffeinate -dimsu 
 source "$(dirname "$0")/lib.sh"
 log "=== run-night start (pid $$), base $BASE_REF ==="
 
-"$REPO/harness/night/preflight.sh" || die "preflight failed; no workers launched"
-
-WORKER_DL=$(next_epoch "$(cfg worker_deadline)")
-TOTAL_DL=$(next_epoch "$(cfg total_deadline)")
+# Absolute deadlines, fixed once. A deadline that already passed aborts the run (never rolls to tomorrow).
+DL=$(night_deadlines "$(cfg worker_deadline)" "$(cfg total_deadline)" "$(cfg_opt max_window_hours)" 2>>"$RUNSTATE/run.log") \
+  || die "deadlines: $(tail -1 "$RUNSTATE/run.log")"
+read -r WORKER_DL TOTAL_DL <<< "$DL"
 [ "$TOTAL_DL" -gt "$WORKER_DL" ] || die "total deadline must be after worker deadline"
 log "worker deadline $(date -r "$WORKER_DL" '+%a %H:%M'), total deadline $(date -r "$TOTAL_DL" '+%a %H:%M')"
+
+"$REPO/harness/night/preflight.sh" || die "preflight failed; no workers launched"
+[ "$(date +%s)" -lt "$WORKER_DL" ] || die "worker deadline passed during preflight; no workers launched"
 
 git -C "$REPO" rev-parse -q --verify "refs/tags/$BASE_TAG" >/dev/null && die "tag $BASE_TAG already exists; refusing to reuse"
 git -C "$REPO" tag "$BASE_TAG" "$BASE_REF" || die "cannot tag base"
