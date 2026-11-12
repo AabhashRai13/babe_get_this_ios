@@ -6,7 +6,8 @@ import XCTest
 
 /// Port of Android's SafeCallTest. Android exception types map to their iOS counterparts:
 /// SQLiteException -> GRDB DatabaseError, java.net/SSL -> URLError, Retrofit HttpException ->
-/// HTTPStatusFailure, Supabase RestException -> AuthError.api, Supabase transport and timeout ->
+/// HTTPStatusFailure, Supabase RestException -> AuthError.api / PostgREST HTTPError / PostgrestError
+/// (status derived from its code), Supabase transport and timeout ->
 /// URLError (supabase-swift rethrows transport errors unwrapped).
 final class SafeCallTests: XCTestCase {
 
@@ -188,6 +189,83 @@ final class SafeCallTests: XCTestCase {
         XCTAssertEqual(0, reporter.count)
     }
 
+    // MARK: - PostgREST (supabase-swift throws PostgrestError, or HTTPError for an undecodable body)
+
+    func testMapsAPostgrestHTTPError401ThroughOnUnauthorized() async throws {
+        let result = try await safeCall { throw httpError(401) }
+
+        guard case .unauthorized = error(of: result) else { return XCTFail("got \(result)") }
+    }
+
+    func testMapsAPostgrestHTTPError4xxThroughOnClientError() async throws {
+        let result = try await safeCall(onClientError: { .validation("client \($0)") }) {
+            throw httpError(404)
+        }
+
+        XCTAssertEqual("client 404", error(of: result)?.message)
+    }
+
+    func testMapsAPostgrestHTTPError5xxToServerCarryingTheCode() async throws {
+        let result = try await safeCall { throw httpError(503) }
+
+        guard case .server(let code, _) = error(of: result) else { return XCTFail("got \(result)") }
+        XCTAssertEqual(503, code)
+    }
+
+    func testMapsAnExpiredJWTPostgrestErrorThroughOnUnauthorized() async throws {
+        let result = try await safeCall { throw postgrestError("PGRST301") }
+
+        guard case .unauthorized = error(of: result) else { return XCTFail("got \(result)") }
+    }
+
+    func testMapsAnRLSDenialPostgrestErrorThroughOnClientError403() async throws {
+        let result = try await safeCall(onClientError: { .validation("client \($0)") }) {
+            throw postgrestError("42501")
+        }
+
+        XCTAssertEqual("client 403", error(of: result)?.message)
+    }
+
+    func testMapsAUniqueViolationPostgrestErrorThroughOnClientError409() async throws {
+        let result = try await safeCall(onClientError: { .validation("client \($0)") }) {
+            throw postgrestError("23505")
+        }
+
+        XCTAssertEqual("client 409", error(of: result)?.message)
+    }
+
+    func testMapsAServerSidePostgrestErrorToServer() async throws {
+        let result = try await safeCall { throw postgrestError("XX000") }
+
+        guard case .server(let code, _) = error(of: result) else { return XCTFail("got \(result)") }
+        XCTAssertEqual(500, code)
+    }
+
+    func testAPostgrestErrorWithoutACodeMapsToServer() async throws {
+        let result = try await safeCall { throw PostgrestError(message: "boom") }
+
+        guard case .server = error(of: result) else { return XCTFail("got \(result)") }
+    }
+
+    func testAPostgrestErrorMessageNeverReachesTheUserFacingError() async throws {
+        let result = try await safeCall { throw postgrestError("42501") }
+
+        let message = try XCTUnwrap(error(of: result)?.message)
+        XCTAssertFalse(message.contains("secret"))
+    }
+
+    func testPostgrestStatusForCodes() {
+        let cases: [(String?, Int)] = [
+            ("PGRST301", 401), ("PGRST302", 401), ("PGRST300", 500), ("PGRST116", 406),
+            ("PGRST100", 400), ("PGRST204", 400), ("PGRST000", 503), ("42501", 403),
+            ("42P01", 404), ("42703", 400), ("23505", 409), ("23503", 409), ("23502", 400),
+            ("22P02", 400), ("P0001", 400), ("28000", 403), ("08006", 503), ("XX000", 500), (nil, 500),
+        ]
+        for (code, status) in cases {
+            XCTAssertEqual(status, SafeCall.postgrestStatus(forCode: code), "code \(code ?? "nil")")
+        }
+    }
+
     func testAMappedErrorIsReportedWithItsMapping() async throws {
         let reporter = RecordingAppErrorReporter()
 
@@ -209,6 +287,17 @@ final class SafeCallTests: XCTestCase {
     private func error<T>(of result: Result<T, AppError>) -> AppError? {
         if case .failure(let error) = result { return error }
         return nil
+    }
+
+    private func httpError(_ code: Int) -> HTTPError {
+        HTTPError(
+            data: Data("<html>secret upstream page</html>".utf8),
+            response: HTTPURLResponse(url: URL(string: "https://x.supabase.co/rest/v1/lists")!, statusCode: code, httpVersion: nil, headerFields: nil)!
+        )
+    }
+
+    private func postgrestError(_ code: String) -> PostgrestError {
+        PostgrestError(details: "secret detail", hint: nil, code: code, message: "secret message for \(code)")
     }
 
     private func supabaseError(_ code: Int) -> AuthError {

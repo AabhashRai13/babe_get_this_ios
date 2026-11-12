@@ -79,6 +79,13 @@ struct SafeCall: Sendable {
                 return mapSupabaseStatus(code, onUnauthorized, onClientError)
             }
             return unrecognised(error)
+        // PostgREST (tables, RPC). A body that doesn't decode as a PostgREST error keeps its status.
+        case let error as HTTPError:
+            return mapSupabaseStatus(error.response.statusCode, onUnauthorized, onClientError)
+        // A decoded PostgREST error carries the code but not the status; derive the status
+        // PostgREST answers with for that code (Android maps the RestException's status).
+        case let error as PostgrestError:
+            return mapSupabaseStatus(postgrestStatus(forCode: error.code), onUnauthorized, onClientError)
 
         default:
             return unrecognised(error)
@@ -111,6 +118,29 @@ struct SafeCall: Sendable {
         case 400...499: onClientError(code)
         default: .server(code: code, message: "Server error. Please try later.")
         }
+    }
+
+    /// The HTTP status PostgREST answers with for an error code (PostgREST "Errors" reference):
+    /// its own `PGRSTxxx` codes, or the PostgreSQL SQLSTATE of a failed statement.
+    static func postgrestStatus(forCode code: String?) -> Int {
+        guard let code else { return 500 }
+        switch code {
+        case "PGRST301", "PGRST302", "PGRST303": return 401   // JWT invalid/expired, anonymous disabled
+        case "PGRST116": return 406                           // .single() matched 0 or many rows
+        case "42501": return 403                              // insufficient privilege (RLS)
+        case "42883", "42P01": return 404                     // undefined function / table
+        case "23503", "23505": return 409                     // foreign key / unique violation
+        case "40001": return 409                              // serialization failure
+        case "P0001": return 400                              // raise_exception from a function
+        default: break
+        }
+        if code.hasPrefix("PGRST0") { return 503 }            // database connection
+        if code.hasPrefix("PGRST1") || code.hasPrefix("PGRST2") { return 400 }  // request / schema cache
+        if code.hasPrefix("PGRST") { return 500 }
+        if code.hasPrefix("08") || code.hasPrefix("53") { return 503 }
+        if code.hasPrefix("28") || code.hasPrefix("0L") || code.hasPrefix("0P") { return 403 }
+        if code.hasPrefix("22") || code.hasPrefix("23") || code.hasPrefix("42") { return 400 }
+        return 500
     }
 
     /// Deliberately does NOT pass the error's text through: it is rendered in the UI, and an
