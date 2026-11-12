@@ -5,7 +5,9 @@ PARENT="$(dirname "$REPO")"
 NIGHT="$PARENT/ios-night"
 STATE="$NIGHT/_state"                 # shared across runs: package cache, build-slot locks
 ANDROID="$PARENT/android/Babe-get-this"
-GIT_COMMON="$(cd "$REPO/.git" && pwd)"
+# The shared git dir. Not "$REPO/.git": in a linked worktree that is a file, not the directory.
+GIT_COMMON="$(cd "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)" && pwd -P)" \
+  || { echo "lib.sh: cannot resolve the git common dir of $REPO" >&2; exit 1; }
 CLAUDE_BIN="$(command -v claude || true)"
 
 CONFIG="${BGT_NIGHT_CONFIG:?set BGT_NIGHT_CONFIG to harness/night/nights/<id>.json}"
