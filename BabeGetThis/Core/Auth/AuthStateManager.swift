@@ -14,6 +14,10 @@ import UIKit
 /// background thread while sign-in and sign-out run on the main actor, and a
 /// read-then-write interleaved with another transition would leave a stale state
 /// behind (e.g. a signed-out user stuck as "session expired").
+///
+/// The locked storage is the source of truth. Nothing runs under the lock but the storage
+/// update: Observation changes are published on the main thread (SwiftUI reads `authState`),
+/// and observer handlers run after the lock is released, in order, like StateFlow collectors.
 @Observable
 final class AuthStateManager: @unchecked Sendable {
     @ObservationIgnored private let tokenStore: TokenStore
@@ -22,6 +26,13 @@ final class AuthStateManager: @unchecked Sendable {
     @ObservationIgnored private var storedUserName: String?
     @ObservationIgnored private var storedUserEmail: String?
     @ObservationIgnored private var observers: [UUID: @Sendable (AuthState) -> Void] = [:]
+    /// Observer calls queued by transitions, delivered outside the lock by one thread at a time.
+    @ObservationIgnored private var pendingDeliveries: [(handlers: [@Sendable (AuthState) -> Void], state: AuthState)] = []
+    @ObservationIgnored private var isDelivering = false
+    /// Observable properties changed under the lock and not yet published.
+    @ObservationIgnored private var unpublished: Set<Field> = []
+
+    private enum Field: Hashable { case authState, userName, userEmail }
     @ObservationIgnored private let notificationCenter: NotificationCenter
     /// Set while `initialize()` waits for the Keychain to become readable.
     @ObservationIgnored private var protectedDataObserver: (any NSObjectProtocol)?
@@ -70,7 +81,7 @@ final class AuthStateManager: @unchecked Sendable {
     /// first unlock after a reboot), stays `.loading` and retries when protected data becomes
     /// available, instead of reading "no user" and signing a signed-in user out of the UI.
     func initialize() {
-        lock.withLock {
+        transition {
             let stored: StoredIdentity
             do {
                 stored = try tokenStore.restore()
@@ -119,7 +130,7 @@ final class AuthStateManager: @unchecked Sendable {
 
     /// After a successful login or register: persist everything so it survives restarts.
     func login(token: String, userId: String, userName: String, userEmail: String) {
-        lock.withLock {
+        transition {
             tokenStore.saveToken(token)
             tokenStore.saveUserId(userId)
             tokenStore.saveUserName(userName)
@@ -142,7 +153,7 @@ final class AuthStateManager: @unchecked Sendable {
     /// when it clears the Supabase session. While loading, only storage changes and
     /// `initialize()` derives `.sessionExpired` from it.
     func expireSession() {
-        lock.withLock {
+        transition {
             guard let userId = tokenStore.userId() else { return }
             tokenStore.clearToken()
             if storedAuthState != .loading {
@@ -153,7 +164,7 @@ final class AuthStateManager: @unchecked Sendable {
 
     /// Explicit sign-out and account deletion only.
     func logout() {
-        lock.withLock {
+        transition {
             tokenStore.clear()
             setState(.unauthenticated)
             setUserName(nil)
@@ -164,7 +175,7 @@ final class AuthStateManager: @unchecked Sendable {
     /// Update just the cached display name (after a profile edit), so every
     /// local-storage write stays behind this one class.
     func updateName(_ name: String) {
-        lock.withLock {
+        transition {
             tokenStore.saveUserName(name)
             setUserName(name)
         }
@@ -175,14 +186,21 @@ final class AuthStateManager: @unchecked Sendable {
         tokenStore.userEmail()
     }
 
+    /// Runs a state change under the lock, then publishes and delivers what it changed.
+    private func transition(_ body: () -> Void) {
+        lock.withLock(body)
+        flush()
+    }
+
     // MARK: - Change streams
 
     /// Calls `handler` with the data owner each time it changes, starting with the
     /// current one. `.loading` is skipped so nothing renders guest lists for the
-    /// instant before `initialize()` runs. Handlers run synchronously on the thread
-    /// making the change; keep them short.
+    /// instant before `initialize()` runs. Handlers run after the change, never under the
+    /// manager's lock and in the order the changes happened, normally on the thread making
+    /// the change (or on one already delivering); keep them short.
     func observeDataOwner(_ handler: @escaping @Sendable (String?) -> Void) -> AuthStateSubscription {
-        lock.withLock {
+        let subscription = lock.withLock {
             let lastEmitted = LockedBox<String??>(nil) // .none: nothing emitted yet
             let onState: @Sendable (AuthState) -> Void = { state in
                 guard state != .loading else { return }
@@ -191,9 +209,11 @@ final class AuthStateManager: @unchecked Sendable {
                 lastEmitted.value = .some(owner)
                 handler(owner)
             }
-            onState(storedAuthState)
+            pendingDeliveries.append(([onState], storedAuthState))
             return addObserver(onState)
         }
+        flush()
+        return subscription
     }
 
     /// Calls `handler` each time an account is signed out (explicitly or by deleting
@@ -227,25 +247,75 @@ final class AuthStateManager: @unchecked Sendable {
         }
     }
 
-    // MARK: - Private (call with the lock held)
+    // MARK: - Storage (call with the lock held)
 
     private func setState(_ state: AuthState) {
         // Like a StateFlow: an unchanged value notifies nobody.
         guard state != storedAuthState else { return }
-        withMutation(keyPath: \.authState) { storedAuthState = state }
-        for observer in observers.values {
-            observer(state)
-        }
+        storedAuthState = state
+        unpublished.insert(.authState)
+        pendingDeliveries.append((Array(observers.values), state))
     }
 
     private func setUserName(_ name: String?) {
         guard name != storedUserName else { return }
-        withMutation(keyPath: \.userName) { storedUserName = name }
+        storedUserName = name
+        unpublished.insert(.userName)
     }
 
     private func setUserEmail(_ email: String?) {
         guard email != storedUserEmail else { return }
-        withMutation(keyPath: \.userEmail) { storedUserEmail = email }
+        storedUserEmail = email
+        unpublished.insert(.userEmail)
+    }
+
+    // MARK: - Publishing (call without the lock)
+
+    private func flush() {
+        publish(lock.withLock {
+            defer { unpublished.removeAll() }
+            return unpublished
+        })
+        deliver()
+    }
+
+    /// SwiftUI expects observable state that drives views to change on the main actor. The
+    /// value is already stored; this only tells observers to re-read it, on main.
+    private func publish(_ fields: Set<Field>) {
+        guard !fields.isEmpty else { return }
+        let notify: @Sendable () -> Void = { [self] in
+            for field in fields {
+                switch field {
+                case .authState: withMutation(keyPath: \.authState) {}
+                case .userName: withMutation(keyPath: \.userName) {}
+                case .userEmail: withMutation(keyPath: \.userEmail) {}
+                }
+            }
+        }
+        if Thread.isMainThread { notify() } else { DispatchQueue.main.async(execute: notify) }
+    }
+
+    /// Drains queued observer calls outside the lock. One thread delivers at a time, so
+    /// handlers see changes in order; a change made meanwhile (even by a handler) is queued
+    /// and delivered by that thread.
+    private func deliver() {
+        let isDeliverer = lock.withLock {
+            if isDelivering { return false }
+            isDelivering = true
+            return true
+        }
+        guard isDeliverer else { return }
+        while let next = lock.withLock({ () -> (handlers: [@Sendable (AuthState) -> Void], state: AuthState)? in
+            if pendingDeliveries.isEmpty {
+                isDelivering = false
+                return nil
+            }
+            return pendingDeliveries.removeFirst()
+        }) {
+            for handler in next.handlers {
+                handler(next.state)
+            }
+        }
     }
 
     private func addObserver(_ observer: @escaping @Sendable (AuthState) -> Void) -> AuthStateSubscription {
@@ -278,7 +348,7 @@ final class AuthStateSubscription: @unchecked Sendable {
     }
 }
 
-/// Per-observer state, only touched under the manager's lock.
+/// Per-observer state, only touched by the single thread delivering at a time.
 private final class LockedBox<Value>: @unchecked Sendable {
     var value: Value
 

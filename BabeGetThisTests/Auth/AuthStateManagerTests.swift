@@ -375,6 +375,67 @@ final class AuthStateManagerTests: XCTestCase {
         XCTAssertEqual(tokens.userName(), "Renamed")
     }
 
+    // MARK: - iOS-only: threading
+
+    // Supabase reports a lost session on a background thread; SwiftUI observes authState and
+    // expects view-driving state to change on the main actor.
+    func testObservationChangesFromABackgroundThreadArePublishedOnMain() {
+        manager.login(token: "t", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+        let changed = expectation(description: "authState change published")
+        let onMain = Recorder<Bool>()
+        withObservationTracking {
+            _ = manager.authState
+        } onChange: {
+            onMain.append(Thread.isMainThread)
+            changed.fulfill()
+        }
+
+        let manager = manager!
+        Thread { manager.expireSession() }.start()
+        wait(for: [changed], timeout: 2)
+
+        XCTAssertEqual(onMain.values, [true])
+        XCTAssertEqual(manager.authState, .sessionExpired(userId: "u1"))
+    }
+
+    // Handlers used to run under the lock: one that hopped to main synchronously deadlocked
+    // against a main-thread login waiting for that lock.
+    func testAHandlerThatHopsToMainDoesNotBlockAMainThreadTransition() {
+        manager.login(token: "t", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+        let handlerRunning = DispatchSemaphore(value: 0)
+        let hopped = expectation(description: "handler hopped to main")
+        let subscription = manager.observeSignOuts {
+            handlerRunning.signal()
+            DispatchQueue.main.sync {}
+            hopped.fulfill()
+        }
+
+        let manager = manager!
+        Thread { manager.logout() }.start()
+        XCTAssertEqual(handlerRunning.wait(timeout: .now() + 2), .success)
+        manager.login(token: "t2", userId: "u2", userName: "B", userEmail: "b@c.d") // needs the lock
+        wait(for: [hopped], timeout: 2)
+
+        XCTAssertEqual(manager.authState, .authenticated(userId: "u2"))
+        subscription.cancel()
+    }
+
+    func testHandlersSeeChangesInOrderEvenWhenAHandlerMakesAChange() {
+        let owners = Recorder<String?>()
+        manager.initialize()
+        let first = manager.observeDataOwner { [manager] owner in
+            if owner == "u1" { manager?.logout() } // a change made from inside a handler
+        }
+        let second = manager.observeDataOwner { owners.append($0) }
+
+        manager.login(token: "t", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+
+        XCTAssertEqual(owners.values, [nil, "u1", nil])
+        XCTAssertEqual(manager.authState, .unauthenticated)
+        first.cancel()
+        second.cancel()
+    }
+
     // MARK: - iOS-only: the async-sequence wrappers and cancellation
 
     func testDataOwnerStreamDeliversTheSameSequence() async {
