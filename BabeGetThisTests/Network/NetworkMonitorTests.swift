@@ -40,12 +40,12 @@ final class NetworkMonitorTests: XCTestCase {
         XCTAssertTrue(monitor.isOnline())
     }
 
-    // With no path at all the monitor must say offline rather than trap: every gated call
-    // site treats this as a cheap boolean.
-    func testNoPathIsOffline() {
+    // Before the system reports a path the state is unknown, not offline: a gated call goes
+    // ahead and fails on its own if it must, instead of a false "No internet connection.".
+    func testAnUnknownPathIsTreatedAsOnline() {
         source.path = nil
 
-        XCTAssertFalse(monitor.isOnline())
+        XCTAssertTrue(monitor.isOnline())
     }
 
     // Repeated reads must not cache: connectivity changes under the app.
@@ -58,11 +58,17 @@ final class NetworkMonitorTests: XCTestCase {
         XCTAssertFalse(monitor.isOnline())
     }
 
-    func testTheSystemSourceCanBeCreatedAndRead() {
-        let system = SystemNetworkPathSource()
+    // The source waits for the first real path rather than seeding the unevaluated placeholder.
+    func testTheSystemSourceHasARealPathOnceCreated() {
+        let system = SystemNetworkPathSource(firstPathTimeout: .seconds(2))
 
         XCTAssertNotNil(system.currentPath)
         _ = NetworkMonitor(source: system).isOnline()
+    }
+
+    func testTheDefaultMonitorSharesOneSystemSource() {
+        XCTAssertTrue(SystemNetworkPathSource.shared === SystemNetworkPathSource.shared)
+        _ = NetworkMonitor().isOnline()
     }
 }
 

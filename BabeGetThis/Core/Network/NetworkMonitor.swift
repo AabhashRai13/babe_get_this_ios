@@ -17,7 +17,8 @@ struct NetworkPathSnapshot: Equatable, Sendable {
     var isConstrained: Bool = false
 }
 
-/// Where the monitor reads the current path from. `nil` means no path is known yet.
+/// Where the monitor reads the current path from. `nil` means the system has not reported a
+/// path yet (unknown), not "no network": an evaluated offline path is `.unsatisfied`.
 protocol NetworkPathSource: AnyObject, Sendable {
     var currentPath: NetworkPathSnapshot? { get }
 }
@@ -30,34 +31,40 @@ protocol NetworkPathSource: AnyObject, Sendable {
 final class NetworkMonitor: Sendable {
     private let source: any NetworkPathSource
 
-    init(source: any NetworkPathSource = SystemNetworkPathSource()) {
+    init(source: any NetworkPathSource = SystemNetworkPathSource.shared) {
         self.source = source
     }
 
     /// Reads the current path every time; connectivity changes under the app.
+    /// An unknown path counts as online: the request then fails on its own if it must, instead
+    /// of a false "No internet connection." before the system has reported (Android's
+    /// ConnectivityManager answers synchronously, so it never has this state).
     func isOnline() -> Bool {
-        guard let path = source.currentPath else { return false }
+        guard let path = source.currentPath else { return true }
         return path.status == .satisfied
     }
 }
 
 /// `NWPathMonitor` behind `NetworkPathSource`. Starts monitoring on creation and keeps the
-/// latest path, so reads are a lock and a copy.
+/// latest path, so reads are a lock and a copy. One instance for the app (`shared`).
 final class SystemNetworkPathSource: NetworkPathSource, @unchecked Sendable {
+    /// Created once, at first use, and kept for the app's lifetime.
+    static let shared = SystemNetworkPathSource()
+
     private let monitor = NWPathMonitor()
     private let lock = NSLock()
     private var latest: NetworkPathSnapshot?
 
-    init() {
+    /// Waits up to `firstPathTimeout` for the first real path. `monitor.currentPath` read right
+    /// after `start` is an unevaluated `.unsatisfied` placeholder, so it is never used as a seed.
+    init(firstPathTimeout: DispatchTimeInterval = .milliseconds(100)) {
+        let firstPath = DispatchSemaphore(value: 0)
         monitor.pathUpdateHandler = { [weak self] path in
-            self?.store(Self.snapshot(of: path))
+            guard let self else { return }
+            if self.store(Self.snapshot(of: path)) { firstPath.signal() }
         }
         monitor.start(queue: DispatchQueue(label: "com.babegetthis.ios.network-monitor"))
-        // Seed from the monitor unless the handler already delivered a newer path.
-        let initial = Self.snapshot(of: monitor.currentPath)
-        lock.lock()
-        if latest == nil { latest = initial }
-        lock.unlock()
+        _ = firstPath.wait(timeout: .now() + firstPathTimeout)
     }
 
     deinit {
@@ -70,10 +77,13 @@ final class SystemNetworkPathSource: NetworkPathSource, @unchecked Sendable {
         return latest
     }
 
-    private func store(_ snapshot: NetworkPathSnapshot) {
+    /// Returns whether this was the first path.
+    private func store(_ snapshot: NetworkPathSnapshot) -> Bool {
         lock.lock()
+        defer { lock.unlock() }
+        let isFirst = latest == nil
         latest = snapshot
-        lock.unlock()
+        return isFirst
     }
 
     private static func snapshot(of path: NWPath) -> NetworkPathSnapshot {
