@@ -49,6 +49,47 @@ final class SwipeableCardTests: XCTestCase {
         card.settle(.towardTrailing)
         XCTAssertTrue(haptics.played.isEmpty)
     }
+
+    // Drag left to -150, then the next sample is already right of the start: with no right
+    // action the card goes back to rest instead of keeping -150, and releasing there deletes nothing.
+    func testDraggingBackAcrossTheStartDoesNotDelete() {
+        var lefts = 0
+        let card = SwipeableCardController(onSwipeLeft: { lefts += 1 }, haptics: RecordingHapticPlayer())
+
+        XCTAssertEqual(card.offset(forTranslation: -150), -150)
+        XCTAssertEqual(card.offset(forTranslation: 30), 0)
+        card.end(translation: 30, velocity: 40)
+
+        XCTAssertEqual(lefts, 0)
+    }
+
+    func testReleaseDecidesFromTheFinalTranslationAt56Points() {
+        let card = SwipeableCardController(onSwipeLeft: {}, onSwipeRight: {}, haptics: RecordingHapticPlayer())
+        XCTAssertNil(card.target(translation: -55, velocity: 0))
+        XCTAssertEqual(card.target(translation: -56, velocity: 0), .towardLeading)
+        XCTAssertEqual(card.target(translation: 56, velocity: 0), .towardTrailing)
+        XCTAssertNil(card.target(translation: 0, velocity: 0))
+    }
+
+    func testAFlingDismissesBelowThePositionalThreshold() {
+        let card = SwipeableCardController(onSwipeLeft: {}, onSwipeRight: {}, haptics: RecordingHapticPlayer())
+        XCTAssertEqual(card.target(translation: -25, velocity: -125), .towardLeading)
+        XCTAssertEqual(card.target(translation: 25, velocity: 400), .towardTrailing)
+        XCTAssertNil(card.target(translation: -25, velocity: -124))
+    }
+
+    func testAFlingBackTowardRestSnapsBackEvenPastTheThreshold() {
+        var lefts = 0
+        let card = SwipeableCardController(onSwipeLeft: { lefts += 1 }, haptics: RecordingHapticPlayer())
+        card.end(translation: -150, velocity: 600)
+        XCTAssertEqual(lefts, 0)
+    }
+
+    func testADisallowedDirectionNeverSettles() {
+        let card = SwipeableCardController(onSwipeLeft: {}, haptics: RecordingHapticPlayer())
+        XCTAssertNil(card.target(translation: 200, velocity: 800))
+        XCTAssertEqual(card.offset(forTranslation: 200), 0)
+    }
 }
 
 @MainActor

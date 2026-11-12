@@ -26,6 +26,46 @@ final class SwipeableCardController {
         direction == .towardLeading || onSwipeRight != nil
     }
 
+    /// Android material3 1.3 `SwipeToDismissBox`: dismisses past 56dp, or on a fling faster
+    /// than 125dp/s.
+    static let positionalThreshold: CGFloat = 56
+    static let velocityThreshold: CGFloat = 125
+
+    /// Where the card sits for a drag translation. A disallowed direction stays at rest, so
+    /// dragging back across the start never keeps the other side's offset.
+    func offset(forTranslation translation: CGFloat) -> CGFloat {
+        guard let direction = Self.direction(of: translation) else { return 0 }
+        return isAllowed(direction) ? translation : 0
+    }
+
+    /// The direction a released drag settles in, decided from the final translation and
+    /// velocity (never a stored offset). A fling moves to the next anchor in its direction:
+    /// away from rest dismisses that side, back toward rest snaps back.
+    func target(translation: CGFloat, velocity: CGFloat) -> SwipeDirection? {
+        let side = Self.direction(of: translation)
+        let candidate: SwipeDirection?
+        if abs(velocity) >= Self.velocityThreshold, let side {
+            candidate = Self.direction(of: velocity) == side ? side : nil
+        } else if abs(translation) >= Self.positionalThreshold {
+            candidate = side
+        } else {
+            candidate = nil
+        }
+        guard let candidate, isAllowed(candidate) else { return nil }
+        return candidate
+    }
+
+    /// A released drag: settles (and fires once) if it reached a dismiss target.
+    func end(translation: CGFloat, velocity: CGFloat) {
+        if let direction = target(translation: translation, velocity: velocity) {
+            settle(direction)
+        }
+    }
+
+    private static func direction(of value: CGFloat) -> SwipeDirection? {
+        value < 0 ? .towardLeading : value > 0 ? .towardTrailing : nil
+    }
+
     /// Called when a swipe has settled past its threshold. Fires the action and haptic once.
     func settle(_ direction: SwipeDirection) {
         switch direction {
@@ -43,8 +83,6 @@ final class SwipeableCardController {
 /// Swipe wrapper for cards: red trash on swipe left, optional green check on swipe right.
 /// The card snaps back after the action fires.
 struct SwipeableCard<Content: View>: View {
-    private static var threshold: CGFloat { 100 }
-
     private let controller: SwipeableCardController
     private let leftIcon: String
     private let rightIcon: String
@@ -86,14 +124,10 @@ struct SwipeableCard<Content: View>: View {
             .gesture(
                 DragGesture(minimumDistance: 20)
                     .onChanged { value in
-                        let proposed = value.translation.width
-                        let dir: SwipeDirection = proposed < 0 ? .towardLeading : .towardTrailing
-                        if controller.isAllowed(dir) { offset = proposed }
+                        offset = controller.offset(forTranslation: value.translation.width)
                     }
-                    .onEnded { _ in
-                        if let direction, abs(offset) >= Self.threshold {
-                            controller.settle(direction)
-                        }
+                    .onEnded { value in
+                        controller.end(translation: value.translation.width, velocity: value.velocity.width)
                         withAnimation(.snappy) { offset = 0 }
                     }
             )
