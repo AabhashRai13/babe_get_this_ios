@@ -67,11 +67,14 @@ stop_group() {
   kill -KILL -- "-$pid" 2>/dev/null || kill -KILL "$pid" 2>/dev/null || true
 }
 
-# save_uncommitted <n> <worktree>: preserve uncommitted work as a patch + copies of untracked files.
+# save_uncommitted <n> <worktree>: preserve uncommitted work as a binary-safe patch, a snapshot ref
+# (refs/night/<id>/<n>-wip, tracked changes incl. binaries) and copies of untracked files.
 save_uncommitted() {
-  local n="$1" wt="$2"
+  local n="$1" wt="$2" sha
   if [ -n "$(git -C "$wt" status --porcelain)" ]; then
-    git -C "$wt" diff HEAD > "$RUNSTATE/$n.uncommitted.patch"
+    git -C "$wt" diff --binary HEAD > "$RUNSTATE/$n.uncommitted.patch"
+    sha="$(git -C "$wt" stash create 2>/dev/null || true)"
+    if [ -n "$sha" ]; then git -C "$wt" update-ref "refs/night/$NIGHT_ID/$n-wip" "$sha" && log "task $n: tracked changes snapshotted at refs/night/$NIGHT_ID/$n-wip"; fi
     git -C "$wt" ls-files --others --exclude-standard > "$RUNSTATE/$n.untracked.txt"
     mkdir -p "$RUNSTATE/$n.untracked"
     (cd "$wt" && while IFS= read -r f; do mkdir -p "$RUNSTATE/$n.untracked/$(dirname "$f")"; cp "$f" "$RUNSTATE/$n.untracked/$f"; done < "$RUNSTATE/$n.untracked.txt")
