@@ -24,6 +24,7 @@ struct VoiceTestFailure: Error { let text: String }
 @MainActor
 final class FakeVoiceRecorder: VoiceRecording {
     var startGate: VoiceTestGate?
+    var stopGate: VoiceTestGate?
     var startError: Error?
     var stopError: Error?
     var stopResult = URL(fileURLWithPath: "/tmp/voice-test.m4a")
@@ -40,6 +41,7 @@ final class FakeVoiceRecorder: VoiceRecording {
 
     func stop() async throws -> URL {
         stopCalls += 1
+        if let stopGate { await stopGate.wait() }
         if let stopError { throw stopError }
         return stopResult
     }

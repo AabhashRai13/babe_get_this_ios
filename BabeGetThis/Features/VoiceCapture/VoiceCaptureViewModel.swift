@@ -66,6 +66,8 @@ final class VoiceCaptureViewModel {
             } catch is CancellationError {
                 return
             } catch {
+                // cancel() already reset everything; a late failure must not overwrite that.
+                if Task.isCancelled { return }
                 recorder.cancel()
                 recordingStartedAt = nil
                 state = .failed("Couldn't start recording. Is the microphone in use?")
@@ -92,6 +94,7 @@ final class VoiceCaptureViewModel {
             } catch is CancellationError {
                 return
             } catch {
+                if Task.isCancelled { return }
                 recorder.cancel()
                 state = .failed("Couldn't finish that recording. Try again?")
             }
@@ -117,6 +120,9 @@ final class VoiceCaptureViewModel {
         } catch is CancellationError {
             return
         } catch {
+            // Cancellation is cooperative: the upload can still fail (4xx/5xx, decode, no token)
+            // after cancel(). Nothing may land after cancel (VOICE-04), not even a failure.
+            if Task.isCancelled { return }
             let voiceError = VoiceError.fromThrown(error)
             state = .failed(voiceError.message)
             // The error category only, never its message (it can carry server text).

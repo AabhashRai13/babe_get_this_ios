@@ -252,6 +252,61 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         XCTAssertEqual(vm.state, .idle)
     }
 
+    // The gate ignores cancellation, so the transcriber fails (not CancellationError) after cancel().
+    func testATranscriptionThatFailsAfterCancelLeavesIdleAndReportsNothing() async {
+        let gate = VoiceTestGate()
+        transcriber.gate = gate
+        transcriber.result = .failure(VoiceError.server(code: 502, message: "bad gateway"))
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+        let stopTask = vm.stopRecording()
+        await voiceTestEventually { self.transcriber.calls.count == 1 }
+
+        vm.cancel()
+        await gate.open()
+        await stopTask.value
+
+        XCTAssertEqual(vm.state, .idle)
+        XCTAssertEqual(analytics.failureReasons, [])
+    }
+
+    func testAStopThatFailsAfterCancelLeavesIdle() async {
+        let gate = VoiceTestGate()
+        recorder.stopGate = gate
+        recorder.stopError = VoiceTestFailure(text: "recorder gone")
+        let vm = makeViewModel()
+        await vm.startRecording().value
+        let stopTask = vm.stopRecording()
+        await voiceTestEventually { self.recorder.stopCalls == 1 }
+
+        vm.cancel()
+        await gate.open()
+        await stopTask.value
+
+        XCTAssertEqual(vm.state, .idle)
+    }
+
+    func testAStaleFailedCaptureDoesNotClobberANewRecording() async {
+        let gate = VoiceTestGate()
+        transcriber.gate = gate
+        transcriber.result = .failure(VoiceError.server(code: 500, message: "boom"))
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+        let staleStop = vm.stopRecording()
+        await voiceTestEventually { self.transcriber.calls.count == 1 }
+
+        vm.cancel()
+        await vm.startRecording().value
+        XCTAssertEqual(vm.state, .recording)
+        await gate.open()
+        await staleStop.value
+
+        XCTAssertEqual(vm.state, .recording)
+        XCTAssertEqual(analytics.failureReasons, [])
+    }
+
     func testCancelDuringCueToneNeverOpensTheMic() async {
         let gate = VoiceTestGate()
         recorder.startGate = gate
