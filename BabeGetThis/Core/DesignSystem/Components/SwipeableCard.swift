@@ -81,11 +81,14 @@ final class SwipeableCardController {
 }
 
 /// Swipe wrapper for cards: red trash on swipe left, optional green check on swipe right.
-/// The card snaps back after the action fires.
+/// The card snaps back after the action fires. Both actions are also named accessibility
+/// actions, so VoiceOver and Switch Control can reach them without a drag.
 struct SwipeableCard<Content: View>: View {
     private let controller: SwipeableCardController
     private let leftIcon: String
     private let rightIcon: String
+    private let leftActionName: LocalizedStringKey
+    private let rightActionName: LocalizedStringKey
     private let content: Content
     @State private var offset: CGFloat = 0
 
@@ -94,12 +97,16 @@ struct SwipeableCard<Content: View>: View {
         onSwipeRight: (() -> Void)? = nil,
         leftIcon: String = "trash",
         rightIcon: String = "checkmark",
+        leftActionName: LocalizedStringKey = "Delete",
+        rightActionName: LocalizedStringKey = "Complete",
         haptics: HapticPlaying = SystemHapticPlayer(),
         @ViewBuilder content: () -> Content
     ) {
         controller = SwipeableCardController(onSwipeLeft: onSwipeLeft, onSwipeRight: onSwipeRight, haptics: haptics)
         self.leftIcon = leftIcon
         self.rightIcon = rightIcon
+        self.leftActionName = leftActionName
+        self.rightActionName = rightActionName
         self.content = content()
     }
 
@@ -131,5 +138,25 @@ struct SwipeableCard<Content: View>: View {
                         withAnimation(.snappy) { offset = 0 }
                     }
             )
+            // Listed outermost first: Delete, then the right action.
+            .modifier(TrailingSwipeAction(isEnabled: controller.isAllowed(.towardTrailing), name: rightActionName) {
+                controller.settle(.towardTrailing)
+            })
+            .accessibilityAction(named: Text(leftActionName)) { controller.settle(.towardLeading) }
+    }
+}
+
+/// Adds the swipe-right accessibility action only when there is a right action.
+private struct TrailingSwipeAction: ViewModifier {
+    let isEnabled: Bool
+    let name: LocalizedStringKey
+    let action: () -> Void
+
+    func body(content: Content) -> some View {
+        if isEnabled {
+            content.accessibilityAction(named: Text(name), action)
+        } else {
+            content
+        }
     }
 }

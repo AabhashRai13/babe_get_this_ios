@@ -92,6 +92,32 @@ final class SwipeableCardTests: XCTestCase {
         XCTAssertNil(card.target(translation: 200, velocity: 800))
         XCTAssertEqual(card.offset(forTranslation: 200), 0)
     }
+
+    // VoiceOver / Switch Control reach the actions without a drag.
+    func testSwipeActionsAreNamedAccessibilityActions() throws {
+        var lefts = 0
+        var rights = 0
+        let hosted = HostedView(SwipeableCard(
+            onSwipeLeft: { lefts += 1 }, onSwipeRight: { rights += 1 },
+            rightActionName: "Mark as picked up", haptics: RecordingHapticPlayer()
+        ) { Text("Milk") })
+
+        let element = try XCTUnwrap(hosted.element(labelled: "Milk"))
+        let actions = element.accessibilityCustomActions ?? []
+        XCTAssertEqual(actions.map(\.name), ["Delete", "Mark as picked up"])
+
+        try XCTUnwrap(actions.first { $0.name == "Delete" }).perform()
+        try XCTUnwrap(actions.first { $0.name == "Mark as picked up" }).perform()
+        XCTAssertEqual(lefts, 1)
+        XCTAssertEqual(rights, 1)
+    }
+
+    func testNoRightAccessibilityActionWithoutARightHandler() throws {
+        let hosted = HostedView(SwipeableCard(onSwipeLeft: {}, haptics: RecordingHapticPlayer()) { Text("Milk") })
+
+        let element = try XCTUnwrap(hosted.element(labelled: "Milk"))
+        XCTAssertEqual((element.accessibilityCustomActions ?? []).map(\.name), ["Delete"])
+    }
 }
 
 @MainActor
