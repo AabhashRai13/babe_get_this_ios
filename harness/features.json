@@ -761,9 +761,11 @@
       ],
       "acceptance": [
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AutoNameVoiceListTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 10)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceListSaveTests/testSpokenItemsWithoutQuantityAreAllSaved && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "todo",
+      "notes": "Voice drafts from TranscribedItem.toItemDraft() often have an empty quantity (\"milk, eggs, bread\"). Both entry points (new list from the chooser, mic inside a list) must save every draft, an empty quantity included, like Android createListWithItems/addItemsToList (draftsToItems: quantity.orEmpty()). Never route them through ItemDraft.isValid or ListDetailViewModel.add(_:) (the manual add rule, quantity required, stays as is); if a check is needed use ItemDraft.isSavableVoiceItem (name only). Pin it with VoiceListSaveTests/testSpokenItemsWithoutQuantityAreAllSaved: three quantity-less drafts in, three items saved."
     },
     {
       "id": "F42",

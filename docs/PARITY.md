@@ -311,6 +311,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **VOICE-06** [todo] (K/feature/shoppinglist/ui/viewModels/ShoppingListViewModel.kt) No review step: drafts are saved straight away.
   - From the chooser: a new list is created with its items in one transaction, then opened.
   - From the mic inside a list: the items are added to that list.
+  - Spoken items need only a name; a missing quantity is saved as empty (`draftsToItems`: `quantity.orEmpty()`). The manual add rule (quantity required) does not apply.
 - **VOICE-07** [todo] (T/feature/shoppinglist/ui/viewModels/AutoNameVoiceListTest.kt) Auto-name: the first draft name, trimmed and capped at 40 ("List" if blank), plus " + N more" when there are more items. Port AutoNameVoiceListTest (10).
 - **VOICE-08** [todo] (D/product-decisions/003-voice-to-list-requires-authentication.md) Voice opens only when Authenticated. Signed-out and SessionExpired users get the "Sign in to use voice" prompt.
 
