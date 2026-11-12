@@ -112,6 +112,24 @@ final class TokenStoreTests: XCTestCase {
         XCTAssertNil(KeychainTokenStore(service: service).token())
     }
 
+    func testRestoreReadsEveryField() throws {
+        tokenStore.saveToken("token")
+        tokenStore.saveUserId("u1")
+
+        XCTAssertEqual(try tokenStore.restore(), StoredIdentity(token: "token", userId: "u1"))
+    }
+
+    // Only a missing item is "no value". A locked Keychain (before the first unlock after a
+    // reboot) must not read as a signed-out user.
+    func testOnlyAMissingItemReadsAsNoValue() throws {
+        XCTAssertNil(try KeychainTokenStore.value(status: errSecItemNotFound, result: nil))
+        XCTAssertEqual(try KeychainTokenStore.value(status: errSecSuccess, result: Data("t".utf8) as NSData), "t")
+        XCTAssertThrowsError(try KeychainTokenStore.value(status: errSecInteractionNotAllowed, result: nil)) { error in
+            XCTAssertEqual(error as? TokenStoreError, .unavailable(errSecInteractionNotAllowed))
+        }
+        XCTAssertThrowsError(try KeychainTokenStore.value(status: errSecIO, result: nil))
+    }
+
     func testTheDefaultServiceIsTheBundleId() {
         XCTAssertEqual(KeychainTokenStore().service, Bundle.main.bundleIdentifier)
     }

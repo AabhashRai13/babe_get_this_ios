@@ -1,5 +1,7 @@
 import Foundation
 import Observation
+import os
+import UIKit
 
 /// Single source of truth for "is the user logged in?" (Android `AuthStateManager`).
 ///
@@ -20,9 +22,15 @@ final class AuthStateManager: @unchecked Sendable {
     @ObservationIgnored private var storedUserName: String?
     @ObservationIgnored private var storedUserEmail: String?
     @ObservationIgnored private var observers: [UUID: @Sendable (AuthState) -> Void] = [:]
+    @ObservationIgnored private let notificationCenter: NotificationCenter
+    /// Set while `initialize()` waits for the Keychain to become readable.
+    @ObservationIgnored private var protectedDataObserver: (any NSObjectProtocol)?
 
-    init(tokenStore: TokenStore) {
+    private static let logger = Logger(subsystem: "com.babegetthis.ios", category: "AuthStateManager")
+
+    init(tokenStore: TokenStore, notificationCenter: NotificationCenter = .default) {
         self.tokenStore = tokenStore
+        self.notificationCenter = notificationCenter
         storedUserName = tokenStore.userName()
         storedUserEmail = tokenStore.userEmail()
     }
@@ -58,19 +66,54 @@ final class AuthStateManager: @unchecked Sendable {
 
     // MARK: - Transitions
 
-    /// Call once when the app starts.
+    /// Call once when the app starts. If the Keychain can't be read yet (a launch before the
+    /// first unlock after a reboot), stays `.loading` and retries when protected data becomes
+    /// available, instead of reading "no user" and signing a signed-in user out of the UI.
     func initialize() {
         lock.withLock {
-            let token = tokenStore.token()
-            let userId = tokenStore.userId()
-            let state: AuthState = if let userId {
-                token == nil ? .sessionExpired(userId: userId) : .authenticated(userId: userId)
+            let stored: StoredIdentity
+            do {
+                stored = try tokenStore.restore()
+            } catch {
+                Self.logger.error("Token store unreadable at launch, waiting for unlock: \(String(describing: error), privacy: .public)")
+                waitForProtectedData()
+                return
+            }
+            stopWaitingForProtectedData()
+            let state: AuthState = if let userId = stored.userId {
+                stored.token == nil ? .sessionExpired(userId: userId) : .authenticated(userId: userId)
             } else {
                 .unauthenticated
             }
             setState(state)
-            setUserName(tokenStore.userName())
-            setUserEmail(tokenStore.userEmail())
+            setUserName(stored.userName)
+            setUserEmail(stored.userEmail)
+        }
+    }
+
+    private func waitForProtectedData() {
+        guard protectedDataObserver == nil else { return }
+        protectedDataObserver = notificationCenter.addObserver(
+            forName: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil, queue: nil
+        ) { [weak self] _ in
+            self?.retryInitialize()
+        }
+    }
+
+    private func stopWaitingForProtectedData() {
+        if let observer = protectedDataObserver {
+            notificationCenter.removeObserver(observer)
+            protectedDataObserver = nil
+        }
+    }
+
+    /// Only a restore still pending counts: a login in the meantime already settled the state.
+    private func retryInitialize() {
+        let pending = lock.withLock { storedAuthState == .loading }
+        if pending {
+            initialize()
+        } else {
+            lock.withLock { stopWaitingForProtectedData() }
         }
     }
 

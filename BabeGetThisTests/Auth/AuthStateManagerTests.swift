@@ -1,3 +1,4 @@
+import UIKit
 import XCTest
 @testable import BabeGetThis
 
@@ -46,6 +47,49 @@ final class AuthStateManagerTests: XCTestCase {
         manager.initialize()
 
         XCTAssertEqual(manager.authState, .unauthenticated)
+    }
+
+    // iOS only: before the first unlock after a reboot the Keychain answers
+    // errSecInteractionNotAllowed. That is "can't read yet", not "signed out".
+    func testALockedTokenStoreKeepsLoadingInsteadOfSigningOut() {
+        tokens.saveToken("token-123")
+        tokens.saveUserId("u1")
+        tokens.isLocked = true
+
+        manager.initialize()
+
+        XCTAssertEqual(manager.authState, .loading)
+        XCTAssertNil(manager.dataOwnerId)
+    }
+
+    func testInitializeRetriesWhenProtectedDataBecomesAvailable() {
+        let center = NotificationCenter()
+        let manager = AuthStateManager(tokenStore: tokens, notificationCenter: center)
+        tokens.saveToken("token-123")
+        tokens.saveUserId("u1")
+        tokens.saveUserName("Aabhash")
+        tokens.isLocked = true
+        manager.initialize()
+
+        tokens.isLocked = false
+        center.post(name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+
+        XCTAssertEqual(manager.authState, .authenticated(userId: "u1"))
+        XCTAssertEqual(manager.userName, "Aabhash")
+    }
+
+    func testALoginWhileWaitingForUnlockIsNotOverwrittenByTheRetry() {
+        let center = NotificationCenter()
+        let manager = AuthStateManager(tokenStore: tokens, notificationCenter: center)
+        tokens.isLocked = true
+        manager.initialize()
+        tokens.isLocked = false
+        manager.login(token: "t", userId: "u2", userName: "B", userEmail: "b@c.d")
+
+        tokens.clear()
+        center.post(name: UIApplication.protectedDataDidBecomeAvailableNotification, object: nil)
+
+        XCTAssertEqual(manager.authState, .authenticated(userId: "u2"))
     }
 
     func testLoginPersistsAllFieldsAndBecomesAuthenticated() {

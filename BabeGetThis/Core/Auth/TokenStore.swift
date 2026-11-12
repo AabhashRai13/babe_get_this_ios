@@ -1,9 +1,28 @@
 import Foundation
+import os
 import Security
+
+/// Everything `AuthStateManager.initialize()` restores at launch.
+struct StoredIdentity: Equatable, Sendable {
+    var token: String?
+    var userId: String?
+    var userName: String?
+    var userEmail: String?
+}
+
+enum TokenStoreError: Error, Equatable {
+    /// The store exists but can't be read right now, e.g. the Keychain before the first unlock
+    /// after a reboot (`errSecInteractionNotAllowed`). Not the same as "nothing stored".
+    case unavailable(OSStatus)
+}
 
 /// Secure storage for the auth token and the cached identity (Android `TokenManager`).
 /// The rest of the app never touches the Keychain directly; it goes through this.
 protocol TokenStore: AnyObject, Sendable {
+    /// Reads every field for the launch restore. Throws `TokenStoreError.unavailable` when the
+    /// store can't be read yet, so a locked Keychain is never mistaken for a signed-out user.
+    func restore() throws -> StoredIdentity
+
     func token() -> String?
     func saveToken(_ token: String)
 
@@ -25,6 +44,12 @@ protocol TokenStore: AnyObject, Sendable {
     func clear()
 }
 
+extension TokenStore {
+    func restore() throws -> StoredIdentity {
+        StoredIdentity(token: token(), userId: userId(), userName: userName(), userEmail: userEmail())
+    }
+}
+
 /// Keychain-backed `TokenStore`: one generic-password item per field, all under
 /// `service` (the bundle id). `clear()` deletes only these four accounts, so other
 /// Keychain items under the same service (a future PIN store) survive a sign-out,
@@ -44,6 +69,17 @@ final class KeychainTokenStore: TokenStore, @unchecked Sendable {
 
     init(service: String = KeychainTokenStore.defaultService) {
         self.service = service
+    }
+
+    private static let logger = Logger(subsystem: "com.babegetthis.ios", category: "TokenStore")
+
+    func restore() throws -> StoredIdentity {
+        StoredIdentity(
+            token: try readValue(Account.authToken),
+            userId: try readValue(Account.userId),
+            userName: try readValue(Account.userName),
+            userEmail: try readValue(Account.userEmail)
+        )
     }
 
     func token() -> String? { read(Account.authToken) }
@@ -76,30 +112,59 @@ final class KeychainTokenStore: TokenStore, @unchecked Sendable {
         ]
     }
 
-    // An unreadable item (missing, or bytes that aren't UTF-8) reads as nil:
-    // losing the session is cheap compared with an app that fails every launch.
-    private func read(_ account: String) -> String? {
+    /// Only a missing item is "no value". Any other failure (the Keychain is locked before the
+    /// first unlock, an I/O error) is `unavailable`. Bytes that aren't UTF-8 read as nil: losing
+    /// the session is cheap compared with an app that fails every launch.
+    static func value(status: OSStatus, result: AnyObject?) throws -> String? {
+        switch status {
+        case errSecSuccess:
+            guard let data = result as? Data else { return nil }
+            return String(data: data, encoding: .utf8)
+        case errSecItemNotFound:
+            return nil
+        default:
+            throw TokenStoreError.unavailable(status)
+        }
+    }
+
+    private func readValue(_ account: String) throws -> String? {
         var query = baseQuery(account)
         query[kSecReturnData as String] = true
         query[kSecMatchLimit as String] = kSecMatchLimitOne
         var result: AnyObject?
-        guard SecItemCopyMatching(query as CFDictionary, &result) == errSecSuccess,
-              let data = result as? Data
-        else { return nil }
-        return String(data: data, encoding: .utf8)
+        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        return try Self.value(status: status, result: result)
+    }
+
+    /// Field getters for code that only needs a best-effort value. The launch restore uses
+    /// `restore()`, which reports an unavailable Keychain instead of returning nil.
+    private func read(_ account: String) -> String? {
+        do {
+            return try readValue(account)
+        } catch {
+            Self.logger.error("Keychain read of \(account, privacy: .public) failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
     }
 
     private func write(_ account: String, _ value: String) {
         let data = Data(value.utf8)
         let attributes: [String: Any] = [kSecValueData as String: data]
         let status = SecItemUpdate(baseQuery(account) as CFDictionary, attributes as CFDictionary)
-        guard status == errSecItemNotFound else { return }
+        if status == errSecSuccess { return }
+        guard status == errSecItemNotFound else {
+            Self.logger.error("Keychain update of \(account, privacy: .public) failed: OSStatus \(status, privacy: .public)")
+            return
+        }
         var item = baseQuery(account)
         item[kSecValueData as String] = data
         // Readable by background refreshes after the first unlock, never restored
         // to another device (Android excludes these prefs from backup).
         item[kSecAttrAccessible as String] = kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly
-        SecItemAdd(item as CFDictionary, nil)
+        let added = SecItemAdd(item as CFDictionary, nil)
+        if added != errSecSuccess {
+            Self.logger.error("Keychain add of \(account, privacy: .public) failed: OSStatus \(added, privacy: .public)")
+        }
     }
 
     private func delete(_ account: String) {
@@ -112,8 +177,21 @@ final class KeychainTokenStore: TokenStore, @unchecked Sendable {
 final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
     private let lock = NSLock()
     private var values: [String: String] = [:]
+    private var locked = false
 
     init() {}
+
+    /// Simulates a Keychain that can't be read yet (before the first unlock): `restore()`
+    /// throws `unavailable` and field reads return nil. Values are kept.
+    var isLocked: Bool {
+        get { lock.withLock { locked } }
+        set { lock.withLock { locked = newValue } }
+    }
+
+    func restore() throws -> StoredIdentity {
+        if isLocked { throw TokenStoreError.unavailable(errSecInteractionNotAllowed) }
+        return StoredIdentity(token: token(), userId: userId(), userName: userName(), userEmail: userEmail())
+    }
 
     func token() -> String? { get(KeychainTokenStore.Account.authToken) }
     func saveToken(_ token: String) { set(KeychainTokenStore.Account.authToken, token) }
@@ -136,7 +214,7 @@ final class InMemoryTokenStore: TokenStore, @unchecked Sendable {
     }
 
     private func get(_ key: String) -> String? {
-        lock.withLock { values[key] }
+        lock.withLock { locked ? nil : values[key] }
     }
 
     private func set(_ key: String, _ value: String) {
