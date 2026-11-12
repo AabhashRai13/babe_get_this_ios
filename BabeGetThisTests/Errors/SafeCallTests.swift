@@ -181,12 +181,30 @@ final class SafeCallTests: XCTestCase {
             _ = try await reporting { throw CancellationError() }
             XCTFail("cancellation must be rethrown")
         } catch {}
+        let cancelledURLTask = Task {
+            try await reporting {
+                withUnsafeCurrentTask { $0?.cancel() }
+                throw URLError(.cancelled)
+            }
+        }
         do {
-            _ = try await reporting { throw URLError(.cancelled) }
-            XCTFail("a cancelled URL task must be rethrown as cancellation")
+            _ = try await cancelledURLTask.value
+            XCTFail("a cancelled URL task in a cancelled task must be rethrown as cancellation")
         } catch {}
 
         XCTAssertEqual(0, reporter.count)
+    }
+
+    // URLSession also says .cancelled for a rejected challenge or an invalidated session while
+    // the caller's task is live. Android maps that transport failure to NetworkError.
+    func testAURLCancelInALiveTaskMapsToNetwork() async throws {
+        let reporter = RecordingAppErrorReporter()
+        let reporting = SafeCall(reporter: reporter)
+
+        let result = try await reporting { throw URLError(.cancelled) }
+
+        XCTAssertEqual(.network(), error(of: result))
+        XCTAssertEqual([.network()], reporter.mapped)
     }
 
     // MARK: - PostgREST (supabase-swift throws PostgrestError, or HTTPError for an undecodable body)

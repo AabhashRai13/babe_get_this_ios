@@ -18,7 +18,8 @@ struct SafeCall: Sendable {
     }
 
     /// Cancellation is rethrown, never mapped: a cancelled task (dismissing the voice sheet)
-    /// is a user gesture, not a failed operation, and is not reported.
+    /// is a user gesture, not a failed operation, and is not reported. Like Android, only
+    /// structured cancellation counts; a transport-level cancel of a live task is a failure.
     func callAsFunction<T>(
         isolation: isolated (any Actor)? = #isolation,
         onUnauthorized: () -> AppError = { .unauthorized() },
@@ -29,7 +30,9 @@ struct SafeCall: Sendable {
             return .success(try await block())
         } catch is CancellationError {
             throw CancellationError()
-        } catch let error as URLError where error.code == .cancelled {
+        } catch let error as URLError where error.code == .cancelled && Task.isCancelled {
+            // Only real task cancellation. URLSession also reports .cancelled for a rejected
+            // challenge or an invalidated session while our task is live: that maps to .network.
             throw CancellationError()
         } catch {
             let mapped = Self.map(error, onUnauthorized: onUnauthorized, onClientError: onClientError)
