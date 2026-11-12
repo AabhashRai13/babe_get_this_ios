@@ -43,8 +43,6 @@ final class SwipeableCardController {
 /// Swipe wrapper for cards: red trash on swipe left, optional green check on swipe right.
 /// The card snaps back after the action fires.
 struct SwipeableCard<Content: View>: View {
-    static var leftColor: Color { Color(red: 0xE5 / 255, green: 0x39 / 255, blue: 0x35 / 255) }
-    static var rightColor: Color { Color(red: 0x43 / 255, green: 0xA0 / 255, blue: 0x47 / 255) }
     private static var threshold: CGFloat { 100 }
 
     private let controller: SwipeableCardController
@@ -77,10 +75,10 @@ struct SwipeableCard<Content: View>: View {
             .background(alignment: offset < 0 ? .trailing : .leading) {
                 if let direction {
                     RoundedRectangle(cornerRadius: AppMetrics.tileRadius)
-                        .fill((direction == .towardLeading ? Self.leftColor : Self.rightColor).opacity(0.9))
+                        .fill((direction == .towardLeading ? AppColors.swipeDelete : AppColors.swipeComplete).opacity(0.9))
                         .overlay(alignment: direction == .towardLeading ? .trailing : .leading) {
                             Image(systemName: direction == .towardLeading ? leftIcon : rightIcon)
-                                .foregroundStyle(.white)
+                                .foregroundStyle(AppColors.onSwipe)
                                 .padding(.horizontal, 20)
                         }
                 }

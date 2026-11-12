@@ -33,6 +33,14 @@ enum AppColors {
     /// Apply the elevation's strength with `.opacity(_:)`.
     static let shadow = Color("Shadow")
 
+    /// Swipe-to-delete background (Android SwipeableCard red 0xE53935). Android uses the same
+    /// value in light and dark, so both appearances match.
+    static let swipeDelete = Color("SwipeDelete")
+    /// Swipe-to-complete background (Android SwipeableCard green 0x43A047), same in both modes.
+    static let swipeComplete = Color("SwipeComplete")
+    /// Icon on a swipe background (Android `Color.White`).
+    static let onSwipe = Color("OnSwipe")
+
     /// Every named colour asset, so a test can prove none is missing.
     static let assetNames = [
         "AccentColor", "OnPrimary", "PrimaryContainer", "OnPrimaryContainer",
@@ -42,6 +50,9 @@ enum AppColors {
         "SurfaceContainer", "SurfaceContainerHigh", "SurfaceContainerHighest",
         "TextPrimary", "TextSecondary", "Outline", "Shadow",
     ] + (0..<ListAccent.count).flatMap { ["ListAccent\($0)Container", "ListAccent\($0)OnContainer"] }
+
+    /// Assets that are deliberately the same in light and dark, because Android's are.
+    static let fixedAssetNames = ["SwipeDelete", "SwipeComplete", "OnSwipe"]
 }
 
 /// Muted per-list accent (icon tile behind the cart), picked from the list id exactly like
