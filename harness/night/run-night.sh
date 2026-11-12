@@ -35,7 +35,8 @@ for n in $NS; do
   prompt="You are the unattended overnight worker for task $(task_field "$n" id) ($slug) of the Babe, Get This iOS port.
 Read harness/night/WORKER_RULES.md, then $brief, then do the task completely.
 Your simulator: $sim. Your report: docs/night/$NIGHT_ID-$slug.md. Nobody can answer questions; follow the rules' stuck rule instead.
-Every Bash call must be ONE simple command from the rules' allowed list (no ;, &&, |, variables, cd or mkdir)."
+Every Bash call must be ONE simple command from the rules' allowed list (no ;, &&, |, variables, cd or mkdir).
+Your commit command (git commit itself is denied): $REPO/harness/night/commit.sh \"<one-line message>\""
   launch_worker "$n" "$wt" "$(task_field "$n" model)" "$(task_field "$n" budget_usd)" "$RUNSTATE/settings/$n.json" "$prompt" "$RUNSTATE/logs/$slug"
   pid=$LAUNCHED_PID
   PIDS[$n]=$pid; STARTS[$n]=$(date +%s); SLUGS[$n]=$slug; DONE[$n]=0
