@@ -39,4 +39,31 @@ final class AudioRecorderTests: XCTestCase {
         XCTAssertEqual(settings[AVNumberOfChannelsKey] as? Int, 1)
         XCTAssertEqual(AVVoiceRecorder.maxDuration, 30)
     }
+
+    /// The tone completion arrives on a background queue (AudioToolbox's own serial queue).
+    /// Before the fix the resume closure was @MainActor-inferred and trapped here.
+    func testStartToneCompletionOffTheMainQueueResumesPlay() async {
+        let player = SystemStartTonePlayer { _, completion in
+            DispatchQueue.global(qos: .userInitiated).async {
+                XCTAssertFalse(Thread.isMainThread)
+                completion()
+            }
+        }
+        await player.play()
+    }
+
+    /// The real AudioToolbox path. Crashes (rather than fails) if the completion's isolation
+    /// is wrong; skipped if the simulator never reports the sound finished.
+    func testSystemStartToneCompletesWithoutTrapping() async throws {
+        let finished = expectation(description: "tone finished")
+        let task = Task { @MainActor in
+            await SystemStartTonePlayer().play()
+            finished.fulfill()
+        }
+        let result = await XCTWaiter().fulfillment(of: [finished], timeout: 5)
+        if result == .timedOut {
+            task.cancel()
+            throw XCTSkip("The simulator did not report the system sound finishing.")
+        }
+    }
 }

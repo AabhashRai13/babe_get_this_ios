@@ -12,11 +12,29 @@ protocol StartTonePlaying {
 /// System "begin recording" sound; recording still works silently if it can't play.
 @MainActor
 struct SystemStartTonePlayer: StartTonePlaying {
+    /// Plays a system sound and calls the completion when it ends, on any thread.
+    typealias PlaySound = @Sendable (SystemSoundID, @escaping @Sendable () -> Void) -> Void
+
     static let soundID: SystemSoundID = 1113
 
+    /// AudioToolbox issues the completion on its own serial queue, never main. The closure
+    /// must be @Sendable (nonisolated): a @MainActor-inferred closure traps there in Swift 6.
+    nonisolated static let systemPlaySound: PlaySound = { soundID, completion in
+        AudioServicesPlaySystemSoundWithCompletion(soundID) { @Sendable in
+            completion()
+        }
+    }
+
+    private let playSound: PlaySound
+
+    init(playSound: @escaping PlaySound = SystemStartTonePlayer.systemPlaySound) {
+        self.playSound = playSound
+    }
+
     func play() async {
+        let playSound = playSound
         await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
-            AudioServicesPlaySystemSoundWithCompletion(Self.soundID) {
+            playSound(Self.soundID) { @Sendable in
                 continuation.resume()
             }
         }
