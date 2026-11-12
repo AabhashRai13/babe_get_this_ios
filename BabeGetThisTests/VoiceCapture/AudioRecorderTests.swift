@@ -35,9 +35,29 @@ final class AudioRecorderTests: XCTestCase {
 
     func testRecorderSettingsAreAAC16kMono() {
         let settings = AVVoiceRecorder.settings
+        XCTAssertEqual(settings[AVFormatIDKey] as? Int, Int(kAudioFormatMPEG4AAC))
         XCTAssertEqual(settings[AVSampleRateKey] as? Double, 16_000)
         XCTAssertEqual(settings[AVNumberOfChannelsKey] as? Int, 1)
         XCTAssertEqual(AVVoiceRecorder.maxDuration, 30)
+    }
+
+    func testRecordingFileIsAnM4AInTheGivenDirectory() {
+        let dir = URL(filePath: "/tmp/voice-test", directoryHint: .isDirectory)
+        let url = AVVoiceRecorder.fileURL(in: dir, now: Date(timeIntervalSince1970: 1_700_000_000.5))
+        XCTAssertEqual(url.lastPathComponent, "voice-1700000000500.m4a")
+        XCTAssertEqual(url.pathExtension, "m4a")
+        XCTAssertEqual(url.deletingLastPathComponent().path, dir.path)
+    }
+
+    func testCancelDeletesTheRecordingFile() throws {
+        let file = AVVoiceRecorder.fileURL(in: FileManager.default.temporaryDirectory)
+        try Data("not audio".utf8).write(to: file)
+        let recorder = AVVoiceRecorder(tone: InstantTone())
+        recorder.adoptOutputFileForTesting(file)
+
+        recorder.cancel()
+
+        XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
     }
 
     /// The tone completion arrives on a background queue (AudioToolbox's own serial queue).
@@ -66,4 +86,9 @@ final class AudioRecorderTests: XCTestCase {
             throw XCTSkip("The simulator did not report the system sound finishing.")
         }
     }
+}
+
+@MainActor
+private struct InstantTone: StartTonePlaying {
+    func play() async {}
 }

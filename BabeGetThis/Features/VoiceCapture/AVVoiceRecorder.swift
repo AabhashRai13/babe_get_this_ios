@@ -55,10 +55,20 @@ final class AVVoiceRecorder: VoiceRecording {
         ]
     }
 
+    /// Where a recording started at `now` is written: `voice-<epoch ms>.m4a`.
+    static func fileURL(in directory: URL, now: Date = Date()) -> URL {
+        directory.appending(path: "voice-\(Int(now.timeIntervalSince1970 * 1000)).m4a")
+    }
+
     private let tone: StartTonePlaying
     private let directory: URL
     private var recorder: AVAudioRecorder?
     private var outputFile: URL?
+
+    /// Test seam: adopts an existing file as the current recording without opening the mic.
+    func adoptOutputFileForTesting(_ file: URL) {
+        outputFile = file
+    }
 
     init(tone: StartTonePlaying = SystemStartTonePlayer(), directory: URL = FileManager.default.temporaryDirectory) {
         self.tone = tone
@@ -75,7 +85,7 @@ final class AVVoiceRecorder: VoiceRecording {
         try session.setCategory(.playAndRecord, mode: .default, options: [.defaultToSpeaker])
         try session.setActive(true)
 
-        let file = directory.appending(path: "voice-\(Int(Date().timeIntervalSince1970 * 1000)).m4a")
+        let file = Self.fileURL(in: directory)
         outputFile = file
         let newRecorder = try AVAudioRecorder(url: file, settings: Self.settings)
         recorder = newRecorder
