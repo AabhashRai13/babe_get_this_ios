@@ -253,6 +253,41 @@ final class SharedListRemoteTests: XCTestCase {
 
     // MARK: - duplicate detection
 
+    // MARK: - changes (realtime)
+
+    func testEachSubscriptionGetsItsOwnTopic() {
+        let first = SupabaseSharedListRemote.channelTopic(listId: "list-1")
+        let second = SupabaseSharedListRemote.channelTopic(listId: "list-1")
+
+        XCTAssertNotEqual(first, second)
+        XCTAssertTrue(first.hasPrefix("list-list-1-"))
+    }
+
+    // Close a list screen and reopen it at once: the old channel is still being removed when
+    // the new subscription creates its channel. The new one must be a different channel and
+    // must stay registered after the old removal completes.
+    func testRestartingASubscriptionWhileTheOldChannelIsRemovedKeepsTheNewChannel() async {
+        let client = SharedListURLStub.makeClient()
+        let old = client.channel(SupabaseSharedListRemote.channelTopic(listId: "list-1"))
+        let removal = Task { await client.removeChannel(old) }
+
+        let new = client.channel(SupabaseSharedListRemote.channelTopic(listId: "list-1"))
+        await removal.value
+
+        XCTAssertFalse(old === new)
+        XCTAssertTrue(client.realtimeV2.channels[new.topic] === new)
+        XCTAssertNil(client.realtimeV2.channels[old.topic])
+        await client.removeChannel(new)
+    }
+
+    // Why a fixed topic was unsafe: the client hands back the registered channel for a topic.
+    func testAFixedTopicWouldReuseTheRegisteredChannel() async {
+        let client = SharedListURLStub.makeClient()
+        let first = client.channel("list-1")
+        XCTAssertTrue(client.channel("list-1") === first)
+        await client.removeChannel(first)
+    }
+
     func testIsDuplicateMatchesCodeOrMessage() {
         XCTAssertTrue(SupabaseSharedListRemote.isDuplicate(PostgrestError(code: "23505", message: "x")))
         XCTAssertTrue(SupabaseSharedListRemote.isDuplicate(PostgrestError(message: "ERROR 23505")))

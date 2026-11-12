@@ -434,6 +434,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Postgres changes on `public.lists` (`id=eq.<id>`) and `public.items` (`list_id=eq.<id>`), merged into one signal.
   - Every SUBSCRIBED status (the first join and every re-join) also signals.
   - The channel is removed when collection ends.
+  - iOS: each subscription gets its own topic `list-<listId>-<uuid>`, because supabase-swift reuses a registered topic (Android's `channel(...)` builds a new channel each time).
 - **RT-02** [todo] (REALTIME_TEST_FINDINGS.md) Realtime carries no data: every signal → `catchUp(listId)`. Measured median latency is about 0.7–0.9 s.
 - **RT-03** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) On the detail screen, keyed on whether the list is shared:
   - Shared: catch up once, then subscribe.

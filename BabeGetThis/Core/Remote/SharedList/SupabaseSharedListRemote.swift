@@ -82,7 +82,7 @@ final class SupabaseSharedListRemote: SharedListRemote {
         let client = self.client
         return AsyncThrowingStream { continuation in
             let task = Task {
-                let channel = client.channel("list-\(listId)")
+                let channel = client.channel(Self.channelTopic(listId: listId))
                 let lists = channel.postgresChange(
                     AnyAction.self, schema: "public", table: "lists", filter: .eq("id", value: listId)
                 )
@@ -113,6 +113,16 @@ final class SupabaseSharedListRemote: SharedListRemote {
     }
 
     // MARK: - Helpers
+
+    /// A fresh topic per subscription: `list-<id>-<uuid>`. supabase-swift's `channel(_:)` returns
+    /// the registered channel for a topic, and `removeChannel` unmaps the topic only after the
+    /// leave round trip. With a fixed `list-<id>`, reopening a list inside that window got the
+    /// channel being removed (no listeners registered, subscribe throws CancellationError), and the
+    /// old removal could unmap the new one. Android's supabase-kt `channel("list-$id")` builds a
+    /// new channel each time. The topic name doesn't affect `postgres_changes` filtering.
+    static func channelTopic(listId: String) -> String {
+        "list-\(listId)-\(UUID().uuidString.lowercased())"
+    }
 
     static func isDuplicate(_ error: PostgrestError) -> Bool {
         error.code == "23505"
