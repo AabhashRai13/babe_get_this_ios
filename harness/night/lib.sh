@@ -1,13 +1,15 @@
 # Shared helpers for preflight.sh / run-night.sh. Source it; don't run it.
 # Requires BGT_NIGHT_CONFIG = path to a night config (harness/night/nights/<id>.json).
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
-PARENT="$(dirname "$REPO")"
-NIGHT="$PARENT/ios-night"
-STATE="$NIGHT/_state"                 # shared across runs: package cache, build-slot locks
-ANDROID="$PARENT/android/Babe-get-this"
 # The shared git dir. Not "$REPO/.git": in a linked worktree that is a file, not the directory.
 GIT_COMMON="$(cd "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)" && pwd -P)" \
   || { echo "lib.sh: cannot resolve the git common dir of $REPO" >&2; exit 1; }
+# Everything else hangs off the main checkout (<parent>/ios), not off REPO, which may be a linked
+# worktree such as ios-night/<id>/integration.
+PARENT="$(dirname "$(dirname "$GIT_COMMON")")"
+NIGHT="$PARENT/ios-night"
+STATE="$NIGHT/_state"                 # shared across runs: package cache, build-slot locks
+ANDROID="$PARENT/android/Babe-get-this"
 CLAUDE_BIN="$(command -v claude || true)"
 
 CONFIG="${BGT_NIGHT_CONFIG:?set BGT_NIGHT_CONFIG to harness/night/nights/<id>.json}"

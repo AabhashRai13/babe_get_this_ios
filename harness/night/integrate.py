@@ -18,7 +18,10 @@ import argparse, datetime, json, os, re, signal, subprocess, sys, time, tracebac
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.dirname(os.path.dirname(HERE))
-PARENT = os.path.dirname(REPO)
+# The night folders hang off the main checkout (<parent>/ios), not off REPO, which may be a linked worktree.
+GIT_COMMON = os.path.realpath(subprocess.run(["git", "-C", REPO, "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                                             capture_output=True, text=True, check=True).stdout.strip())
+PARENT = os.path.dirname(os.path.dirname(GIT_COMMON))
 NIGHT = os.path.join(PARENT, "ios-night")
 STATE = os.path.join(NIGHT, "_state")
 VSIM = "bgt-night-verify"

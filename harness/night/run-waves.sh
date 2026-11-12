@@ -4,7 +4,9 @@
 # Usage: harness/night/run-waves.sh <waveA.json> <waveB.json> <comma-separated ids waveB requires from waveA>
 set -uo pipefail
 if [ -z "${BGT_CAFFEINATED:-}" ]; then BGT_CAFFEINATED=1 exec caffeinate -dimsu "$0" "$@"; fi
-HERE="$(cd "$(dirname "$0")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"; NIGHT="$(dirname "$REPO")/ios-night"
+HERE="$(cd "$(dirname "$0")" && pwd)"; REPO="$(cd "$HERE/../.." && pwd)"
+# Same layout as lib.sh: the night folder hangs off the main checkout, even when REPO is a linked worktree.
+NIGHT="$(dirname "$(dirname "$(cd "$(git -C "$REPO" rev-parse --path-format=absolute --git-common-dir)" && pwd -P)")")/ios-night"
 A="$1"; B="$2"; NEED="$3"
 AID=$(python3 -c "import json;print(json.load(open('$REPO/$A'))['night_id'])")
 mkdir -p "$NIGHT"
