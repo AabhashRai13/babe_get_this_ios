@@ -1,3 +1,5 @@
+import SwiftUI
+import UIKit
 import XCTest
 @testable import BabeGetThis
 
@@ -117,28 +119,112 @@ final class TopAppBarTests: XCTestCase {
     }
 }
 
+/// Port of Android SettingsRowTest: renders the row and asserts on what is shown and tapped.
 @MainActor
 final class SettingsRowTests: XCTestCase {
-    func testARowShowsItsTitle() {
-        let row = SettingsRowModel(title: "Change PIN", onTap: {})
-        XCTAssertTrue(row.visibleTexts.contains("Change PIN"))
+    func testARowShowsItsTitle() throws {
+        let hosted = HostedView(SettingsRow(title: "Change PIN", onTap: {}))
+        XCTAssertNotNil(hosted.element(labelled: "Change PIN"))
     }
 
-    func testASubtitleIsShownWhenSupplied() {
-        let row = SettingsRowModel(title: "Set up a PIN", subtitle: "Lock individual lists", onTap: {})
-        XCTAssertTrue(row.visibleTexts.contains("Lock individual lists"))
+    func testASubtitleIsShownWhenSupplied() throws {
+        let hosted = HostedView(SettingsRow(title: "Set up a PIN", subtitle: "Lock individual lists", onTap: {}))
+        XCTAssertTrue(hosted.labels.contains { $0.contains("Lock individual lists") }, "labels: \(hosted.labels)")
     }
 
-    func testNoSubtitleRowIsRenderedWhenNoneIsSupplied() {
-        let row = SettingsRowModel(title: "Change PIN", onTap: {})
-        XCTAssertFalse(row.visibleTexts.contains("Lock individual lists"))
-        XCTAssertEqual(row.visibleTexts.count, 1)
+    func testNoSubtitleRowIsRenderedWhenNoneIsSupplied() throws {
+        let hosted = HostedView(SettingsRow(title: "Change PIN", onTap: {}))
+        XCTAssertFalse(hosted.labels.contains { $0.contains("Lock individual lists") })
+        XCTAssertEqual(hosted.labels, ["Change PIN"])
     }
 
-    func testTappingARowDispatchesItsCallback() {
+    func testTappingARowDispatchesItsCallback() throws {
         var clicked = false
-        let row = SettingsRowModel(title: "Change PIN", onTap: { clicked = true })
-        row.tap()
+        let hosted = HostedView(SettingsRow(title: "Change PIN", onTap: { clicked = true }))
+
+        let row = try XCTUnwrap(hosted.element(labelled: "Change PIN"))
+        XCTAssertTrue(row.accessibilityTraits.contains(.button))
+        XCTAssertTrue(row.accessibilityActivate())
+
         XCTAssertTrue(clicked)
+    }
+
+    // With a trailing Toggle the row and the toggle are separate elements, so the toggle's
+    // value and action stay reachable with VoiceOver.
+    func testATrailingToggleIsItsOwnAccessibilityElement() throws {
+        var rowTaps = 0
+        let hosted = HostedView(SettingsRow(title: "Analytics", onTap: { rowTaps += 1 }) {
+            Toggle("Share analytics", isOn: .constant(true)).labelsHidden()
+        })
+
+        let row = try XCTUnwrap(hosted.element(labelled: "Analytics"))
+        let toggle = try XCTUnwrap(hosted.element(labelled: "Share analytics"))
+        XCTAssertFalse(row === toggle)
+        XCTAssertNotNil(toggle.accessibilityValue)
+        XCTAssertTrue(row.accessibilityActivate())
+        XCTAssertEqual(rowTaps, 1)
+    }
+}
+
+/// Hosts a SwiftUI view in a window and reads its accessibility elements, so tests assert on
+/// what is rendered rather than on a helper.
+@MainActor
+final class HostedView {
+    private let window: UIWindow
+    private let root: UIView
+
+    /// SwiftUI only builds its accessibility tree while an assistive client is active. Turn on
+    /// automation mode (what UI tests and accessibility snapshot tools do) for this test process.
+    private static let accessibilityEnabled: Bool = {
+        guard let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW),
+              let symbol = dlsym(handle, "_AXSSetAutomationEnabled") else { return false }
+        typealias SetEnabled = @convention(c) (Int32) -> Void
+        unsafeBitCast(symbol, to: SetEnabled.self)(1)
+        return true
+    }()
+
+    init<V: View>(_ view: V) {
+        precondition(Self.accessibilityEnabled, "could not enable accessibility automation")
+        let host = UIHostingController(rootView: view)
+        window = UIWindow(frame: CGRect(x: 0, y: 0, width: 390, height: 300))
+        window.rootViewController = host
+        window.makeKeyAndVisible()
+        host.view.layoutIfNeeded()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
+        root = host.view
+    }
+
+    var elements: [NSObject] {
+        var found: [NSObject] = []
+        func walk(_ node: NSObject, depth: Int) {
+            guard depth < 40 else { return }
+            if node.isAccessibilityElement { found.append(node); return }
+            if let children = node.accessibilityElements as? [NSObject], !children.isEmpty {
+                children.forEach { walk($0, depth: depth + 1) }
+                return
+            }
+            let count = node.accessibilityElementCount()
+            if count != NSNotFound, count > 0 {
+                for i in 0..<count {
+                    if let child = node.accessibilityElement(at: i) as? NSObject { walk(child, depth: depth + 1) }
+                }
+                return
+            }
+            (node as? UIView)?.subviews.forEach { walk($0, depth: depth + 1) }
+        }
+        walk(root, depth: 0)
+        return found
+    }
+
+    var labels: [String] { elements.compactMap(\.accessibilityLabel) }
+
+    func element(labelled text: String) -> NSObject? {
+        elements.first { ($0.accessibilityLabel ?? "").contains(text) }
+    }
+}
+
+private extension UIAccessibilityCustomAction {
+    func perform() {
+        if let actionHandler { _ = actionHandler(self) }
     }
 }

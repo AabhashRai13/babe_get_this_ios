@@ -13,7 +13,7 @@ struct SettingsRowModel {
 }
 
 /// Shared settings-screen row: optional 24pt icon, tinted title, optional subtitle,
-/// optional trailing control (e.g. a Toggle). The whole row is tappable.
+/// optional trailing control (e.g. a Toggle). The whole row outside the control is tappable.
 struct SettingsRow<Trailing: View>: View {
     private let model: SettingsRowModel
     private let icon: String?
@@ -35,30 +35,55 @@ struct SettingsRow<Trailing: View>: View {
     }
 
     var body: some View {
-        Button(action: model.tap) {
+        if Trailing.self == EmptyView.self {
+            // Navigation row: one button, read as "title, subtitle".
+            Button(action: model.tap) {
+                label
+                    .padding(.horizontal, 20)
+                    .padding(.vertical, 16)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+        } else {
+            // Toggle row: the label is its own button and the trailing control stays a separate
+            // accessibility element, so VoiceOver can reach the toggle's value and action.
             HStack(spacing: 16) {
-                if let icon {
-                    Image(systemName: icon)
-                        .font(.system(size: 24))
-                        .foregroundStyle(tint)
-                        .frame(width: 24, height: 24)
-                        .accessibilityHidden(true)
+                Button(action: model.tap) {
+                    label
+                        .padding(.leading, 20)
+                        .padding(.vertical, 16)
+                        .contentShape(Rectangle())
                 }
-                VStack(alignment: .leading) {
-                    Text(model.title).font(.body).foregroundStyle(tint)
-                    if let subtitle = model.subtitle {
-                        Text(subtitle).font(.footnote).foregroundStyle(AppColors.textSecondary)
+                .buttonStyle(.plain)
+                trailing
+                    .padding(.trailing, 20)
+            }
+            .accessibilityElement(children: .contain)
+        }
+    }
+
+    /// Icon and the model's texts, rendered from `visibleTexts`: title, then subtitle.
+    private var label: some View {
+        HStack(spacing: 16) {
+            if let icon {
+                Image(systemName: icon)
+                    .font(.system(size: 24))
+                    .foregroundStyle(tint)
+                    .frame(width: 24, height: 24)
+                    .accessibilityHidden(true)
+            }
+            VStack(alignment: .leading) {
+                ForEach(Array(model.visibleTexts.enumerated()), id: \.offset) { index, text in
+                    if index == 0 {
+                        Text(text).font(.body).foregroundStyle(tint)
+                    } else {
+                        Text(text).font(.footnote).foregroundStyle(AppColors.textSecondary)
                     }
                 }
-                Spacer(minLength: 0)
-                trailing
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .contentShape(Rectangle())
+            Spacer(minLength: 0)
         }
-        .buttonStyle(.plain)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
