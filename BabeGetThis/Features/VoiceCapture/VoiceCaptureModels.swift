@@ -71,7 +71,13 @@ protocol VoiceTranscribing {
 extension TranscribeClient: VoiceTranscribing {}
 
 extension TranscribedItem {
-    /// Maps a transcribed item onto the add-item draft. Absent optionals become empty strings.
+    /// Maps a transcribed item onto the add-item draft. Absent optionals become empty strings,
+    /// so "Milk, eggs, bread" gives drafts with an empty quantity.
+    ///
+    /// Voice drafts go to the persist closure and are saved as they are (Android
+    /// `createListWithItems` / `addItemsToList`). Never route them through the manual add path
+    /// (`ItemDraft.isValid`, `ListDetailViewModel.add(_:)`): it requires a quantity and would
+    /// silently drop most spoken items. Use `isSavableVoiceItem` if a check is needed.
     func toItemDraft() -> ItemDraft {
         var draft = ItemDraft()
         draft.name = name

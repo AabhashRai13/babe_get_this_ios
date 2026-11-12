@@ -187,6 +187,20 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         XCTAssertEqual(received, drafts.map { $0.toItemDraft() })
     }
 
+    func testSpokenItemsWithoutQuantityAllReachPersist() async {
+        transcriber.result = .success([TranscribedItem(name: "Milk"), TranscribedItem(name: "Eggs"), TranscribedItem(name: "Bread")])
+        var received: [ItemDraft] = []
+        let vm = makeViewModel()
+        vm.setPersist { items in
+            received = items
+            return .success("list-1")
+        }
+        await recordAndStop(vm)
+        XCTAssertEqual(received.map(\.name), ["Milk", "Eggs", "Bread"])
+        XCTAssertTrue(received.allSatisfy { $0.quantity.isEmpty && $0.isSavableVoiceItem })
+        XCTAssertTrue(analytics.events.contains(.itemsSaved(itemCount: 3)))
+    }
+
     func testPersistFailureSurfacesItsMessage() async {
         transcriber.result = .success(drafts)
         let vm = makeViewModel()

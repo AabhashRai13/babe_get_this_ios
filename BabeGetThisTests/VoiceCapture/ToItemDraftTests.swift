@@ -68,4 +68,16 @@ final class ToItemDraftTests: XCTestCase {
             ItemDraft(name: "Tea", quantity: "3", categoryId: "cat-x", shop: "Aldi", note: "green")
         )
     }
+
+    /// Most spoken items have no quantity. They fail the manual add rule (quantity required,
+    /// unchanged) but are savable voice items, so the persist path must not use `isValid`.
+    func testASpokenItemWithoutQuantityFailsTheManualRuleButIsSavable() {
+        let draft = TranscribedItem(name: "Bread").toItemDraft()
+        XCTAssertFalse(draft.isValid)
+        XCTAssertTrue(draft.isSavableVoiceItem)
+    }
+
+    func testABlankSpokenNameIsNotSavable() {
+        XCTAssertFalse(TranscribedItem(name: "  ").toItemDraft().isSavableVoiceItem)
+    }
 }
