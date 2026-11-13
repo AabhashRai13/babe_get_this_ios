@@ -88,7 +88,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/WelcomeRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 4)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F06",
@@ -106,7 +106,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F07",
@@ -346,7 +346,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthRepositoryTests/testEveryCallButLogoutFailsFastOffline && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F20",
@@ -745,7 +745,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/VoiceCaptureSheetTests/testTranscribingCopyAdvancesEvery2_5Seconds && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F41",
