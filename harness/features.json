@@ -199,7 +199,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/CreateListDialogTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F12",
@@ -252,7 +252,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProgressCardTests/testCelebrationPlaysOnlyOnTransitionToFinished && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F15",
@@ -397,7 +397,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ForgotPasswordViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F23",
@@ -482,7 +482,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEnginePushTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 17)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F27",
