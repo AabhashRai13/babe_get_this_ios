@@ -3,7 +3,6 @@
   "base_ref": "night/2026-11-13c/integration",
   "worker_deadline": "02:30",
   "total_deadline": "03:15",
-  "require_ac": false,
   "merge_order": [
     1,
     2,
