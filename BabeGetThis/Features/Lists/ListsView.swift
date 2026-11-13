@@ -4,7 +4,11 @@ import SwiftUI
 /// (Active only) and the lists grouped into date buckets.
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
-    @State private var isCreating = false
+    /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
+    var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
+    /// Sign-in and create-account routes for the auth prompt. Sign-in screens aren't reachable from Lists yet.
+    var onLogin: () -> Void = {}
+    var onRegister: () -> Void = {}
 
     /// Android AnimatedContent: tab content slides in the direction of travel, 280 ms.
     private static let tabMotion = Animation.easeInOut(duration: 0.28)
@@ -13,7 +17,7 @@ struct ListsView: View {
         VStack(spacing: 0) {
             if viewModel.hasNoLists {
                 ScrollView {
-                    EmptyListsView { isCreating = true }
+                    EmptyListsView { viewModel.startCreating() }
                         .padding(.top, 48)
                         .padding(.horizontal, AppMetrics.screenPadding)
                 }
@@ -50,7 +54,7 @@ struct ListsView: View {
         .overlay(alignment: .bottomTrailing) {
             // Android: the FAB shows on the Active tab only, and not over the empty state.
             if viewModel.isActiveTab && !viewModel.hasNoLists {
-                Button { isCreating = true } label: {
+                Button { viewModel.startCreating() } label: {
                     Label("Create list", systemImage: "plus")
                 }
                 .buttonStyle(TonalFABStyle())
@@ -77,9 +81,9 @@ struct ListsView: View {
         }
         .animation(.easeInOut(duration: 0.2), value: viewModel.undoMessage)
         .overlay {
-            if isCreating {
-                CreateListDialog(onDismiss: { isCreating = false }) { outcome in
-                    isCreating = false
+            if viewModel.isNamingList {
+                CreateListDialog(onDismiss: { viewModel.isNamingList = false }) { outcome in
+                    viewModel.isNamingList = false
                     if case .create(let name) = outcome {
                         Task { await viewModel.createList(named: name) }
                     }
@@ -91,6 +95,32 @@ struct ListsView: View {
                     }
                 }
                 .id(list.id)
+            }
+        }
+        .overlay {
+            if let prompt = viewModel.authPrompt {
+                AuthPromptDialog(content: prompt, onLogin: onLogin, onRegister: onRegister,
+                                 onDismiss: { viewModel.dismissAuthPrompt() })
+            }
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel.isChooserPresented },
+            set: { if !$0 { viewModel.dismissChooser() } }
+        )) {
+            CreateListChooserSheet(onPickType: { viewModel.pickType() },
+                                   onPickVoice: { viewModel.pickVoice() })
+        }
+        .sheet(isPresented: $viewModel.isVoicePresented) {
+            if let makeVoiceViewModel {
+                VoiceCaptureSheet(
+                    viewModel: makeVoiceViewModel(),
+                    // Creating the list from the spoken items is F41.
+                    persist: { _ in .failure(.unknown("Creating a list from voice isn't available yet.")) },
+                    onDismiss: { viewModel.isVoicePresented = false },
+                    onSwitchToType: {
+                        viewModel.isVoicePresented = false
+                        viewModel.isNamingList = true
+                    })
             }
         }
         .alert("Something went wrong", isPresented: Binding(
