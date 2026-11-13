@@ -5,6 +5,7 @@ set -uo pipefail
 source "$(dirname "$0")/lib.sh"
 FAILS=0
 ok()   { log "PREFLIGHT ok   - $*"; }
+warn() { log "PREFLIGHT WARN - $*"; }
 bad()  { log "PREFLIGHT FAIL - $*"; FAILS=$((FAILS+1)); }
 SCRATCH="$RUN/_preflight"; SBRANCH="night/$NIGHT_ID/preflight-scratch"; VSIM="bgt-night-verify"
 
@@ -22,11 +23,20 @@ COMMIT_SH="$REPO/harness/night/commit.sh"
 [ -d "$GIT_COMMON/objects" ] && [ -f "$GIT_COMMON/config" ] && ok "git common dir $GIT_COMMON" || bad "git common dir not found ($GIT_COMMON)"
 
 # 3. Machine
-# AC power is required for unattended (overnight) runs. A daytime run with someone at the Mac can opt out
-# with "require_ac": false in its night config; the check then only warns.
+# AC power is required. On battery, caffeinate's -s has no effect, so a long run can drain the battery and
+# macOS sleeping mid-run kills workers or the merge with nobody there to notice.
+# The opt-out is for a run someone is watching, and needs BOTH:
+#   - "require_ac": false in the night config, and
+#   - BGT_ATTENDED=1 in the environment of the person launching the run.
+# The config flag alone is refused, so a copied config can't run unattended on battery; run-waves.sh also
+# strips the flag from a chained wave B unless BGT_ATTENDED=1. Never commit "require_ac": false on a config
+# meant for an overnight run. When the opt-out applies, the run log says so with a WARN line.
 if pmset -g batt | grep -q "AC Power"; then ok "on AC power"
-elif [ "$(cfg_opt require_ac)" = "False" ]; then ok "on battery (allowed: require_ac is false for this run)"
-else bad "not on AC power (plug the Mac in, or set \"require_ac\": false for an attended daytime run)"; fi
+elif [ "$(cfg_opt require_ac)" = "False" ] && [ "${BGT_ATTENDED:-}" = "1" ]; then
+  warn "on battery: allowed only because this run is attended (require_ac false + BGT_ATTENDED=1); plug in before leaving the Mac"
+elif [ "$(cfg_opt require_ac)" = "False" ]; then
+  bad "not on AC power: \"require_ac\": false needs BGT_ATTENDED=1 too (attended runs only; plug the Mac in otherwise)"
+else bad "not on AC power (plug the Mac in; an attended run can set \"require_ac\": false and BGT_ATTENDED=1)"; fi
 FREE_GB=$(df -g "$PARENT" | awk 'NR==2{print $4}')
 [ "${FREE_GB:-0}" -ge 20 ] && ok "disk free ${FREE_GB} GB" || bad "only ${FREE_GB} GB free (need 20)"
 
