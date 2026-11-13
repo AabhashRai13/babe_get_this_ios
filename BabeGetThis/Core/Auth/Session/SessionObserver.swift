@@ -14,12 +14,19 @@ enum SupabaseSessionStatus: Equatable, Sendable {
 
     /// Maps a supabase-swift auth event. A failed background refresh emits no event, so
     /// `.refreshFailure` never comes from here.
+    ///
+    /// Only `.signedOut` means the session is gone. An `.initialSession` without a session is
+    /// not proof of that: supabase-swift refreshes an expired stored session before emitting
+    /// it and sends nil when that refresh fails, which offline it does even though the refresh
+    /// token is still valid (supabase-kt reports `RefreshFailure` there). A session that is
+    /// really dead (refresh token revoked or expired) is cleared by supabase-swift, which then
+    /// emits `.signedOut`.
     static func from(event: AuthChangeEvent, session: Session?) -> SupabaseSessionStatus {
         if event == .signedOut { return .notAuthenticated }
         if let session {
             return .authenticated(accessToken: session.accessToken, userId: session.user.id.uuidString.lowercased())
         }
-        return event == .initialSession ? .notAuthenticated : .initializing
+        return .initializing
     }
 }
 

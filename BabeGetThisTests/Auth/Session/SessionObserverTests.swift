@@ -1,3 +1,4 @@
+import Supabase
 import XCTest
 @testable import BabeGetThis
 
@@ -108,6 +109,68 @@ final class SessionObserverTests: XCTestCase {
         XCTAssertEqual(authState.refreshedTokens, ["a", "b"])
         XCTAssertEqual(authState.expireCount, 1)
         XCTAssertEqual(telemetry.changes, ["user-1", "user-1", nil])
+    }
+}
+
+// How supabase-swift's auth events become statuses. Only a sign-out may expire the session.
+final class SupabaseSessionStatusMappingTests: XCTestCase {
+    private static func session(token: String = "access-1") throws -> Session {
+        let json = """
+        {"access_token":"\(token)","token_type":"bearer","expires_in":3600,"expires_at":4102444800,\
+        "refresh_token":"refresh-1","user":{"id":"8F6C2B1E-0000-4000-8000-000000000001","aud":"authenticated",\
+        "email":"ann@example.com","created_at":"2026-11-13T09:00:00Z","updated_at":"2026-11-13T09:00:00Z"}}
+        """
+        return try AuthClient.Configuration.jsonDecoder.decode(Session.self, from: Data(json.utf8))
+    }
+
+    private let userId = "8f6c2b1e-0000-4000-8000-000000000001"
+
+    func testAnEventWithASessionIsAuthenticatedWithTheLowercasedUserId() throws {
+        let session = try Self.session(token: "access-2")
+        for event in [AuthChangeEvent.initialSession, .signedIn, .tokenRefreshed, .userUpdated] {
+            XCTAssertEqual(
+                SupabaseSessionStatus.from(event: event, session: session),
+                .authenticated(accessToken: "access-2", userId: userId),
+                "\(event)"
+            )
+        }
+    }
+
+    func testASignOutIsALostSession() throws {
+        XCTAssertEqual(SupabaseSessionStatus.from(event: .signedOut, session: nil), .notAuthenticated)
+        XCTAssertEqual(SupabaseSessionStatus.from(event: .signedOut, session: try Self.session()), .notAuthenticated)
+    }
+
+    // supabase-swift refreshes an expired stored session before emitting the initial one, and
+    // sends nil when that refresh fails (offline). The refresh token is still valid, so this
+    // must not expire the session: a dead one arrives as .signedOut instead.
+    func testAnInitialSessionWithoutASessionIsNotALostSession() {
+        XCTAssertEqual(SupabaseSessionStatus.from(event: .initialSession, session: nil), .initializing)
+    }
+
+    func testOtherEventsWithoutASessionChangeNothing() {
+        for event in [AuthChangeEvent.signedIn, .tokenRefreshed, .userUpdated, .passwordRecovery] {
+            XCTAssertEqual(SupabaseSessionStatus.from(event: event, session: nil), .initializing, "\(event)")
+        }
+    }
+
+    // The cold-launch-offline case end to end: a stored, signed-in user stays signed in.
+    func testAnOfflineColdLaunchKeepsAValidSession() async {
+        let tokens = InMemoryTokenStore()
+        tokens.saveToken("access-1")
+        tokens.saveUserId("user-1")
+        let manager = AuthStateManager(tokenStore: tokens)
+        manager.initialize()
+        let observer = SessionObserver(authState: manager, scheduler: ImmediateSessionObserverScheduler())
+        let (stream, continuation) = AsyncStream<SupabaseSessionStatus>.makeStream()
+        let task = observer.observe(stream)
+
+        continuation.yield(.from(event: .initialSession, session: nil))
+        continuation.finish()
+        await task.value
+
+        XCTAssertEqual(manager.authState, .authenticated(userId: "user-1"))
+        XCTAssertEqual(tokens.token(), "access-1")
     }
 }
 
