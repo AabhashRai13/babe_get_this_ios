@@ -123,6 +123,103 @@ actor SyncEngine {
         }
     }
 
+    // MARK: - Catch-up
+
+    // Fetch everything changed in one list since its sync point and land it in
+    // the database. Used for an open list (and on every realtime event of a
+    // shared one): realtime events don't carry data anywhere — they just
+    // trigger this. Idempotent by construction, so gte-refetch of the newest
+    // known row is harmless. No live session → nothing to ask.
+    func catchUp(listId: String) async throws -> Result<Void, AppError> {
+        try await safeCall {
+            try await serially { try await catchUpLocked(listId: listId) }
+        }
+    }
+
+    private func catchUpLocked(listId: String) async throws {
+        guard let userId = currentUserId() else { return }
+        let since = syncPoints.get(listId: listId)
+        let listRows = try await remote.fetchList(listId: listId, sinceIso: since)
+        let itemRows = try await remote.fetchItems(listId: listId, sinceIso: since)
+        try await apply(userId: userId, listRows: listRows, itemRows: itemRows)
+        // Advance the high-water mark only AFTER a full successful apply — a
+        // failure above leaves it untouched and the next catch-up refetches.
+        let newest = (listRows.compactMap(\.updatedAt) + itemRows.compactMap(\.updatedAt)).max()
+        if let newest { syncPoints.set(listId: listId, iso: newest) }
+    }
+
+    // Full re-pull of one list: drop the high-water mark, then catch up from
+    // scratch. join() uses this so re-joining REFRESHES the replica (spec:
+    // "joining twice is idempotent — the existing replica is refreshed") —
+    // plain catchUp starts from the stored sync point, which on a re-join is
+    // already current and silently no-ops. Also the user-driven recovery road
+    // if a replica ever goes bad: leave + re-enter the code.
+    func fullCatchUp(listId: String) async throws -> Result<Void, AppError> {
+        syncPoints.remove(listId: listId)
+        return try await catchUp(listId: listId)
+    }
+
+    // MARK: - Apply
+
+    private func apply(userId: String, listRows: [ListRow], itemRows: [ItemRow]) async throws {
+        let lockedIds = ownership.lockedListIds()
+        for row in listRows {
+            let local = try await listDao.listRaw(id: row.id)
+            // The deletion of a list this phone never had: nothing to hide, so
+            // nothing to store.
+            if local == nil && row.deletedAt != nil { continue }
+            // A replica with no owner (its session was lost before lists had
+            // owners) is claimed the moment the server returns it for this
+            // account — that answer is the proof of membership. Even when the
+            // local row is dirty and the incoming data loses below.
+            if let local, local.accountId == nil { try await listDao.claimList(id: row.id, accountId: userId) }
+            if try shouldSkip(localDirty: local?.pendingSync, localUpdatedAt: local?.updatedAt, incomingIso: row.updatedAt) {
+                continue
+            }
+            let record = ShoppingListRecord(
+                syncLocal: try row.toRecord(local: local?.syncLocal, accountId: userId, lockedIds: lockedIds))
+            // UPDATE, not INSERT OR REPLACE, when the row already exists: REPLACE
+            // is DELETE + INSERT in SQLite, which fires shopping_items' ON DELETE
+            // CASCADE and hard-deletes every item of the list. A single renamed
+            // list arriving from a peer would wipe that list's items on every
+            // device (including the one that made the rename, once its own push
+            // echoed back) — unrecoverably, since the rows are gone rather than
+            // tombstoned and the sync point has already moved past them.
+            if local == nil {
+                try await listDao.insertList(record)
+            } else {
+                try await listDao.updateList(record)
+            }
+        }
+        for row in itemRows {
+            // FK guard: an item whose list isn't in the database yet can't be
+            // inserted (CASCADE FK). The list row lands via the same catch-up
+            // that brought the item, so the next pass picks the item up.
+            if try await listDao.listRaw(id: row.listId) == nil { continue }
+            let local = try await itemDao.itemRaw(id: row.id)
+            if local == nil && row.deletedAt != nil { continue }
+            if try shouldSkip(localDirty: local?.pendingSync, localUpdatedAt: local?.updatedAt, incomingIso: row.updatedAt) {
+                continue
+            }
+            let record = ShoppingItemRecord(syncLocal: try row.toRecord(local: local?.syncLocal))
+            if local == nil {
+                try await itemDao.insertItem(record)
+            } else {
+                try await itemDao.updateItem(record)
+            }
+        }
+    }
+
+    // Incoming loses when: the local row is dirty (our pending push will
+    // out-timestamp it at the server), or the incoming stamp is no newer than
+    // what we already applied (the same row again — discovery returns every
+    // row on every pass — or a stale/out-of-order fetch).
+    private func shouldSkip(localDirty: Bool?, localUpdatedAt: Int64?, incomingIso: String?) throws -> Bool {
+        guard let incomingIso else { return true } // defensive: server rows always carry it
+        guard let localDirty, let localUpdatedAt else { return false } // no local row → apply
+        return try localDirty || incomingIso.isoToMillis() <= localUpdatedAt
+    }
+
     // MARK: - Outbox
 
     // Anything of this account's still waiting to reach the server — the rows
