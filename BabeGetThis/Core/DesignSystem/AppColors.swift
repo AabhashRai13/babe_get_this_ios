@@ -33,6 +33,11 @@ enum AppColors {
     /// Apply the elevation's strength with `.opacity(_:)`.
     static let shadow = Color("Shadow")
 
+    /// Form and field errors. Android's Theme.kt sets no error colours, so these are the
+    /// Material 3 baseline `error` / `onError` (Error40 / Error100 light, Error80 / Error20 dark).
+    static let error = Color("Error")
+    static let onError = Color("OnError")
+
     /// Swipe-to-delete background (Android SwipeableCard red 0xE53935). Android uses the same
     /// value in light and dark, so both appearances match.
     static let swipeDelete = Color("SwipeDelete")
@@ -41,6 +46,14 @@ enum AppColors {
     /// Icon on a swipe background (Android `Color.White`).
     static let onSwipe = Color("OnSwipe")
 
+    /// The pebble mascot on the voice recording screen (Android PebbleListeningIndicator.kt,
+    /// matching the app-icon mascot). Android uses the same values in light and dark.
+    static let pebbleSlate = Color("PebbleSlate")
+    static let pebbleCream = Color("PebbleCream")
+    static let pebblePupil = Color("PebblePupil")
+    static let pebbleBlush = Color("PebbleBlush")
+    static let pebbleEye = Color("PebbleEye")
+
     /// Every named colour asset, so a test can prove none is missing.
     static let assetNames = [
         "AccentColor", "OnPrimary", "PrimaryContainer", "OnPrimaryContainer",
@@ -48,11 +61,14 @@ enum AppColors {
         "Tertiary", "TertiaryContainer", "OnTertiaryContainer",
         "Background", "Surface", "SurfaceContainerLowest", "SurfaceContainerLow",
         "SurfaceContainer", "SurfaceContainerHigh", "SurfaceContainerHighest",
-        "TextPrimary", "TextSecondary", "Outline", "Shadow",
+        "TextPrimary", "TextSecondary", "Outline", "Shadow", "Error", "OnError",
     ] + (0..<ListAccent.count).flatMap { ["ListAccent\($0)Container", "ListAccent\($0)OnContainer"] }
 
     /// Assets that are deliberately the same in light and dark, because Android's are.
-    static let fixedAssetNames = ["SwipeDelete", "SwipeComplete", "OnSwipe"]
+    static let fixedAssetNames = [
+        "SwipeDelete", "SwipeComplete", "OnSwipe",
+        "PebbleSlate", "PebbleCream", "PebblePupil", "PebbleBlush", "PebbleEye",
+    ]
 }
 
 /// Muted per-list accent (icon tile behind the cart), picked from the list id exactly like

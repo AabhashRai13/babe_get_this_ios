@@ -1,0 +1,106 @@
+{
+  "night_id": "2026-11-13b",
+  "base_ref": "night/2026-11-13a/integration",
+  "worker_deadline": "22:00",
+  "total_deadline": "22:45",
+  "merge_order": [
+    1,
+    2,
+    3,
+    4,
+    5
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F07",
+      "slug": "f07-list-delete-undo",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "owned": [
+        "BabeGetThis/Core/Repositories/ShoppingList/",
+        "BabeGetThisTests/Repositories/ShoppingList/",
+        "docs/night/2026-11-13b-f07-list-delete-undo.md"
+      ],
+      "brief": "harness/night/briefs/F07.md",
+      "requires": [
+        "F06"
+      ]
+    },
+    {
+      "n": 2,
+      "id": "F08",
+      "slug": "f08-item-repository",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-2",
+      "owned": [
+        "BabeGetThis/Core/Repositories/ShoppingItem/",
+        "BabeGetThisTests/Repositories/ShoppingItem/",
+        "docs/night/2026-11-13b-f08-item-repository.md"
+      ],
+      "brief": "harness/night/briefs/F08.md",
+      "requires": [
+        "F06"
+      ]
+    },
+    {
+      "n": 3,
+      "id": "F10",
+      "slug": "f10-lists-on-database",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-3",
+      "owned": [
+        "BabeGetThis/Features/Lists/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/Lists/",
+        "BabeGetThisTests/ListsViewModelTests.swift",
+        "docs/night/2026-11-13b-f10-lists-on-database.md"
+      ],
+      "brief": "harness/night/briefs/F10.md"
+    },
+    {
+      "n": 4,
+      "id": "F20",
+      "slug": "f20-session-observer",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-4",
+      "owned": [
+        "BabeGetThis/Core/Auth/Session/",
+        "BabeGetThis/Core/Voice/",
+        "BabeGetThisTests/Auth/Session/",
+        "BabeGetThisTests/Voice/",
+        "docs/night/2026-11-13b-f20-session-observer.md"
+      ],
+      "brief": "harness/night/briefs/F20.md",
+      "requires": [
+        "F19"
+      ]
+    },
+    {
+      "n": 5,
+      "id": "F21",
+      "slug": "f21-login-screen",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-5",
+      "owned": [
+        "BabeGetThis/Features/Auth/",
+        "BabeGetThisTests/Login/",
+        "docs/night/2026-11-13b-f21-login-screen.md"
+      ],
+      "brief": "harness/night/briefs/F21.md",
+      "requires": [
+        "F19"
+      ]
+    }
+  ]
+}
