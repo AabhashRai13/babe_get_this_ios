@@ -153,6 +153,34 @@ final class AuthNetworkTests: XCTestCase {
         XCTAssertEqual(tokens.token(), "abc123")
     }
 
+    // Supabase rotated the token while the request was in flight: the 401 is for the old
+    // bearer, so the fresh token and the live session must survive it.
+    func testA401ForATokenRotatedMidFlightKeepsTheNewToken() async throws {
+        let (tokens, manager) = signedIn()
+        respond(401)
+        let auth = TranscribeBearerAuth(tokenStore: tokens, authStateManager: manager)
+        let signed = auth.authorize(URLRequest(url: baseURL.appending(path: "thing")))
+        manager.refreshToken("rotated456")
+
+        let (_, response) = try await session.data(for: signed)
+        auth.handle(try XCTUnwrap(response as? HTTPURLResponse), to: signed)
+
+        XCTAssertEqual(sentAuthorization, "Bearer abc123")
+        XCTAssertEqual(manager.authState, .authenticated(userId: "u1"))
+        XCTAssertEqual(tokens.token(), "rotated456")
+    }
+
+    // The bearer sent is still the saved token, so the 401 is about the current session.
+    func testA401ForTheCurrentTokenStillExpiresTheSession() async throws {
+        let (tokens, manager) = signedIn()
+        respond(401)
+
+        try await send(URLRequest(url: baseURL.appending(path: "thing")), with: TranscribeBearerAuth(tokenStore: tokens, authStateManager: manager))
+
+        XCTAssertEqual(manager.authState, .sessionExpired(userId: "u1"))
+        XCTAssertNil(tokens.token())
+    }
+
     func testASuccessfulResponseNeverExpiresTheSession() async {
         let (tokens, manager) = signedIn()
         respond(200)

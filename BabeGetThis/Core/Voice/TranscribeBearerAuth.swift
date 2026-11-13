@@ -32,8 +32,15 @@ struct TranscribeBearerAuth: Sendable {
     }
 
     /// Without a bearer on the request there is no session to expire, so a 401 changes nothing.
+    /// A 401 for a bearer that is no longer the saved token changes nothing either: Supabase
+    /// rotated the token while the request was in flight, and expiring now would throw away
+    /// the fresh one.
     func handle(_ response: HTTPURLResponse, to request: URLRequest) {
-        guard response.statusCode == 401, request.value(forHTTPHeaderField: "Authorization") != nil else { return }
+        guard response.statusCode == 401,
+              let sent = request.value(forHTTPHeaderField: "Authorization"),
+              let token = currentToken(),
+              sent == "Bearer \(token)"
+        else { return }
         expireSession()
     }
 }
