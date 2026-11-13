@@ -12,11 +12,13 @@ final class FakeListDetailItemsSource: ListDetailItemsSource, @unchecked Sendabl
 
     var addResult: Result<String, AppError> = .success("new-id")
     var toggleResult: Result<Void, AppError> = .success(())
+    var updateResult: Result<Void, AppError> = .success(())
     var deleteResult: Result<Void, AppError> = .success(())
     var restoreResult: Result<Void, AppError> = .success(())
 
     private(set) var added: [(name: String, quantity: String, categoryId: String?, shop: String?, note: String?)] = []
     private(set) var toggled: [(itemId: String, isPickedUp: Bool)] = []
+    private(set) var updated: [StoredShoppingItem] = []
     private(set) var deleted: [String] = []
     private(set) var restored: [StoredShoppingItem] = []
 
@@ -51,6 +53,13 @@ final class FakeListDetailItemsSource: ListDetailItemsSource, @unchecked Sendabl
         locked {
             toggled.append((itemId, isPickedUp))
             return toggleResult
+        }
+    }
+
+    func updateItem(_ item: StoredShoppingItem) async throws -> Result<Void, AppError> {
+        locked {
+            updated.append(item)
+            return updateResult
         }
     }
 

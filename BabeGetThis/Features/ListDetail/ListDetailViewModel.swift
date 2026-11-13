@@ -8,6 +8,7 @@ protocol ListDetailItemsSource: Sendable {
     func addItem(listId: String, name: String, quantity: String, categoryId: String?, shop: String?,
                  note: String?) async throws -> Result<String, AppError>
     func togglePickedUp(itemId: String, isPickedUp: Bool) async throws -> Result<Void, AppError>
+    func updateItem(_ item: StoredShoppingItem) async throws -> Result<Void, AppError>
     func deleteItem(itemId: String) async throws -> Result<Void, AppError>
     func restoreItem(_ item: StoredShoppingItem) async throws -> Result<Void, AppError>
 }
@@ -149,6 +150,22 @@ final class ListDetailViewModel {
                 shop: shop.isEmpty ? nil : shop,
                 note: note.isEmpty ? nil : note)
         }
+    }
+
+    /// Saves an edit from the dialog (Android `onEdit`). Only the dialog's fields change: the
+    /// stored row keeps its id, list, created time and picked-up state. Returns whether it was saved.
+    func edit(_ id: String, with draft: ItemDraft) async -> Bool {
+        guard draft.isValid, var item = storedItems.first(where: { $0.id == id }) else { return false }
+        let shop = draft.shop.trimmingCharacters(in: .whitespacesAndNewlines)
+        let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
+        item.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
+        item.quantity = draft.quantity.trimmingCharacters(in: .whitespacesAndNewlines)
+        item.categoryId = draft.categoryId
+        item.categoryName = nil
+        item.shop = shop.isEmpty ? nil : shop
+        item.note = note.isEmpty ? nil : note
+        let updated = item
+        return await run { try await source.updateItem(updated) }
     }
 
     /// Runs a repository write; a failure becomes `errorMessage`. Returns whether it succeeded.

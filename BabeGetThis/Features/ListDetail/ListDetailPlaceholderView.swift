@@ -18,6 +18,7 @@ private struct ListDetailScreen: View {
     let list: ShoppingListSummary
     @State private var model: ListDetailViewModel
     @State private var showingAdd = false
+    @State private var editingItem: ShoppingItem?
     @State private var undoTask: Task<Void, Never>?
     @State private var errorTask: Task<Void, Never>?
 
@@ -77,6 +78,9 @@ private struct ListDetailScreen: View {
         .sheet(isPresented: $showingAdd) {
             AddItemSheet { await model.add($0) }
         }
+        .sheet(item: $editingItem) { item in
+            AddItemSheet(editing: item) { await model.edit(item.id, with: $0) }
+        }
         .task { await model.observeItems() }
         .onChange(of: model.errorMessage) { _, message in
             guard message != nil else { return }
@@ -125,22 +129,29 @@ private struct ListDetailScreen: View {
     }
 
     private func itemRow(_ item: ShoppingItem) -> some View {
-        ItemCardView(item: item) {
-            SystemHapticPlayer().play(.light)
-            Task { await model.toggle(item.id) }
-        }
-        .plainRow(bottom: 8)
-        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-            Button(role: .destructive) {
-                SystemHapticPlayer().play(.medium)
+        let actions = ItemCardActions(
+            onToggle: { Task { await model.toggle(item.id) } },
+            onEdit: { editingItem = item },
+            onDelete: {
                 Task {
                     await model.delete(item.id)
                     if model.undoMessage != nil { scheduleUndoDismissal() }
                 }
-            } label: {
-                Label("Delete", systemImage: "trash")
-            }
+            })
+        // SwipeableCard plays the swipe's own haptic; the tick circle plays its own.
+        return SwipeableCard(
+            onSwipeLeft: actions.onDelete,
+            onSwipeRight: actions.onToggle,
+            rightIcon: item.isPickedUp ? "arrow.uturn.backward" : "checkmark",
+            leftActionName: "Delete",
+            rightActionName: item.isPickedUp ? "Mark as not picked up" : "Mark as picked up"
+        ) {
+            ItemCardView(item: item, onToggle: {
+                SystemHapticPlayer().play(.light)
+                actions.onToggle()
+            }, onEdit: actions.onEdit)
         }
+        .plainRow(bottom: 8)
     }
 
     private func scheduleUndoDismissal() {
