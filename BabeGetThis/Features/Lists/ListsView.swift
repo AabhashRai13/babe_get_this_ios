@@ -5,7 +5,6 @@ import SwiftUI
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
     @State private var isCreating = false
-    @State private var newListName = ""
 
     /// Android AnimatedContent: tab content slides in the direction of travel, 280 ms.
     private static let tabMotion = Animation.easeInOut(duration: 0.28)
@@ -26,7 +25,9 @@ struct ListsView: View {
                 ZStack {
                     ListsPaneView(pane: viewModel.pane(for: viewModel.selectedTab),
                                   greetingTitle: viewModel.greetingTitle(hour: Calendar.current.component(.hour, from: .now)),
-                                  greetingSummary: viewModel.greetingSummary)
+                                  greetingSummary: viewModel.greetingSummary,
+                                  onDelete: { id in Task { await viewModel.deleteList(id: id) } },
+                                  onRename: { id in viewModel.startRenaming(id: id) })
                         .id(viewModel.selectedTab)
                         // Active sits left of Completed, so each pane enters and leaves on its own side.
                         .transition(.move(edge: viewModel.selectedTab == .active ? .leading : .trailing)
@@ -58,16 +59,39 @@ struct ListsView: View {
             }
         }
         .task { await viewModel.observeLists() }
-        .alert("New List", isPresented: $isCreating) {
-            TextField("List name", text: $newListName)
-                .accessibilityIdentifier("lists.newName")
-            Button("Cancel", role: .cancel) { newListName = "" }
-            Button("Create") {
-                let name = newListName
-                newListName = ""
-                Task { await viewModel.createList(named: name) }
+        .overlay(alignment: .bottom) {
+            if let message = viewModel.undoMessage {
+                Snackbar(message: message, actionTitle: "Undo") {
+                    SystemHapticPlayer().play(.light)
+                    // Unstructured: leaving the screen right after tapping Undo must not cancel the restore.
+                    Task { await viewModel.undoDelete() }
+                }
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                // Restarts for each new message; 4 s like Android's SnackbarDuration.Short.
+                .task(id: message) {
+                    try? await Task.sleep(for: SnackbarDuration.short)
+                    if !Task.isCancelled { viewModel.dismissUndo() }
+                }
             }
-            .disabled(newListName.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.undoMessage)
+        .overlay {
+            if isCreating {
+                CreateListDialog(onDismiss: { isCreating = false }) { outcome in
+                    isCreating = false
+                    if case .create(let name) = outcome {
+                        Task { await viewModel.createList(named: name) }
+                    }
+                }
+            } else if let list = viewModel.renamingList {
+                CreateListDialog(currentName: list.name, onDismiss: { viewModel.cancelRenaming() }) { outcome in
+                    if case .rename(let name) = outcome {
+                        Task { await viewModel.renameList(id: list.id, to: name) }
+                    }
+                }
+                .id(list.id)
+            }
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -88,6 +112,8 @@ private struct ListsPaneView: View {
     let pane: ListsViewModel.Pane
     let greetingTitle: String
     let greetingSummary: String
+    let onDelete: (String) -> Void
+    let onRename: (String) -> Void
 
     var body: some View {
         if pane.isEmpty {
@@ -107,10 +133,20 @@ private struct ListsPaneView: View {
                     ForEach(pane.sections) { section in
                         TimePeriodHeader(period: section.period)
                         ForEach(section.lists) { list in
-                            NavigationLink(value: list) {
-                                ListCard(list: list, isCompletedTab: pane.tab == .completed)
+                            SwipeableCard(onSwipeLeft: { onDelete(list.id) }) {
+                                NavigationLink(value: list) {
+                                    ListCard(list: list, isCompletedTab: pane.tab == .completed)
+                                }
+                                .buttonStyle(.plain)
+                                // Android combinedClickable onLongClick: rename.
+                                .simultaneousGesture(
+                                    LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                                        SystemHapticPlayer().play(.medium)
+                                        onRename(list.id)
+                                    }
+                                )
+                                .accessibilityAction(named: Text("Rename")) { onRename(list.id) }
                             }
-                            .buttonStyle(.plain)
                             .padding(.bottom, 8)
                         }
                         Spacer().frame(height: 4)
