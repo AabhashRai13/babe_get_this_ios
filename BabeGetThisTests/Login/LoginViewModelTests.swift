@@ -37,6 +37,8 @@ final class LoginTestTokenRequester: LoginGoogleTokenRequester, @unchecked Senda
     private let lock = NSLock()
     private var _requests = 0
     private var waiter: CheckedContinuation<GoogleSignInToken?, Never>?
+    /// A `complete(_:)` that arrived before `request()` installed its continuation.
+    private var pending: GoogleSignInToken??
     var outcome: Result<GoogleSignInToken?, any Error> = .success(nil)
     /// When true, `request()` suspends until `complete(_:)`.
     var suspends = false
@@ -44,17 +46,35 @@ final class LoginTestTokenRequester: LoginGoogleTokenRequester, @unchecked Senda
     var requests: Int { lock.withLock { _requests } }
 
     func request() async throws -> GoogleSignInToken? {
-        lock.withLock { _requests += 1 }
         if suspends {
-            return await withCheckedContinuation { c in lock.withLock { waiter = c } }
+            // The count, the pending check and the waiter are one critical section, so a test
+            // that sees `requests == 1` and calls `complete` can't slip in between them.
+            return await withCheckedContinuation { c in
+                let early = lock.withLock { () -> GoogleSignInToken?? in
+                    _requests += 1
+                    if let early = pending {
+                        pending = nil
+                        return .some(early)
+                    }
+                    waiter = c
+                    return nil
+                }
+                if let early { c.resume(returning: early) }
+            }
         }
+        lock.withLock { _requests += 1 }
         return try outcome.get()
     }
 
+    /// Safe to call before `request()` suspends: the token is then handed over when it does.
     func complete(_ token: GoogleSignInToken?) {
         let c = lock.withLock { () -> CheckedContinuation<GoogleSignInToken?, Never>? in
-            defer { waiter = nil }
-            return waiter
+            guard let c = waiter else {
+                pending = .some(token)
+                return nil
+            }
+            waiter = nil
+            return c
         }
         c?.resume(returning: token)
     }
