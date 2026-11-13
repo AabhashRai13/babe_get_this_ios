@@ -1,29 +1,40 @@
 import Foundation
 
-/// One item on a list. In-memory until the GRDB layer lands.
+/// One item on the list detail screen, mapped from the repository's `StoredShoppingItem`.
 struct ShoppingItem: Identifiable, Equatable, Sendable {
     let id: String
     var name: String
     var quantity: String
     /// A `categories` row id (Android `ShoppingItem.categoryId`), e.g. "cat-dairy-eggs".
     var categoryId: String?
+    /// The category's display name (nil when unset or unknown).
+    var categoryName: String?
     var shop: String?
     var note: String?
     var isPickedUp: Bool
 
+    /// Without a `categoryName` the name is resolved from the default categories.
     init(id: String = UUID().uuidString, name: String, quantity: String, categoryId: String? = nil,
-         shop: String? = nil, note: String? = nil, isPickedUp: Bool = false) {
+         categoryName: String? = nil, shop: String? = nil, note: String? = nil, isPickedUp: Bool = false) {
         self.id = id
         self.name = name
         self.quantity = quantity
         self.categoryId = categoryId
+        self.categoryName = categoryName ?? DefaultCategories.name(for: categoryId)
         self.shop = shop
         self.note = note
         self.isPickedUp = isPickedUp
     }
 
-    /// The category's display name, resolved from the id (nil when unset or unknown).
-    var categoryName: String? { DefaultCategories.name(for: categoryId) }
+    /// The repository resolves the name from the `categories` table, so custom categories show too.
+    init(_ stored: StoredShoppingItem) {
+        self.init(id: stored.id, name: stored.name, quantity: stored.quantity, categoryId: stored.categoryId,
+                  categoryName: stored.categoryName, shop: stored.shop, note: stored.note,
+                  isPickedUp: stored.isPickedUp)
+    }
+
+    /// The sample list `sundayRoast` is seeded into (`ShoppingListSummary.samples`).
+    static let sundayRoastListId = "sample-sunday-roast"
 
     /// Fixed items for the "Sunday Roast" sample list (screenshots and previews).
     static let sundayRoast: [ShoppingItem] = [
@@ -74,6 +85,15 @@ struct ItemDraft: Equatable {
     var shop = ""
     var note = ""
 
+    /// Android shows `n/limit` as supporting text once a field is at its limit (`length >= limit`).
+    var nameCounter: String? { Self.counter(name, limit: Self.nameLimit) }
+    var noteCounter: String? { Self.counter(note, limit: Self.noteLimit) }
+    var shopCounter: String? { Self.counter(shop, limit: Self.shopLimit) }
+
+    private static func counter(_ text: String, limit: Int) -> String? {
+        text.count >= limit ? "\(text.count)/\(limit)" : nil
+    }
+
     /// The manual add-item sheet's rule: name and quantity are both required.
     /// Not for spoken items, which often have no quantity: see `isSavableVoiceItem`.
     var isValid: Bool {
@@ -85,5 +105,13 @@ struct ItemDraft: Equatable {
     /// the repository (`draftsToItems`: `quantity.orEmpty()`), so a spoken item needs only a name.
     var isSavableVoiceItem: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+extension ItemDraft {
+    /// Edit mode: the dialog opens pre-filled with the item's data.
+    init(editing item: ShoppingItem) {
+        self.init(name: item.name, quantity: item.quantity, categoryId: item.categoryId,
+                  shop: item.shop ?? "", note: item.note ?? "")
     }
 }

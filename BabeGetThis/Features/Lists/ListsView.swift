@@ -4,8 +4,10 @@ import SwiftUI
 /// (Active only) and the lists grouped into date buckets.
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
-    @State private var isCreating = false
-    @State private var newListName = ""
+    /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
+    var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
+    /// Pushes a list's detail screen onto the navigation path (a tap on a card, or a new list).
+    var onOpenList: (ShoppingListSummary) -> Void = { _ in }
 
     /// Android AnimatedContent: tab content slides in the direction of travel, 280 ms.
     private static let tabMotion = Animation.easeInOut(duration: 0.28)
@@ -14,7 +16,7 @@ struct ListsView: View {
         VStack(spacing: 0) {
             if viewModel.hasNoLists {
                 ScrollView {
-                    EmptyListsView { isCreating = true }
+                    EmptyListsView { viewModel.startCreating() }
                         .padding(.top, 48)
                         .padding(.horizontal, AppMetrics.screenPadding)
                 }
@@ -26,7 +28,10 @@ struct ListsView: View {
                 ZStack {
                     ListsPaneView(pane: viewModel.pane(for: viewModel.selectedTab),
                                   greetingTitle: viewModel.greetingTitle(hour: Calendar.current.component(.hour, from: .now)),
-                                  greetingSummary: viewModel.greetingSummary)
+                                  greetingSummary: viewModel.greetingSummary,
+                                  onOpen: onOpenList,
+                                  onDelete: { id in Task { await viewModel.deleteList(id: id) } },
+                                  onRename: { id in viewModel.startRenaming(id: id) })
                         .id(viewModel.selectedTab)
                         // Active sits left of Completed, so each pane enters and leaves on its own side.
                         .transition(.move(edge: viewModel.selectedTab == .active ? .leading : .trailing)
@@ -49,7 +54,7 @@ struct ListsView: View {
         .overlay(alignment: .bottomTrailing) {
             // Android: the FAB shows on the Active tab only, and not over the empty state.
             if viewModel.isActiveTab && !viewModel.hasNoLists {
-                Button { isCreating = true } label: {
+                Button { viewModel.startCreating() } label: {
                     Label("Create list", systemImage: "plus")
                 }
                 .buttonStyle(TonalFABStyle())
@@ -58,16 +63,76 @@ struct ListsView: View {
             }
         }
         .task { await viewModel.observeLists() }
-        .alert("New List", isPresented: $isCreating) {
-            TextField("List name", text: $newListName)
-                .accessibilityIdentifier("lists.newName")
-            Button("Cancel", role: .cancel) { newListName = "" }
-            Button("Create") {
-                let name = newListName
-                newListName = ""
-                Task { await viewModel.createList(named: name) }
+        .overlay(alignment: .bottom) {
+            if let message = viewModel.undoMessage {
+                Snackbar(message: message, actionTitle: "Undo") {
+                    SystemHapticPlayer().play(.light)
+                    // Unstructured: leaving the screen right after tapping Undo must not cancel the restore.
+                    Task { await viewModel.undoDelete() }
+                }
+                .padding(.bottom, 8)
+                .transition(.move(edge: .bottom).combined(with: .opacity))
+                // Restarts for each new message; 4 s like Android's SnackbarDuration.Short.
+                .task(id: message) {
+                    try? await Task.sleep(for: SnackbarDuration.short)
+                    if !Task.isCancelled { viewModel.dismissUndo() }
+                }
             }
-            .disabled(newListName.trimmingCharacters(in: .whitespaces).isEmpty)
+        }
+        .animation(.easeInOut(duration: 0.2), value: viewModel.undoMessage)
+        .overlay {
+            if viewModel.isNamingList {
+                CreateListDialog(isBusy: viewModel.isCreatingList,
+                                 onDismiss: { viewModel.isNamingList = false }) { outcome in
+                    // Closes only once the list exists; on failure the typed name stays.
+                    if case .create(let name) = outcome {
+                        Task { await viewModel.confirmCreate(named: name) }
+                    }
+                }
+            } else if let list = viewModel.renamingList {
+                CreateListDialog(currentName: list.name, onDismiss: { viewModel.cancelRenaming() }) { outcome in
+                    if case .rename(let name) = outcome {
+                        Task { await viewModel.renameList(id: list.id, to: name) }
+                    }
+                }
+                .id(list.id)
+            }
+        }
+        .overlay {
+            if let prompt = viewModel.authPrompt {
+                AuthPromptDialog(content: prompt,
+                                 onLogin: { viewModel.promptSignIn() },
+                                 onRegister: { viewModel.promptCreateAccount() },
+                                 onDismiss: { viewModel.dismissAuthPrompt() })
+            }
+        }
+        .sheet(item: $viewModel.authRoute) { route in
+            AuthSheet(initialRoute: route, onDone: { viewModel.authRoute = nil })
+        }
+        .onChange(of: viewModel.openListRequest) { _, request in
+            guard let request else { return }
+            onOpenList(request)
+            viewModel.didOpenRequestedList()
+        }
+        .sheet(isPresented: Binding(
+            get: { viewModel.isChooserPresented },
+            set: { if !$0 { viewModel.dismissChooser() } }
+        )) {
+            CreateListChooserSheet(onPickType: { viewModel.pickType() },
+                                   onPickVoice: { viewModel.pickVoice() })
+        }
+        .sheet(isPresented: $viewModel.isVoicePresented) {
+            if let makeVoiceViewModel {
+                VoiceCaptureSheet(
+                    viewModel: makeVoiceViewModel(),
+                    // Creating the list from the spoken items is F41.
+                    persist: { _ in .failure(.unknown("Creating a list from voice isn't available yet.")) },
+                    onDismiss: { viewModel.isVoicePresented = false },
+                    onSwitchToType: {
+                        viewModel.isVoicePresented = false
+                        viewModel.isNamingList = true
+                    })
+            }
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { viewModel.errorMessage != nil },
@@ -88,6 +153,9 @@ private struct ListsPaneView: View {
     let pane: ListsViewModel.Pane
     let greetingTitle: String
     let greetingSummary: String
+    let onOpen: (ShoppingListSummary) -> Void
+    let onDelete: (String) -> Void
+    let onRename: (String) -> Void
 
     var body: some View {
         if pane.isEmpty {
@@ -107,10 +175,21 @@ private struct ListsPaneView: View {
                     ForEach(pane.sections) { section in
                         TimePeriodHeader(period: section.period)
                         ForEach(section.lists) { list in
-                            NavigationLink(value: list) {
+                            SwipeableCard(onSwipeLeft: { onDelete(list.id) }) {
+                                // Android combinedClickable: a tap opens, a long press renames,
+                                // never both. A NavigationLink would still fire on the long
+                                // press's touch-up.
                                 ListCard(list: list, isCompletedTab: pane.tab == .completed)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onOpen(list) }
+                                    .onLongPressGesture(minimumDuration: 0.5) {
+                                        SystemHapticPlayer().play(.medium)
+                                        onRename(list.id)
+                                    }
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityAction { onOpen(list) }
+                                    .accessibilityAction(named: Text("Rename")) { onRename(list.id) }
                             }
-                            .buttonStyle(.plain)
                             .padding(.bottom, 8)
                         }
                         Spacer().frame(height: 4)

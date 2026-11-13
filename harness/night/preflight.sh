@@ -22,7 +22,11 @@ COMMIT_SH="$REPO/harness/night/commit.sh"
 [ -d "$GIT_COMMON/objects" ] && [ -f "$GIT_COMMON/config" ] && ok "git common dir $GIT_COMMON" || bad "git common dir not found ($GIT_COMMON)"
 
 # 3. Machine
-pmset -g batt | grep -q "AC Power" && ok "on AC power" || bad "not on AC power (plug the Mac in)"
+# AC power is required for unattended (overnight) runs. A daytime run with someone at the Mac can opt out
+# with "require_ac": false in its night config; the check then only warns.
+if pmset -g batt | grep -q "AC Power"; then ok "on AC power"
+elif [ "$(cfg_opt require_ac)" = "False" ]; then ok "on battery (allowed: require_ac is false for this run)"
+else bad "not on AC power (plug the Mac in, or set \"require_ac\": false for an attended daytime run)"; fi
 FREE_GB=$(df -g "$PARENT" | awk 'NR==2{print $4}')
 [ "${FREE_GB:-0}" -ge 20 ] && ok "disk free ${FREE_GB} GB" || bad "only ${FREE_GB} GB free (need 20)"
 

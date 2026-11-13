@@ -334,6 +334,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   4. Pending items in one upsert, then markItemSynced.
 
   Lists always go before items.
+
+  iOS deliberately closes a race Android has: a list soft-deleted between the drop (step 1) and the pending read (step 3) arrives as a never-sent tombstone. iOS skips it (no INSERT, no markOnServer, its items not sent) and leaves it pending, so the next push's drop deletes it.
 - **SYNC-05** [todo] (K/core/sync/data/remote/SupabaseSharedListRemote.kt) A first push is a plain INSERT, because an upsert fails RLS 42501 before the creator-membership trigger has run. A duplicate (`23505` or "duplicate key") returns false.
 - **SYNC-06** [todo] (K/feature/shoppinglist/data/local/dao/ShoppingListDao.kt) Clearing the pending flag is guarded:
   - `UPDATE … SET pendingSync=0 WHERE id=? AND updatedAt=?`, so a row edited during the push stays pending.
@@ -342,7 +344,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - No session → no-op.
   - `since = syncPoints[listId]`. Fetch the list and its items with `updated_at >= since` (gte, so apply must be idempotent), then apply.
   - Only after the apply succeeds, move the sync point to the max `updated_at`.
-- **SYNC-08** [todo] (REALTIME_TEST_FINDINGS.md) fullCatchUp(listId) removes the list's sync point, then catches up. Join uses it so a re-join refreshes the list.
+- **SYNC-08** [todo] (REALTIME_TEST_FINDINGS.md) fullCatchUp(listId) removes the list's sync point, then catches up. Join uses it so a re-join refreshes the list. iOS deliberately closes a race Android has: the removal runs inside the serial gate, so a catch-up already in flight can't set the old mark again before the full pull reads it.
 - **SYNC-09** [todo] (K/core/sync/data/repository/SyncEngine.kt) catchUpAccount(), in order:
   1. Known = the live account list ids.
   2. `fetchAllLists()` with no since filter, because membership changes don't bump `updated_at`.
@@ -356,6 +358,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - A local copy with `accountId=nil` is claimed (accountId=user, onServer=1), even when dirty.
   - shouldSkip when the incoming `updated_at` is nil, the local row is dirty, or incoming ≤ local.
   - Otherwise INSERT if new, UPDATE if it exists. Never REPLACE.
+  - iOS deliberately closes a race Android has: the whole apply (lists and items) is one write transaction, so a local edit can't commit between the read, the skip decision and the write and then be overwritten with `pendingSync=0`. It also makes the apply all-or-nothing.
 - **SYNC-11** [todo] (K/core/sync/data/repository/SyncEngine.kt) Applying items: skip items whose list is not stored locally (FK guard); skip tombstones for unknown items; apply shouldSkip; otherwise write with `itemDao.insertItem`. Android's is a REPLACE insert (harmless there: items have no children); the iOS `insertItem` is an `INSERT … ON CONFLICT DO UPDATE` upsert, so DATA-03 holds.
 - **SYNC-12** [todo] (K/core/sync/data/remote/Paging.kt) Paging. Used by fetchItems, fetchAccountItems and fetchAllLists.
   - Page size 1000, which is PostgREST's max_rows; never set it higher.

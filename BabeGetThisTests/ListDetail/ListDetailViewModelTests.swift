@@ -1,102 +1,122 @@
 import XCTest
 @testable import BabeGetThis
 
+/// Port of Android's ShoppingItemsViewModelTest (list-completed and delete/undo cases, the
+/// add/toggle success and failure cases) against a fake repository, plus database-backed
+/// cases that run the real `ShoppingItemRepository` on an in-memory database. Lock, share,
+/// reminder, Got This and telemetry cases are out of iOS v1 or land with their features.
 @MainActor
 final class ListDetailViewModelTests: XCTestCase {
-    func testSampleListHasFixedItems() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
+    private var source: FakeListDetailItemsSource!
+    private var haptics: RecordingHapticPlayer!
+    private var observation: Task<Void, Never>?
+
+    override func setUp() async throws {
+        source = FakeListDetailItemsSource()
+        haptics = RecordingHapticPlayer()
+    }
+
+    override func tearDown() async throws {
+        observation?.cancel()
+        observation = nil
+    }
+
+    /// Android's `buildViewModel()`: the view model starts collecting straight away.
+    private func buildViewModel(listId: String = "L1", source: (any ListDetailItemsSource)? = nil) -> ListDetailViewModel {
+        let fake: any ListDetailItemsSource = self.source
+        let vm = ListDetailViewModel(listId: listId, source: source ?? fake, haptics: haptics)
+        observation = Task { await vm.observeItems() }
+        return vm
+    }
+
+    /// `itemsFlow.value = items`, then waits until the view model has applied it.
+    private func emit(_ items: [StoredShoppingItem], to vm: ListDetailViewModel,
+                      file: StaticString = #filePath, line: UInt = #line) async {
+        source.send(items)
+        await listDetailEventually("items never reached the view model", file: file, line: line) {
+            vm.storedItems == items
+        }
+    }
+
+    private func item(_ id: String, isPickedUp: Bool = false, name: String? = nil) -> StoredShoppingItem {
+        TestData.storedItem(id, isPickedUp: isPickedUp, name: name)
+    }
+
+    // MARK: Database
+
+    /// A real repository over an in-memory database, with one guest list "list-1".
+    private func databaseRepository() async throws -> (AppDatabase, ShoppingItemRepository) {
+        let db = try AppDatabase.inMemory()
+        try await db.lists.insertList(TestData.listEntity(id: "list-1"))
+        let repository = ShoppingItemRepository(
+            itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
+            syncKicker: CountingSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+        return (db, repository)
+    }
+
+    func testItemsAreObservedLiveFromTheDatabase() async throws {
+        let (db, repository) = try await databaseRepository()
+        try await db.items.insertItem(TestData.itemEntity(id: "a", name: "Milk", categoryId: "cat-dairy-eggs"))
+        let vm = buildViewModel(listId: "list-1", source: repository)
+
+        await listDetailEventually { vm.items.map(\.name) == ["Milk"] }
+        XCTAssertTrue(vm.hasLoaded)
+        XCTAssertEqual(vm.items.first?.categoryName, "Dairy & Eggs")
+
+        // A row written straight to the database (as sync would) shows up without a reload.
+        try await db.items.insertItem(TestData.itemEntity(id: "b", name: "Bread", shop: "Aldi"))
+        await listDetailEventually { vm.totalCount == 2 }
+        XCTAssertEqual(vm.activeGroups.map(\.shop), ["Aldi", nil])
+
+        // Ticking goes through the repository, and the database change comes back live.
+        await vm.toggle("a")
+        await listDetailEventually { vm.completedItems.map(\.id) == ["a"] }
+        let ticked = try await db.items.itemRaw(id: "a")
+        XCTAssertEqual(ticked?.isPickedUp, true)
+
+        // Items of other lists never appear.
+        try await db.lists.insertList(TestData.listEntity(id: "list-2"))
+        try await db.items.insertItem(TestData.itemEntity(id: "c", listId: "list-2", name: "Eggs"))
+        try await db.items.insertItem(TestData.itemEntity(id: "d", name: "Jam"))
+        await listDetailEventually { vm.totalCount == 3 }
+        XCTAssertFalse(vm.items.contains { $0.id == "c" })
+    }
+
+    func testSampleListHasFixedItems() async throws {
+        let db = try AppDatabase.inMemory()
+        try SampleListSeeder.seed(db)
+        let repository = ShoppingItemRepository(
+            itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
+            syncKicker: NoOpSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+        let vm = buildViewModel(listId: ShoppingItem.sundayRoastListId, source: repository)
+
+        await listDetailEventually { vm.totalCount == 5 }
         XCTAssertEqual(vm.activeItems.map(\.name), ["Red wine", "Lamb leg", "Double cream", "Baby potatoes"])
         XCTAssertEqual(vm.completedItems.map(\.name), ["Sourdough"])
         XCTAssertEqual(vm.activeItems[1].quantity, "2.5 kg")
         XCTAssertEqual(vm.activeItems[1].shop, "The Butcher Block")
         XCTAssertEqual(vm.activeItems[0].note, "Something that goes with lamb")
-    }
-
-    func testOtherListsStartEmpty() {
-        let vm = ListDetailViewModel(listId: "sample-bbq")
-        XCTAssertTrue(vm.items.isEmpty)
-        XCTAssertEqual(vm.percent, 0)
-        XCTAssertFalse(vm.isAllDone)
-    }
-
-    func testGroupingByShopThenCategory() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        let groups = vm.activeGroups
-        XCTAssertEqual(groups.map(\.shop), ["Dan Murphys", "The Butcher Block", "Woolworths"])
-        let woolworths = groups[2]
-        XCTAssertEqual(woolworths.categories.map(\.name), ["Dairy & Eggs", "Fruits & Vegetables"])
-        XCTAssertEqual(woolworths.categories[0].items.map(\.name), ["Double cream"])
-    }
-
-    func testItemsWithoutShopOrCategoryGroupLast() {
-        let vm = ListDetailViewModel(items: [
-            ShoppingItem(id: "a", name: "Soap", quantity: "1"),
-            ShoppingItem(id: "b", name: "Milk", quantity: "2 L", categoryId: nil, shop: "Aldi"),
-            ShoppingItem(id: "c", name: "Eggs", quantity: "12", categoryId: "cat-dairy-eggs", shop: "Aldi"),
-        ])
-        XCTAssertEqual(vm.activeGroups.map(\.shop), ["Aldi", nil])
-        XCTAssertEqual(vm.activeGroups[0].categories.map(\.name), ["Dairy & Eggs", nil])
-    }
-
-    func testProgressCountsAndPercent() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        XCTAssertEqual(vm.totalCount, 5)
         XCTAssertEqual(vm.pickedUpCount, 1)
         XCTAssertEqual(vm.percent, 20)
         XCTAssertEqual(vm.progress, 0.2, accuracy: 0.0001)
-        let third = ListDetailViewModel(items: [
-            ShoppingItem(name: "a", quantity: "1", isPickedUp: true),
-            ShoppingItem(name: "b", quantity: "1"),
-            ShoppingItem(name: "c", quantity: "1"),
-        ])
-        XCTAssertEqual(third.percent, 33)
     }
 
-    func testToggleMovesItemBetweenActiveAndCompleted() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        vm.toggle("sr-lamb-leg")
-        XCTAssertFalse(vm.activeItems.contains { $0.id == "sr-lamb-leg" })
-        XCTAssertTrue(vm.completedItems.contains { $0.id == "sr-lamb-leg" })
-        XCTAssertEqual(vm.pickedUpCount, 2)
-        vm.toggle("sr-lamb-leg")
-        XCTAssertTrue(vm.activeItems.contains { $0.id == "sr-lamb-leg" })
-    }
+    func testAddThroughTheRepositoryRequiresNameAndQuantity() async throws {
+        let (db, repository) = try await databaseRepository()
+        let vm = buildViewModel(listId: "list-1", source: repository)
+        await listDetailEventually { vm.hasLoaded }
 
-    func testAllDoneWhenEveryItemTicked() {
-        let vm = ListDetailViewModel(items: [ShoppingItem(id: "x", name: "a", quantity: "1")])
-        XCTAssertFalse(vm.isAllDone)
-        vm.toggle("x")
-        XCTAssertTrue(vm.isAllDone)
-        XCTAssertEqual(vm.percent, 100)
-    }
+        let rejected1 = await vm.add(ItemDraft(name: "Bread", quantity: ""))
+        let rejected2 = await vm.add(ItemDraft(name: "   ", quantity: "1"))
+        let rejected3 = await vm.add(ItemDraft(name: "", quantity: "1"))
+        XCTAssertFalse(rejected1 || rejected2 || rejected3)
+        let none = try await db.items.itemsByListId("list-1")
+        XCTAssertTrue(none.isEmpty)
 
-    func testDeleteThenUndoRestoresPosition() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        let before = vm.items
-        vm.delete("sr-double-cream")
-        XCTAssertEqual(vm.totalCount, 4)
-        XCTAssertEqual(vm.pendingUndo?.item.name, "Double cream")
-        vm.undoDelete()
-        XCTAssertEqual(vm.items, before)
-        XCTAssertNil(vm.pendingUndo)
-    }
-
-    func testDismissUndoMakesDeleteFinal() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        vm.delete("sr-red-wine")
-        vm.dismissUndo()
-        vm.undoDelete()
-        XCTAssertFalse(vm.items.contains { $0.id == "sr-red-wine" })
-    }
-
-    func testAddRequiresNameAndQuantity() {
-        let vm = ListDetailViewModel(items: [])
-        XCTAssertFalse(vm.add(ItemDraft(name: "Bread", quantity: "")))
-        XCTAssertFalse(vm.add(ItemDraft(name: "   ", quantity: "1")))
-        XCTAssertFalse(vm.add(ItemDraft(name: "", quantity: "1")))
-        XCTAssertTrue(vm.items.isEmpty)
-        XCTAssertTrue(vm.add(ItemDraft(name: " Bread ", quantity: "2", categoryId: "cat-bakery-bread", shop: " Aldi ", note: "  ")))
-        XCTAssertEqual(vm.items.count, 1)
+        let added = await vm.add(ItemDraft(name: " Bread ", quantity: "2", categoryId: "cat-bakery-bread",
+                                           shop: " Aldi ", note: "  "))
+        XCTAssertTrue(added)
+        await listDetailEventually { vm.totalCount == 1 }
         XCTAssertEqual(vm.items[0].name, "Bread")
         XCTAssertEqual(vm.items[0].shop, "Aldi")
         XCTAssertNil(vm.items[0].note)
@@ -105,36 +125,337 @@ final class ListDetailViewModelTests: XCTestCase {
         XCTAssertEqual(vm.items[0].categoryName, "Bakery & Bread")
     }
 
-    // MARK: Android parity
+    func testDeleteThenUndoRestoresTheItemInTheDatabase() async throws {
+        let (db, repository) = try await databaseRepository()
+        try await db.items.insertItem(TestData.itemEntity(id: "a", name: "Milk"))
+        try await db.items.insertItem(TestData.itemEntity(id: "b", name: "Bread"))
+        let vm = buildViewModel(listId: "list-1", source: repository)
+        await listDetailEventually { vm.totalCount == 2 }
+        let before = vm.items
+
+        await vm.delete("a")
+        await listDetailEventually { vm.totalCount == 1 }
+        XCTAssertEqual(vm.undoMessage, "Milk deleted")
+
+        await vm.undoDelete()
+        await listDetailEventually { vm.totalCount == 2 }
+        XCTAssertEqual(vm.sortedItems, before.sorted { $0.name < $1.name })
+        XCTAssertNil(vm.pendingUndo)
+        XCTAssertNil(vm.undoMessage)
+    }
+
+    func testEmptyListShowsTheFirstItemPrompt() async throws {
+        let (db, repository) = try await databaseRepository()
+        try await db.items.insertItem(TestData.itemEntity(id: "x"))
+        let vm = buildViewModel(listId: "list-1", source: repository)
+        await listDetailEventually { vm.totalCount == 1 }
+        XCTAssertFalse(vm.isEmpty)
+
+        await vm.delete("x")
+        await listDetailEventually { vm.isEmpty }
+    }
+
+    // MARK: ListJustCompleted transition logic
+
+    func testEmitsListJustCompletedWhenLastUncheckedItemIsTickedOff() async {
+        let vm = buildViewModel()
+
+        // Start with two unchecked items: not all done.
+        await emit([item("1"), item("2")], to: vm)
+        XCTAssertEqual(vm.completionCount, 0)
+
+        // Flip both to picked up: the transition fires.
+        await emit([item("1", isPickedUp: true), item("2", isPickedUp: true)], to: vm)
+        XCTAssertEqual(vm.completionCount, 1)
+        XCTAssertEqual(haptics.played, [.success])
+    }
+
+    func testDoesNotEmitListJustCompletedOnInitialLoadOfAlreadyCompleteList() async {
+        // Pre-seeded before the view model subscribes: opening a finished list must not buzz.
+        let complete = [item("1", isPickedUp: true), item("2", isPickedUp: true)]
+        source.send(complete)
+
+        let vm = buildViewModel()
+        await listDetailEventually { vm.storedItems == complete }
+
+        XCTAssertTrue(vm.isAllDone)
+        XCTAssertEqual(vm.completionCount, 0)
+        XCTAssertTrue(haptics.played.isEmpty)
+    }
+
+    func testEmitsListJustCompletedOnTheSecondCompletionWhenUncheckThenRecomplete() async {
+        let vm = buildViewModel()
+
+        // First completion.
+        await emit([item("1")], to: vm)
+        await emit([item("1", isPickedUp: true)], to: vm)
+        XCTAssertEqual(vm.completionCount, 1)
+
+        // Uncheck, then re-complete: the second transition fires too.
+        await emit([item("1", isPickedUp: false)], to: vm)
+        await emit([item("1", isPickedUp: true)], to: vm)
+        XCTAssertEqual(vm.completionCount, 2)
+        XCTAssertEqual(haptics.played, [.success, .success])
+    }
+
+    // Product rule: nine of ten ticked and the tenth no longer needed, so it is deleted.
+    // The trip is done, and that counts as completing the list.
+    func testDeletingTheLastUntickedItemCompletesTheList() async {
+        let vm = buildViewModel()
+
+        await emit([item("1", isPickedUp: true), item("2")], to: vm)
+        await emit([item("1", isPickedUp: true)], to: vm)
+
+        XCTAssertEqual(vm.completionCount, 1)
+    }
+
+    func testEmptyListNeverTriggersListJustCompleted() async {
+        let vm = buildViewModel()
+
+        // An empty list isn't "all done": it must be non-empty AND all picked up.
+        await emit([], to: vm)
+        await emit([], to: vm)
+
+        XCTAssertFalse(vm.isAllDone)
+        XCTAssertEqual(vm.percent, 0)
+        XCTAssertEqual(vm.completionCount, 0)
+        XCTAssertTrue(haptics.played.isEmpty)
+    }
+
+    // MARK: Delete + Undo
+
+    func testDeleteItemCachesTheItemCallsRepositoryAndOffersUndoWithItemName() async {
+        let vm = buildViewModel()
+        await emit([item("1", name: "Milk")], to: vm)
+
+        await vm.delete("1")
+
+        XCTAssertEqual(source.deleted, ["1"])
+        XCTAssertEqual(vm.undoMessage, "Milk deleted")
+        XCTAssertEqual(vm.pendingUndo?.name, "Milk")
+    }
+
+    func testUndoDeleteItemRestoresThePreviouslyDeletedItemViaRepository() async {
+        let target = item("1", name: "Milk")
+        let vm = buildViewModel()
+        await emit([target], to: vm)
+
+        await vm.delete("1")
+        await vm.undoDelete()
+
+        XCTAssertEqual(source.restored, [target])
+        XCTAssertNil(vm.pendingUndo)
+    }
+
+    func testUndoDeleteItemWithNoPendingDeleteIsANoOp() async {
+        let vm = buildViewModel()
+
+        await vm.undoDelete()
+
+        XCTAssertTrue(source.restored.isEmpty)
+    }
+
+    func testDeleteItemOnRepositoryErrorShowsTheErrorAndDoesNotCacheForUndo() async {
+        source.deleteResult = .failure(.database("boom"))
+        let vm = buildViewModel()
+        await emit([item("1", name: "Milk")], to: vm)
+
+        await vm.delete("1")
+
+        XCTAssertEqual(vm.errorMessage, "boom")
+        XCTAssertNil(vm.undoMessage)
+        // No undo offered, no restore allowed.
+        await vm.undoDelete()
+        XCTAssertTrue(source.restored.isEmpty)
+    }
+
+    func testDeleteItemOffersNoUndoWhenTheItemWasNeverInState() async {
+        let vm = buildViewModel()
+        await emit([], to: vm)
+
+        await vm.delete("ghost")
+
+        XCTAssertEqual(source.deleted, ["ghost"])
+        XCTAssertNil(vm.undoMessage)
+        XCTAssertNil(vm.pendingUndo)
+    }
+
+    func testAFailedRestoreKeepsTheCacheSoUndoCanBeRetried() async {
+        let target = item("1", name: "Milk")
+        let vm = buildViewModel()
+        await emit([target], to: vm)
+        await vm.delete("1")
+
+        source.restoreResult = .failure(.database("restore failed"))
+        await vm.undoDelete()
+        XCTAssertEqual(vm.errorMessage, "restore failed")
+        XCTAssertEqual(vm.pendingUndo, target)
+
+        source.restoreResult = .success(())
+        await vm.undoDelete()
+        XCTAssertEqual(source.restored, [target, target])
+        XCTAssertNil(vm.pendingUndo)
+    }
+
+    func testDismissUndoMakesDeleteFinal() async {
+        let vm = buildViewModel()
+        await emit([item("1", name: "Red wine")], to: vm)
+        await vm.delete("1")
+
+        vm.dismissUndo()
+        await vm.undoDelete()
+
+        XCTAssertNil(vm.undoMessage)
+        XCTAssertTrue(source.restored.isEmpty)
+    }
+
+    func testUndoSnackbarCopyAndDurationMatchAndroid() async {
+        let vm = buildViewModel()
+        await emit([item("1", name: "Red wine")], to: vm)
+        XCTAssertNil(vm.undoMessage)
+
+        await vm.delete("1")
+
+        XCTAssertEqual(vm.undoMessage, "Red wine deleted")
+        XCTAssertEqual(ListDetailViewModel.undoSnackbarDuration, .seconds(4))
+    }
+
+    // MARK: Add and toggle
+
+    func testAddItemSuccessClosesTheSheet() async {
+        let vm = buildViewModel()
+
+        let saved = await vm.add(ItemDraft(name: "Milk", quantity: "2 L", categoryId: "cat-dairy-eggs"))
+
+        XCTAssertTrue(saved)
+        XCTAssertEqual(source.added.count, 1)
+        XCTAssertEqual(source.added.first?.name, "Milk")
+        XCTAssertEqual(source.added.first?.quantity, "2 L")
+        XCTAssertEqual(source.added.first?.categoryId, "cat-dairy-eggs")
+        XCTAssertNil(vm.errorMessage)
+    }
+
+    func testAddItemFailureSurfacesTheErrorAndKeepsTheSheetOpen() async {
+        source.addResult = .failure(.validation("Item name can't be empty."))
+        let vm = buildViewModel()
+
+        let saved = await vm.add(ItemDraft(name: "Milk", quantity: "1"))
+
+        XCTAssertFalse(saved)
+        XCTAssertEqual(vm.errorMessage, "Item name can't be empty.")
+    }
+
+    func testTogglePickedUpDelegatesToTheRepository() async {
+        let vm = buildViewModel()
+        await emit([item("1"), item("2", isPickedUp: true)], to: vm)
+
+        await vm.toggle("1")
+        await vm.toggle("2")
+
+        XCTAssertEqual(source.toggled.map(\.itemId), ["1", "2"])
+        XCTAssertEqual(source.toggled.map(\.isPickedUp), [true, false])
+    }
+
+    func testTogglePickedUpFailureSurfacesTheError() async {
+        source.toggleResult = .failure(.database("toggle failed"))
+        let vm = buildViewModel()
+        await emit([item("1")], to: vm)
+
+        await vm.toggle("1")
+
+        XCTAssertEqual(vm.errorMessage, "toggle failed")
+    }
+
+    // MARK: uiState
+
+    func testUiStateSplitsActiveFromCompleted() async {
+        let vm = buildViewModel()
+        await emit([item("1"), item("2", isPickedUp: true), item("3")], to: vm)
+
+        XCTAssertEqual(vm.activeItems.map(\.id), ["1", "3"])
+        XCTAssertEqual(vm.completedItems.map(\.id), ["2"])
+        XCTAssertEqual(vm.totalCount, 3)
+        XCTAssertEqual(vm.pickedUpCount, 1)
+        XCTAssertEqual(vm.percent, 33)
+    }
+
+    func testUiStateIsEmptyForAnEmptyList() async {
+        let vm = buildViewModel()
+        await emit([], to: vm)
+
+        XCTAssertTrue(vm.isEmpty)
+        XCTAssertTrue(vm.activeItems.isEmpty)
+        XCTAssertTrue(vm.completedItems.isEmpty)
+        XCTAssertTrue(vm.activeGroups.isEmpty)
+    }
+
+    func testNothingIsShownBeforeTheItemsHaveLoaded() {
+        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        XCTAssertFalse(vm.hasLoaded)
+    }
+}
+
+/// Grouping and ordering of the derived screen state (Android `buildActiveSections` and the
+/// DAO sort), kept from the in-memory model's tests.
+final class ListDetailContentTests: XCTestCase {
+    private func content(_ items: [ShoppingItem]) -> ListDetailContent {
+        ListDetailContent(items: items)
+    }
+
+    func testGroupingByShopThenCategory() {
+        let groups = content(ShoppingItem.sundayRoast).activeGroups
+        XCTAssertEqual(groups.map(\.shop), ["Dan Murphys", "The Butcher Block", "Woolworths"])
+        let woolworths = groups[2]
+        XCTAssertEqual(woolworths.categories.map(\.name), ["Dairy & Eggs", "Fruits & Vegetables"])
+        XCTAssertEqual(woolworths.categories[0].items.map(\.name), ["Double cream"])
+    }
+
+    func testItemsWithoutShopOrCategoryGroupLast() {
+        let state = content([
+            ShoppingItem(id: "a", name: "Soap", quantity: "1"),
+            ShoppingItem(id: "b", name: "Milk", quantity: "2 L", categoryId: nil, shop: "Aldi"),
+            ShoppingItem(id: "c", name: "Eggs", quantity: "12", categoryId: "cat-dairy-eggs", shop: "Aldi"),
+        ])
+        XCTAssertEqual(state.activeGroups.map(\.shop), ["Aldi", nil])
+        XCTAssertEqual(state.activeGroups[0].categories.map(\.name), ["Dairy & Eggs", nil])
+    }
 
     // Android sorts in SQL (shop, categoryId, name), so items inside one category and
     // the COMPLETED section come out by name, not by insertion order.
     func testItemsInOneCategorySortByName() {
-        let vm = ListDetailViewModel(items: [
+        let state = content([
             ShoppingItem(id: "b", name: "Bananas", quantity: "6", categoryId: "cat-fruits-vegetables", shop: "Aldi"),
             ShoppingItem(id: "a", name: "Apples", quantity: "4", categoryId: "cat-fruits-vegetables", shop: "Aldi"),
             ShoppingItem(id: "z", name: "Zucchini", quantity: "1", isPickedUp: true),
             ShoppingItem(id: "y", name: "Yoghurt", quantity: "1", categoryId: "cat-dairy-eggs", isPickedUp: true),
             ShoppingItem(id: "c", name: "Carrots", quantity: "1", isPickedUp: true),
         ])
-        XCTAssertEqual(vm.activeGroups[0].categories[0].items.map(\.name), ["Apples", "Bananas"])
+        XCTAssertEqual(state.activeGroups[0].categories[0].items.map(\.name), ["Apples", "Bananas"])
         // No shop for all three; the categorised one first, then by name.
-        XCTAssertEqual(vm.completedItems.map(\.name), ["Yoghurt", "Carrots", "Zucchini"])
+        XCTAssertEqual(state.completedItems.map(\.name), ["Yoghurt", "Carrots", "Zucchini"])
     }
 
     func testShopsSortWithNoShopLastAndCategoriesByName() {
-        let vm = ListDetailViewModel(items: [
+        let state = content([
             ShoppingItem(id: "1", name: "Soap", quantity: "1", categoryId: "cat-household-cleaning"),
             ShoppingItem(id: "2", name: "Steak", quantity: "1", categoryId: "cat-meat-seafood", shop: "Costco"),
             ShoppingItem(id: "3", name: "Milk", quantity: "1", categoryId: "cat-dairy-eggs", shop: "Costco"),
             ShoppingItem(id: "4", name: "Tape", quantity: "1", shop: "Bunnings"),
         ])
-        XCTAssertEqual(vm.activeGroups.map(\.shop), ["Bunnings", "Costco", nil])
-        XCTAssertEqual(vm.activeGroups[1].categories.map(\.name), ["Dairy & Eggs", "Meat & Seafood"])
+        XCTAssertEqual(state.activeGroups.map(\.shop), ["Bunnings", "Costco", nil])
+        XCTAssertEqual(state.activeGroups[1].categories.map(\.name), ["Dairy & Eggs", "Meat & Seafood"])
+    }
+
+    func testActiveSectionsExcludePickedUpItems() {
+        let state = content([
+            ShoppingItem(id: "1", name: "Soap", quantity: "1", shop: "Aldi", isPickedUp: true),
+            ShoppingItem(id: "2", name: "Milk", quantity: "1", shop: "Coles"),
+        ])
+        XCTAssertEqual(state.activeGroups.map(\.shop), ["Coles"])
     }
 
     func testNoShopGroupIsHeadedGeneralOnlyWhenOtherShopsExist() throws {
-        let mixed = ListDetailViewModel(items: [
+        let mixed = content([
             ShoppingItem(id: "1", name: "Soap", quantity: "1"),
             ShoppingItem(id: "2", name: "Milk", quantity: "1", shop: "Aldi"),
         ])
@@ -143,28 +464,35 @@ final class ListDetailViewModelTests: XCTestCase {
         XCTAssertEqual(general.title, "General")
         XCTAssertTrue(mixed.showsShopHeader(general))
 
-        let noShops = ListDetailViewModel(items: [ShoppingItem(id: "1", name: "Soap", quantity: "1")])
+        let noShops = content([ShoppingItem(id: "1", name: "Soap", quantity: "1")])
         XCTAssertEqual(noShops.activeGroups.count, 1)
         XCTAssertFalse(noShops.showsShopHeader(noShops.activeGroups[0]))
     }
 
     func testCategoryHeadersHiddenWhenTheOnlyBucketIsUncategorized() {
-        let vm = ListDetailViewModel(items: [
+        let state = content([
             ShoppingItem(id: "1", name: "Soap", quantity: "1", shop: "Aldi"),
             ShoppingItem(id: "2", name: "Milk", quantity: "1", categoryId: "cat-dairy-eggs", shop: "Coles"),
             ShoppingItem(id: "3", name: "Tape", quantity: "1", shop: "Coles"),
         ])
-        let aldi = vm.activeGroups[0]
-        let coles = vm.activeGroups[1]
+        let aldi = state.activeGroups[0]
+        let coles = state.activeGroups[1]
         XCTAssertTrue(aldi.hidesCategoryHeaders)
         XCTAssertFalse(coles.hidesCategoryHeaders)
         XCTAssertEqual(coles.categories.map(\.title), ["Dairy & Eggs", "Uncategorized"])
     }
 
     func testUnknownCategoryIdIsUncategorized() {
-        let vm = ListDetailViewModel(items: [ShoppingItem(id: "1", name: "Thing", quantity: "1", categoryId: "cat-gone")])
-        XCTAssertNil(vm.items[0].categoryName)
-        XCTAssertEqual(vm.activeGroups[0].categories.map(\.name), [nil])
+        let state = content([ShoppingItem(id: "1", name: "Thing", quantity: "1", categoryId: "cat-gone")])
+        XCTAssertNil(state.items[0].categoryName)
+        XCTAssertEqual(state.activeGroups[0].categories.map(\.name), [nil])
+    }
+
+    /// The repository resolves names from the categories table, so a custom category shows its name.
+    func testStoredCategoryNameIsUsed() {
+        let stored = StoredShoppingItem(id: "1", listId: "L1", name: "Kibble", quantity: "1", categoryId: "custom-1",
+                                        categoryName: "Dog stuff", createdAt: 0, updatedAt: 0)
+        XCTAssertEqual(ShoppingItem(stored).categoryName, "Dog stuff")
     }
 
     func testCategoryPickerUsesTheDefaultCategoriesByName() {
@@ -173,20 +501,5 @@ final class ListDetailViewModelTests: XCTestCase {
         XCTAssertEqual(names, names.sorted())
         XCTAssertEqual(names.first, "Accessories & Jewelry")
         XCTAssertEqual(DefaultCategories.name(for: "cat-dairy-eggs"), "Dairy & Eggs")
-    }
-
-    func testEmptyListShowsTheFirstItemPrompt() {
-        let vm = ListDetailViewModel(items: [ShoppingItem(id: "x", name: "a", quantity: "1")])
-        XCTAssertFalse(vm.isEmpty)
-        vm.delete("x")
-        XCTAssertTrue(vm.isEmpty)
-    }
-
-    func testUndoSnackbarCopyAndDurationMatchAndroid() {
-        let vm = ListDetailViewModel(listId: "sample-sunday-roast")
-        XCTAssertNil(vm.undoMessage)
-        vm.delete("sr-red-wine")
-        XCTAssertEqual(vm.undoMessage, "Red wine deleted")
-        XCTAssertEqual(ListDetailViewModel.undoSnackbarDuration, .seconds(4))
     }
 }

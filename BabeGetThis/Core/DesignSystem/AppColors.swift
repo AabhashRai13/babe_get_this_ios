@@ -32,6 +32,10 @@ enum AppColors {
     /// card elevation is tonal (the lighter container fill) rather than a shadow.
     /// Apply the elevation's strength with `.opacity(_:)`.
     static let shadow = Color("Shadow")
+    /// Dim behind a modal dialog. Android dialogs take theirs from the Material 3 theme:
+    /// `scrim` (black) at the 32% modal-scrim opacity. Dark mode uses 60%, since 32% black
+    /// barely dims the near-black dark background.
+    static let scrim = Color("Scrim")
 
     /// Form and field errors. Android's Theme.kt sets no error colours, so these are the
     /// Material 3 baseline `error` / `onError` (Error40 / Error100 light, Error80 / Error20 dark).
@@ -61,7 +65,7 @@ enum AppColors {
         "Tertiary", "TertiaryContainer", "OnTertiaryContainer",
         "Background", "Surface", "SurfaceContainerLowest", "SurfaceContainerLow",
         "SurfaceContainer", "SurfaceContainerHigh", "SurfaceContainerHighest",
-        "TextPrimary", "TextSecondary", "Outline", "Shadow", "Error", "OnError",
+        "TextPrimary", "TextSecondary", "Outline", "Shadow", "Scrim", "Error", "OnError",
     ] + (0..<ListAccent.count).flatMap { ["ListAccent\($0)Container", "ListAccent\($0)OnContainer"] }
 
     /// Assets that are deliberately the same in light and dark, because Android's are.

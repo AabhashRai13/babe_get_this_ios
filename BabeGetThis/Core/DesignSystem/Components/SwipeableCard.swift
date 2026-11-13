@@ -84,7 +84,8 @@ final class SwipeableCardController {
 /// The card snaps back after the action fires. Both actions are also named accessibility
 /// actions, so VoiceOver and Switch Control can reach them without a drag.
 struct SwipeableCard<Content: View>: View {
-    private let controller: SwipeableCardController
+    /// Internal so tests can drive the exact controller a screen built.
+    let controller: SwipeableCardController
     private let leftIcon: String
     private let rightIcon: String
     private let leftActionName: LocalizedStringKey

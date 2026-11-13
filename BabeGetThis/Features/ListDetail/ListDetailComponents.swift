@@ -1,9 +1,30 @@
 import SwiftUI
 
+/// Decides when the progress card celebrates (Android `ProgressCard`'s `hasInitialized` guard):
+/// only on a change from not finished to finished, never for the first value it is shown,
+/// so opening a finished list doesn't replay the celebration.
+struct ProgressCardCelebration: Equatable {
+    private var lastAllDone: Bool?
+
+    /// Feed every value the card shows, starting with the first. Returns whether to celebrate now.
+    mutating func update(allDone: Bool) -> Bool {
+        defer { lastAllDone = allDone }
+        return lastAllDone == false && allDone
+    }
+}
+
 /// "3 of 7 picked up", percentage badge and progress bar (Android `ProgressCard`).
+/// On the transition to finished the card pops from 0.85 back to 1 with a spring, the check
+/// pops in with a bouncy spring, and the container pulses toward primary and back.
+/// The Success haptic is the view model's (`ListDetailViewModel.completionCount`).
 struct ProgressCardView: View {
     let total: Int
     let pickedUp: Int
+
+    @State private var celebration = ProgressCardCelebration()
+    @State private var cardScale: CGFloat = 1
+    @State private var checkScale: CGFloat = 1
+    @State private var pulse: Double = 0
 
     private var progress: Double { total == 0 ? 0 : Double(pickedUp) / Double(total) }
     private var allDone: Bool { total > 0 && pickedUp == total }
@@ -16,6 +37,8 @@ struct ProgressCardView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title)
                             .foregroundStyle(AppColors.onPrimaryContainer)
+                            .scaleEffect(checkScale)
+                            .transition(.scale.combined(with: .opacity))
                     }
                     Text(allDone ? "All done!" : "\(pickedUp) of \(total) picked up")
                         .font(.subheadline.weight(.semibold))
@@ -41,8 +64,15 @@ struct ProgressCardView: View {
             .animation(.easeOut(duration: 0.25), value: progress)
         }
         .padding(AppMetrics.screenPadding)
-        .background(allDone ? AppColors.primaryContainer : AppColors.surfaceContainerLow,
-                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
+        .background {
+            // The pulse blends the container toward primary and back (Android `lerp`).
+            RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
+                .fill(allDone ? AppColors.primaryContainer : AppColors.surfaceContainerLow)
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
+                        .fill(AppColors.primary.opacity(pulse))
+                }
+        }
         .overlay {
             if !allDone {
                 RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
@@ -50,7 +80,36 @@ struct ProgressCardView: View {
             }
         }
         .shadow(color: AppColors.shadow.opacity(0.08), radius: 4, y: 2)
+        .scaleEffect(cardScale)
+        .animation(.easeOut(duration: 0.2), value: allDone)
+        .onChange(of: allDone, initial: true) { _, done in
+            if celebration.update(allDone: done) {
+                celebrate()
+            } else if !done {
+                // Unticking or re-opening: reset without animating.
+                checkScale = 0
+                pulse = 0
+            }
+        }
         .accessibilityElement(children: .combine)
+    }
+
+    private func celebrate() {
+        var snap = Transaction()
+        snap.disablesAnimations = true
+        withTransaction(snap) {
+            cardScale = 0.85
+            checkScale = 0
+            pulse = 0
+        }
+        // Spring.DampingRatioLowBouncy (0.75) and DampingRatioHighBouncy (0.2) at StiffnessMediumLow.
+        withAnimation(.interpolatingSpring(stiffness: 1500, damping: 2 * 0.75 * sqrt(1500))) { cardScale = 1 }
+        withAnimation(.interpolatingSpring(stiffness: 400, damping: 2 * 0.2 * sqrt(400))) { checkScale = 1 }
+        withAnimation(.easeOut(duration: 0.18)) {
+            pulse = 1
+        } completion: {
+            withAnimation(.easeInOut(duration: 0.32)) { pulse = 0 }
+        }
     }
 }
 
@@ -100,10 +159,44 @@ struct GroupHeaderView: View {
     }
 }
 
+/// What an item card can do: the tick circle and a swipe right toggle picked up, a tap edits,
+/// a swipe left deletes.
+struct ItemCardActions {
+    let onToggle: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    /// The actions of one row of the list detail screen: toggling goes to the view model,
+    /// edit and delete are the screen's.
+    @MainActor
+    static func forItem(_ item: ShoppingItem, in model: ListDetailViewModel,
+                        onEdit: @escaping () -> Void, onDelete: @escaping () -> Void) -> ItemCardActions {
+        ItemCardActions(onToggle: { Task { await model.toggle(item.id) } }, onEdit: onEdit, onDelete: onDelete)
+    }
+
+    /// The swipeable card the screen shows for `item`: swipe right toggles, swipe left deletes.
+    /// The screen and the tests both build the row through here.
+    @MainActor
+    func card<Content: View>(for item: ShoppingItem, haptics: any HapticPlaying = SystemHapticPlayer(),
+                             @ViewBuilder content: () -> Content) -> SwipeableCard<Content> {
+        // SwipeableCard plays the swipe's own haptic; the tick circle plays its own.
+        SwipeableCard(
+            onSwipeLeft: onDelete,
+            onSwipeRight: onToggle,
+            rightIcon: item.isPickedUp ? "arrow.uturn.backward" : "checkmark",
+            leftActionName: "Delete",
+            rightActionName: item.isPickedUp ? "Mark as not picked up" : "Mark as picked up",
+            haptics: haptics,
+            content: content)
+    }
+}
+
 /// One item: tick circle, name, italic note, quantity and category chips (Android `ShoppingItemCard`).
+/// Tapping the card (not the circle) opens the editor.
 struct ItemCardView: View {
     let item: ShoppingItem
     let onToggle: () -> Void
+    var onEdit: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .center, spacing: 7) {
@@ -167,6 +260,9 @@ struct ItemCardView: View {
         }
         .shadow(color: AppColors.shadow.opacity(item.isPickedUp ? 0 : 0.06), radius: 3, y: 1)
         .animation(.easeOut(duration: 0.22), value: item.isPickedUp)
+        .contentShape(RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
+        .onTapGesture(perform: onEdit)
+        .accessibilityAction(named: "Edit", onEdit)
     }
 }
 

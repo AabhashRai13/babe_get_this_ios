@@ -130,6 +130,174 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertTrue(stored.isEmpty)
     }
 
+    // MARK: - Delete, undo and rename (HOME-09, HOME-10, HOME-11)
+
+    func testDeleteThenUndoRestoresList() async throws {
+        try await seedList("groceries", items: 3, picked: 3)
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        XCTAssertTrue(vm.lists[0].isCompleted)
+
+        await vm.deleteList(id: "groceries")
+
+        XCTAssertEqual(vm.undoMessage, "groceries deleted")
+        try await waitUntil { vm.lists.isEmpty }
+
+        await vm.undoDelete()
+
+        XCTAssertNil(vm.undoMessage)
+        try await waitUntil { vm.lists.count == 1 }
+        // The items came back with the list, so it is still completed.
+        XCTAssertEqual(vm.lists.first?.totalItems, 3)
+        XCTAssertTrue(vm.lists[0].isCompleted)
+    }
+
+    func testUndoWithNothingDeletedDoesNothing() async throws {
+        let vm = observedViewModel()
+        await vm.undoDelete()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertTrue(vm.lists.isEmpty)
+    }
+
+    func testDeletingUnknownListOffersNoUndo() async throws {
+        let vm = observedViewModel()
+        await vm.deleteList(id: "missing")
+        XCTAssertNil(vm.undoMessage)
+    }
+
+    func testDismissUndoClearsTheSnackbar() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        await vm.deleteList(id: "a")
+        XCTAssertNotNil(vm.undoMessage)
+        vm.dismissUndo()
+        XCTAssertNil(vm.undoMessage)
+    }
+
+    func testRenameListUpdatesTheName() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        vm.startRenaming(id: "a")
+        XCTAssertEqual(vm.renamingList?.id, "a")
+
+        await vm.renameList(id: "a", to: "  Hardware ")
+
+        XCTAssertNil(vm.renamingList)
+        try await waitUntil { vm.lists.first?.name == "Hardware" }
+    }
+
+    func testRenameToBlankReportsErrorAndKeepsDialog() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        vm.startRenaming(id: "a")
+
+        await vm.renameList(id: "a", to: "   ")
+
+        XCTAssertEqual(vm.errorMessage, "List name can't be empty.")
+        XCTAssertNotNil(vm.renamingList)
+    }
+
+    // MARK: - Create chooser and voice gate (HOME-12, AUTH-10, VOICE-08)
+
+    func testCreateOpensTheChooser() {
+        let vm = observedViewModel()
+        vm.startCreating()
+        XCTAssertTrue(vm.isChooserPresented)
+        vm.dismissChooser()
+        XCTAssertFalse(vm.isChooserPresented)
+    }
+
+    func testPickTypeClosesChooserAndOpensNameDialog() {
+        let vm = observedViewModel()
+        vm.startCreating()
+        vm.pickType()
+        XCTAssertFalse(vm.isChooserPresented)
+        XCTAssertTrue(vm.isNamingList)
+    }
+
+    func testVoiceRequiresAuthenticated() {
+        let guest = observedViewModel(authStateFor(nil))
+        guest.startCreating()
+        guest.pickVoice()
+        XCTAssertFalse(guest.isChooserPresented)
+        XCTAssertFalse(guest.isVoicePresented)
+        XCTAssertEqual(guest.authPrompt, .voice)
+
+        let signedIn = observedViewModel(authStateFor("u1"))
+        signedIn.startCreating()
+        signedIn.pickVoice()
+        XCTAssertFalse(signedIn.isChooserPresented)
+        XCTAssertTrue(signedIn.isVoicePresented)
+        XCTAssertNil(signedIn.authPrompt)
+    }
+
+    func testExpiredSessionIsPromptedLikeAGuest() {
+        let tokens = InMemoryTokenStore()
+        tokens.saveUserId("u1")
+        let auth = AuthStateManager(tokenStore: tokens)
+        auth.initialize()
+        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        vm.pickVoice()
+        XCTAssertEqual(vm.authPrompt, .voice)
+        XCTAssertFalse(vm.isVoicePresented)
+    }
+
+    func testDismissAuthPromptClearsIt() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.dismissAuthPrompt()
+        XCTAssertNil(vm.authPrompt)
+    }
+
+    func testPromptSignInOpensLogin() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.promptSignIn()
+        XCTAssertNil(vm.authPrompt)
+        XCTAssertEqual(vm.authRoute, .login)
+    }
+
+    func testPromptCreateAccountOpensRegister() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.promptCreateAccount()
+        XCTAssertNil(vm.authPrompt)
+        XCTAssertEqual(vm.authRoute, .register)
+    }
+
+    // MARK: - Create from the name dialog (HOME-11)
+
+    func testCreateClosesTheDialogAndOpensTheNewList() async throws {
+        let vm = observedViewModel()
+        vm.pickType()
+
+        await vm.confirmCreate(named: "Groceries")
+
+        XCTAssertFalse(vm.isNamingList)
+        XCTAssertFalse(vm.isCreatingList)
+        let opened = try XCTUnwrap(vm.openListRequest)
+        XCTAssertEqual(opened.name, "Groceries")
+        let stored = try await db.lists.list(id: opened.id)
+        XCTAssertEqual(stored?.name, "Groceries", "the list opened is the one just created")
+        vm.didOpenRequestedList()
+        XCTAssertNil(vm.openListRequest)
+    }
+
+    func testAFailedCreateKeepsTheDialogOpenAndOpensNothing() async throws {
+        let vm = observedViewModel()
+        vm.pickType()
+
+        await vm.confirmCreate(named: "   ")
+
+        XCTAssertTrue(vm.isNamingList)
+        XCTAssertNil(vm.openListRequest)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertFalse(vm.isCreatingList)
+    }
+
     // MARK: - Tabs, panes and date buckets (HOME-05, HOME-08)
 
     func testPaneFollowsTab() {
