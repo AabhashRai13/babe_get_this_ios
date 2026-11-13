@@ -195,21 +195,7 @@ struct UndoSnackbar: View {
     let onUndo: () -> Void
 
     var body: some View {
-        HStack {
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(AppColors.surface)
-                .lineLimit(1)
-            Spacer()
-            Button("Undo", action: onUndo)
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(AppColors.primaryContainer)
-        }
-        .padding(.horizontal, 16)
-        .frame(minHeight: 48)
-        .background(AppColors.textPrimary, in: RoundedRectangle(cornerRadius: AppMetrics.buttonRadius, style: .continuous))
-        .padding(.horizontal, AppMetrics.screenPadding)
-        .accessibilityElement(children: .contain)
+        Snackbar(message: message, actionTitle: "Undo", action: onUndo, lineLimit: 1)
     }
 }
 

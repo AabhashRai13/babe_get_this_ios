@@ -9,7 +9,6 @@ struct LoginView: View {
     var onClose: () -> Void = {}
 
     @State private var passwordVisible = false
-    @State private var showError = false
     @FocusState private var focus: Field?
 
     private enum Field { case email, password }
@@ -49,12 +48,22 @@ struct LoginView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        .onChange(of: viewModel.errorMessage) { _, message in showError = message != nil }
-        .alert("Couldn't sign in", isPresented: $showError) {
-            Button("OK") { viewModel.clearError() }
-        } message: {
-            Text(viewModel.errorMessage ?? "")
+        // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
+        // so the form stays usable while the message is up.
+        .overlay(alignment: .bottom) {
+            if let message = viewModel.errorMessage {
+                Snackbar(message: message)
+                    .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .task(id: message) {
+                        AccessibilityNotification.Announcement(message).post()
+                        try? await Task.sleep(for: SnackbarDuration.short)
+                        guard !Task.isCancelled else { return }
+                        withAnimation { viewModel.clearError() }
+                    }
+            }
         }
+        .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
     }
 
     private var header: some View {
@@ -90,7 +99,7 @@ struct LoginView: View {
                 }
                 .modifier(LoginFieldChrome(isError: viewModel.emailError != nil))
                 if let error = viewModel.emailError {
-                    Text(error).font(.caption).foregroundStyle(AppColors.swipeDelete)
+                    Text(error).font(.caption).foregroundStyle(AppColors.error)
                 }
             }
             HStack {
@@ -172,7 +181,7 @@ private struct LoginFieldChrome: ViewModifier {
                         in: RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous)
-                    .strokeBorder(isError ? AppColors.swipeDelete : AppColors.outline.opacity(0.5), lineWidth: 1)
+                    .strokeBorder(isError ? AppColors.error : AppColors.outline.opacity(0.5), lineWidth: 1)
             }
     }
 }
