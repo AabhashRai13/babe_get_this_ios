@@ -6,17 +6,20 @@ struct ForgotPasswordView: View {
     @Bindable var viewModel: ForgotPasswordViewModel
 
     @State private var passwordVisible = false
+    @FocusState private var focus: Field?
+
+    private enum Field { case email, code, password }
 
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16) {
-                Text("Reset your password")
+                Text(AuthCopy.resetPassword)
                     .font(.title.bold())
                     .foregroundStyle(AppColors.primary)
                     .padding(.top, 24)
-                Text(viewModel.codeSent
-                     ? "Enter the 8-digit code we emailed you and choose a new password."
-                     : "Enter your email and we'll send you an 8-digit code.")
+                // Step two names the address: there is no way back to the email field, so
+                // this is where a typo shows before waiting for a code that never comes.
+                Text(viewModel.codeSent ? AuthCopy.codeSent(to: viewModel.email) : AuthCopy.forgotSubtitle)
                     .font(.subheadline)
                     .foregroundStyle(AppColors.textSecondary)
 
@@ -46,6 +49,21 @@ struct ForgotPasswordView: View {
             }
         }
         .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
+        .onAppear { if !viewModel.codeSent { focus = .email } }
+        // Step two exists to type the code; then the new password.
+        .onChange(of: viewModel.codeSent) { _, sent in if sent { focus = .code } }
+        .onChange(of: viewModel.code) { _, code in
+            if focus == .code && code.count == ForgotPasswordViewModel.codeLength { focus = .password }
+        }
+        .toolbar {
+            // The number pad has no Return key.
+            ToolbarItemGroup(placement: .keyboard) {
+                if focus == .code {
+                    Spacer()
+                    Button("Done") { focus = nil }
+                }
+            }
+        }
     }
 
     private var emailStep: some View {
@@ -56,6 +74,7 @@ struct ForgotPasswordView: View {
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
                     .autocorrectionDisabled()
+                    .focused($focus, equals: .email)
                     .submitLabel(.go)
                     .onSubmit { viewModel.sendCode() }
             }
@@ -77,6 +96,7 @@ struct ForgotPasswordView: View {
                 TextField("8-digit code", text: Binding(get: { viewModel.code }, set: { viewModel.onCodeChange($0) }))
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
+                    .focused($focus, equals: .code)
             }
             fieldBox(icon: "lock", error: viewModel.passwordError, trailing: toggle) {
                 let text = Binding(get: { viewModel.newPassword }, set: { viewModel.onNewPasswordChange($0) })
@@ -90,6 +110,7 @@ struct ForgotPasswordView: View {
                 .textContentType(.newPassword)
                 .textInputAutocapitalization(.never)
                 .autocorrectionDisabled()
+                .focused($focus, equals: .password)
                 .submitLabel(.go)
                 .onSubmit { viewModel.resetPassword() }
             }
@@ -105,10 +126,16 @@ struct ForgotPasswordView: View {
         }
     }
 
+    /// The swap replaces the field and drops focus, so a focused field gets it back.
     private var toggle: some View {
-        Button(passwordVisible ? "Hide" : "Show") { passwordVisible.toggle() }
-            .font(.footnote.weight(.medium))
-            .foregroundStyle(AppColors.primary)
+        Button(passwordVisible ? "Hide" : "Show") {
+            let kept = focus
+            passwordVisible.toggle()
+            Task { @MainActor in focus = kept }
+        }
+        .font(.footnote.weight(.medium))
+        .foregroundStyle(AppColors.primary)
+        .accessibilityLabel(AuthCopy.visibilityToggleLabel(isVisible: passwordVisible))
     }
 
     private func fieldBox<Content: View>(icon: String, error: String?,
@@ -116,7 +143,8 @@ struct ForgotPasswordView: View {
                                          @ViewBuilder content: () -> Content) -> some View {
         VStack(alignment: .leading, spacing: 4) {
             HStack {
-                Image(systemName: icon).foregroundStyle(AppColors.primary)
+                // Decorative, like Android's contentDescription = null.
+                Image(systemName: icon).foregroundStyle(AppColors.primary).accessibilityHidden(true)
                 content()
                 trailing
             }
