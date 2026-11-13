@@ -61,20 +61,56 @@ final class ListsViewModel {
     @ObservationIgnored private var domainLists: [ShoppingList] = []
     /// Cached because the CASCADE wipes a guest list's items with the list row.
     @ObservationIgnored private var pendingDelete: (list: ShoppingList, items: [ShoppingItemRecord])?
-    @ObservationIgnored private let repository: ShoppingListRepository?
+    @ObservationIgnored private let repository: (any ListsRepositoryProviding)?
     @ObservationIgnored private let authState: AuthStateManager?
+    @ObservationIgnored private let shareJoiner: (any ListJoining)?
+    @ObservationIgnored private let ownership: (any ListOwnershipStore)?
+
+    /// How many guest lists just moved into the account; the screen says so once, then
+    /// `dismissAdoptionNotice()` (Android `adoptionNotice`).
+    private(set) var adoptionNotice = 0
 
     init(lists: [ShoppingListSummary] = []) {
         self.lists = lists
         self.repository = nil
         self.authState = nil
+        self.shareJoiner = nil
+        self.ownership = nil
     }
 
-    init(repository: ShoppingListRepository, authState: AuthStateManager) {
+    init(
+        repository: any ListsRepositoryProviding,
+        authState: AuthStateManager,
+        shareJoiner: (any ListJoining)? = nil,
+        ownership: (any ListOwnershipStore)? = nil
+    ) {
         self.lists = []
         self.repository = repository
         self.authState = authState
+        self.shareJoiner = shareJoiner
+        self.ownership = ownership
+        self.adoptionNotice = ownership?.adoptionNotice ?? 0
     }
+
+    /// A lost session keeps the account's lists on screen (Android decision 008); the screen
+    /// asks the user to sign in again so they sync.
+    var isSessionExpired: Bool {
+        if case .sessionExpired = authState?.authState { true } else { false }
+    }
+
+    func dismissAdoptionNotice() {
+        ownership?.setAdoptionNotice(0)
+        adoptionNotice = 0
+    }
+
+    /// Follows the ownership store's notice until cancelled.
+    func observeAdoptionNotice() async {
+        guard let ownership else { return }
+        for await count in ownership.adoptionNoticeUpdates() { adoptionNotice = count }
+    }
+
+    /// Shows a message through the same one-shot channel as failures (Android `showSnackBar`).
+    func showSnackBar(_ message: String) { errorMessage = message }
 
     var activeLists: [ShoppingListSummary] { lists.filter { !$0.isCompleted } }
     var completedLists: [ShoppingListSummary] { lists.filter(\.isCompleted) }
@@ -252,7 +288,11 @@ final class ListsViewModel {
         guard let repository, let pending = pendingDelete else { return }
         let result: Result<Void, AppError>
         do {
-            result = try await repository.restoreListWithItems(list: pending.list, items: pending.items)
+            // An unstructured Task, so cancelling the caller (tapping Undo, then leaving the
+            // screen) can't abort the restore half way: Android runs it on applicationScope.
+            result = try await Task {
+                try await repository.restoreListWithItems(list: pending.list, items: pending.items)
+            }.value
         } catch {
             return // Cancelled.
         }
@@ -270,6 +310,62 @@ final class ListsViewModel {
     }
 
     func cancelRenaming() { renamingList = nil }
+
+    // MARK: - Voice
+
+    /// The voice flow's persist step: names the list from the spoken items, creates it with
+    /// them and opens it. Failure is returned, not shown: the voice sheet renders it inline,
+    /// so a second error surface would double up.
+    func createListWithVoice(_ drafts: [ItemDraft]) async throws -> Result<String, AppError> {
+        guard let repository else { return .failure(.unknown()) }
+        let name = autoNameVoiceList(drafts)
+        let result = try await repository.createListWithItems(name: name, drafts: drafts)
+        if case .success(let id) = result {
+            openListRequest = ShoppingListSummary(id: id, name: name, totalItems: 0, pickedUpItems: 0, createdAt: .now)
+        }
+        return result
+    }
+
+    // MARK: - Join a shared list by code
+
+    private(set) var isJoinDialogPresented = false
+    private(set) var isJoinAuthPromptPresented = false
+    private(set) var isJoining = false
+    /// Why the last join failed, shown inline in the dialog.
+    private(set) var joinError: String?
+
+    /// Joining needs a live session; a guest or a lost session gets the sign-in prompt.
+    func startJoining() {
+        if authState?.liveSessionUserId != nil {
+            joinError = nil
+            isJoinDialogPresented = true
+        } else {
+            isJoinAuthPromptPresented = true
+        }
+    }
+
+    func dismissJoinDialog() { isJoinDialogPresented = false }
+
+    func dismissJoinAuthPrompt() { isJoinAuthPromptPresented = false }
+
+    /// On success the replica lands in the database and the list appears through the live
+    /// query, so nothing else happens here. On failure the dialog stays open with the error.
+    func joinList(code: String) async {
+        guard let shareJoiner else { return }
+        isJoining = true
+        joinError = nil
+        defer { isJoining = false }
+        let result: Result<String, AppError>
+        do {
+            result = try await shareJoiner.join(code: code)
+        } catch {
+            return // Cancelled.
+        }
+        switch result {
+        case .success: isJoinDialogPresented = false
+        case .failure(let error): joinError = error.message
+        }
+    }
 
     /// Renames through the repository (which trims and validates). The dialog closes on
     /// success and stays open, with the error shown, on failure.
