@@ -200,6 +200,26 @@ final class ListsViewModel {
 
     func dismissAuthPrompt() { authPrompt = nil }
 
+    /// Where the auth prompt sends a guest (AUTH-10).
+    enum AuthRoute: String, Identifiable {
+        case login, register
+        var id: String { rawValue }
+    }
+
+    /// The sign-in or create-account screen presented over the lists, nil when none is.
+    var authRoute: AuthRoute?
+
+    /// The prompt's "Sign in": closes the prompt and opens Login.
+    func promptSignIn() {
+        authPrompt = nil
+        authRoute = .login
+    }
+
+    /// The prompt's "Create account": closes the prompt and opens Register.
+    func promptCreateAccount() {
+        authPrompt = nil
+        authRoute = .register
+    }
 
     // MARK: - Delete, undo, rename
 

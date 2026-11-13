@@ -8,9 +8,6 @@ struct ListsView: View {
     var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
     /// Pushes a list's detail screen onto the navigation path (a tap on a card, or a new list).
     var onOpenList: (ShoppingListSummary) -> Void = { _ in }
-    /// Sign-in and create-account routes for the auth prompt. Sign-in screens aren't reachable from Lists yet.
-    var onLogin: () -> Void = {}
-    var onRegister: () -> Void = {}
 
     /// Android AnimatedContent: tab content slides in the direction of travel, 280 ms.
     private static let tabMotion = Animation.easeInOut(duration: 0.28)
@@ -103,9 +100,14 @@ struct ListsView: View {
         }
         .overlay {
             if let prompt = viewModel.authPrompt {
-                AuthPromptDialog(content: prompt, onLogin: onLogin, onRegister: onRegister,
+                AuthPromptDialog(content: prompt,
+                                 onLogin: { viewModel.promptSignIn() },
+                                 onRegister: { viewModel.promptCreateAccount() },
                                  onDismiss: { viewModel.dismissAuthPrompt() })
             }
+        }
+        .sheet(item: $viewModel.authRoute) { route in
+            AuthSheet(initialRoute: route, onDone: { viewModel.authRoute = nil })
         }
         .onChange(of: viewModel.openListRequest) { _, request in
             guard let request else { return }

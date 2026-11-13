@@ -1,5 +1,6 @@
 import Foundation
 import Observation
+import Supabase
 
 /// Composition root. Builds every long-lived dependency once and hands it to
 /// the views. No DI framework: add properties here as features land.
@@ -46,6 +47,35 @@ final class AppContainer {
         return VoiceCaptureViewModel(
             recorder: AVVoiceRecorder(),
             transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth))
+    }
+
+    // MARK: - Auth screens
+
+    /// Built on first use, so launching the app (and every test container) opens no Supabase
+    /// client until someone actually reaches a sign-in screen.
+    @ObservationIgnored private var cachedAuthRepository: (any AuthRepository)?
+
+    private var authRepository: any AuthRepository {
+        if let cachedAuthRepository { return cachedAuthRepository }
+        let client = SupabaseClient(supabaseURL: config.supabaseURL, supabaseKey: config.supabaseAnonKey)
+        let repository = SupabaseAuthRepository(
+            remote: SupabaseAuthRemote(client: client), authStateManager: authState, networkMonitor: NetworkMonitor())
+        cachedAuthRepository = repository
+        return repository
+    }
+
+    func makeLoginViewModel() -> LoginViewModel {
+        // Google sign-in is F23; until then its button reports that it failed.
+        LoginViewModel(authRepository: authRepository,
+                       googleAuth: GoogleSignInNotWired(), googleTokens: GoogleSignInNotWired())
+    }
+
+    func makeRegisterViewModel() -> RegisterViewModel {
+        RegisterViewModel(authRepository: authRepository)
+    }
+
+    func makeForgotPasswordViewModel() -> ForgotPasswordViewModel {
+        ForgotPasswordViewModel(authRepository: authRepository)
     }
 
     static func live(bundle: Bundle = .main, arguments: [String] = ProcessInfo.processInfo.arguments) -> AppContainer {

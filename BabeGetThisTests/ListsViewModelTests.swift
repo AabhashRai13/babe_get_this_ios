@@ -252,6 +252,22 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertNil(vm.authPrompt)
     }
 
+    func testPromptSignInOpensLogin() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.promptSignIn()
+        XCTAssertNil(vm.authPrompt)
+        XCTAssertEqual(vm.authRoute, .login)
+    }
+
+    func testPromptCreateAccountOpensRegister() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.promptCreateAccount()
+        XCTAssertNil(vm.authPrompt)
+        XCTAssertEqual(vm.authRoute, .register)
+    }
+
     // MARK: - Create from the name dialog (HOME-11)
 
     func testCreateClosesTheDialogAndOpensTheNewList() async throws {
