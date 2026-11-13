@@ -6,6 +6,8 @@ struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
     /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
     var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
+    /// Pushes a list's detail screen onto the navigation path (a tap on a card, or a new list).
+    var onOpenList: (ShoppingListSummary) -> Void = { _ in }
     /// Sign-in and create-account routes for the auth prompt. Sign-in screens aren't reachable from Lists yet.
     var onLogin: () -> Void = {}
     var onRegister: () -> Void = {}
@@ -30,6 +32,7 @@ struct ListsView: View {
                     ListsPaneView(pane: viewModel.pane(for: viewModel.selectedTab),
                                   greetingTitle: viewModel.greetingTitle(hour: Calendar.current.component(.hour, from: .now)),
                                   greetingSummary: viewModel.greetingSummary,
+                                  onOpen: onOpenList,
                                   onDelete: { id in Task { await viewModel.deleteList(id: id) } },
                                   onRename: { id in viewModel.startRenaming(id: id) })
                         .id(viewModel.selectedTab)
@@ -82,10 +85,11 @@ struct ListsView: View {
         .animation(.easeInOut(duration: 0.2), value: viewModel.undoMessage)
         .overlay {
             if viewModel.isNamingList {
-                CreateListDialog(onDismiss: { viewModel.isNamingList = false }) { outcome in
-                    viewModel.isNamingList = false
+                CreateListDialog(isBusy: viewModel.isCreatingList,
+                                 onDismiss: { viewModel.isNamingList = false }) { outcome in
+                    // Closes only once the list exists; on failure the typed name stays.
                     if case .create(let name) = outcome {
-                        Task { await viewModel.createList(named: name) }
+                        Task { await viewModel.confirmCreate(named: name) }
                     }
                 }
             } else if let list = viewModel.renamingList {
@@ -102,6 +106,11 @@ struct ListsView: View {
                 AuthPromptDialog(content: prompt, onLogin: onLogin, onRegister: onRegister,
                                  onDismiss: { viewModel.dismissAuthPrompt() })
             }
+        }
+        .onChange(of: viewModel.openListRequest) { _, request in
+            guard let request else { return }
+            onOpenList(request)
+            viewModel.didOpenRequestedList()
         }
         .sheet(isPresented: Binding(
             get: { viewModel.isChooserPresented },
@@ -142,6 +151,7 @@ private struct ListsPaneView: View {
     let pane: ListsViewModel.Pane
     let greetingTitle: String
     let greetingSummary: String
+    let onOpen: (ShoppingListSummary) -> Void
     let onDelete: (String) -> Void
     let onRename: (String) -> Void
 
@@ -164,18 +174,19 @@ private struct ListsPaneView: View {
                         TimePeriodHeader(period: section.period)
                         ForEach(section.lists) { list in
                             SwipeableCard(onSwipeLeft: { onDelete(list.id) }) {
-                                NavigationLink(value: list) {
-                                    ListCard(list: list, isCompletedTab: pane.tab == .completed)
-                                }
-                                .buttonStyle(.plain)
-                                // Android combinedClickable onLongClick: rename.
-                                .simultaneousGesture(
-                                    LongPressGesture(minimumDuration: 0.5).onEnded { _ in
+                                // Android combinedClickable: a tap opens, a long press renames,
+                                // never both. A NavigationLink would still fire on the long
+                                // press's touch-up.
+                                ListCard(list: list, isCompletedTab: pane.tab == .completed)
+                                    .contentShape(Rectangle())
+                                    .onTapGesture { onOpen(list) }
+                                    .onLongPressGesture(minimumDuration: 0.5) {
                                         SystemHapticPlayer().play(.medium)
                                         onRename(list.id)
                                     }
-                                )
-                                .accessibilityAction(named: Text("Rename")) { onRename(list.id) }
+                                    .accessibilityAddTraits(.isButton)
+                                    .accessibilityAction { onOpen(list) }
+                                    .accessibilityAction(named: Text("Rename")) { onRename(list.id) }
                             }
                             .padding(.bottom, 8)
                         }

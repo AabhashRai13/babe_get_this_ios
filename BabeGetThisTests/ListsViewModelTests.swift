@@ -252,6 +252,36 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertNil(vm.authPrompt)
     }
 
+    // MARK: - Create from the name dialog (HOME-11)
+
+    func testCreateClosesTheDialogAndOpensTheNewList() async throws {
+        let vm = observedViewModel()
+        vm.pickType()
+
+        await vm.confirmCreate(named: "Groceries")
+
+        XCTAssertFalse(vm.isNamingList)
+        XCTAssertFalse(vm.isCreatingList)
+        let opened = try XCTUnwrap(vm.openListRequest)
+        XCTAssertEqual(opened.name, "Groceries")
+        let stored = try await db.lists.list(id: opened.id)
+        XCTAssertEqual(stored?.name, "Groceries", "the list opened is the one just created")
+        vm.didOpenRequestedList()
+        XCTAssertNil(vm.openListRequest)
+    }
+
+    func testAFailedCreateKeepsTheDialogOpenAndOpensNothing() async throws {
+        let vm = observedViewModel()
+        vm.pickType()
+
+        await vm.confirmCreate(named: "   ")
+
+        XCTAssertTrue(vm.isNamingList)
+        XCTAssertNil(vm.openListRequest)
+        XCTAssertNotNil(vm.errorMessage)
+        XCTAssertFalse(vm.isCreatingList)
+    }
+
     // MARK: - Tabs, panes and date buckets (HOME-05, HOME-08)
 
     func testPaneFollowsTab() {

@@ -145,6 +145,28 @@ final class ListsViewModel {
         }
     }
 
+    /// A create from the name dialog is being written; Create is disabled meanwhile, so a
+    /// double tap can't insert the list twice.
+    private(set) var isCreatingList = false
+    /// The list the screen should open next (Android `navigateToList`). The screen pushes it
+    /// and calls `didOpenRequestedList()`.
+    private(set) var openListRequest: ShoppingListSummary?
+
+    /// The name dialog's Create (HOME-11): on success the dialog closes and the new list
+    /// opens; on failure the error shows and the dialog stays open with the typed name.
+    func confirmCreate(named name: String) async {
+        guard !isCreatingList else { return }
+        isCreatingList = true
+        defer { isCreatingList = false }
+        guard let id = await createList(named: name) else { return }
+        isNamingList = false
+        openListRequest = ShoppingListSummary(
+            id: id, name: name.trimmingCharacters(in: .whitespacesAndNewlines),
+            totalItems: 0, pickedUpItems: 0, createdAt: .now)
+    }
+
+    func didOpenRequestedList() { openListRequest = nil }
+
     // MARK: - Create chooser and voice gate
 
     /// The Type / Voice chooser sheet is up.
@@ -177,6 +199,7 @@ final class ListsViewModel {
     }
 
     func dismissAuthPrompt() { authPrompt = nil }
+
 
     // MARK: - Delete, undo, rename
 

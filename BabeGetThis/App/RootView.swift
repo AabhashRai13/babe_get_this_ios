@@ -14,8 +14,11 @@ struct RootView: View {
             case .welcome:
                 NavigationStack { WelcomeView() }
             case .lists:
-                NavigationStack(path: $listsPath) { ListsView(viewModel: container.lists,
-                                                                makeVoiceViewModel: { container.makeVoiceCaptureViewModel() }) }
+                NavigationStack(path: $listsPath) {
+                    ListsView(viewModel: container.lists,
+                              makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
+                              onOpenList: { listsPath.append($0) })
+                }
                     .onAppear {
                         guard !appliedInitialPath else { return }
                         appliedInitialPath = true
