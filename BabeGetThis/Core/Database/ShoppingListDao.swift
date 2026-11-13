@@ -180,9 +180,14 @@ struct ShoppingListDao: Sendable {
 
     /// Gives an ownerless replica to the account the server just vouched for.
     func claimList(id: String, accountId: String) async throws {
-        try await execute(
-            "UPDATE shopping_lists SET accountId = ?, onServer = 1 WHERE id = ? AND accountId IS NULL",
-            [accountId, id])
+        try await writer.write { db in try Self.claimList(db, id: id, accountId: accountId) }
+    }
+
+    /// `claimList` inside a caller's transaction (SyncEngine's apply).
+    static func claimList(_ db: Database, id: String, accountId: String) throws {
+        try db.execute(
+            sql: "UPDATE shopping_lists SET accountId = ?, onServer = 1 WHERE id = ? AND accountId IS NULL",
+            arguments: [accountId, id])
     }
 
     func countPendingSync() async throws -> Int {

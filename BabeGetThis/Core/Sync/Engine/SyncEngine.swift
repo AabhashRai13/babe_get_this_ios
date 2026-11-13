@@ -1,4 +1,5 @@
 import Foundation
+import GRDB
 
 // Port of Android `core/sync/data/repository/SyncEngine.kt`, minus the Got This
 // hooks (out of iOS v1).
@@ -98,8 +99,17 @@ actor SyncEngine {
         // earlier push landed before the app could record it; the row may have
         // changed since, so it joins the upsert below like any row already on
         // the server, instead of the server keeping that first version.
-        var upserts = lists.filter(\.onServer)
-        for list in lists where !list.onServer {
+        //
+        // A list soft-deleted after the drop above but before the read (UI
+        // writes don't take the gate) arrives here as a tombstone that never
+        // reached the server. It is skipped and stays pending, with its items,
+        // so the next push's drop deletes it. INSERTing it would create the
+        // server row this branch exists to avoid. (Android has the same gap
+        // between dropNeverSentLists and getPendingAccountLists; see SYNC-04.)
+        let neverSentTombstones = Set(lists.filter { !$0.onServer && $0.deletedAt != nil }.map(\.id))
+        let sendable = lists.filter { !neverSentTombstones.contains($0.id) }
+        var upserts = sendable.filter(\.onServer)
+        for list in sendable where !list.onServer {
             if try await !remote.insertList(list.syncLocal.toRow(createdBy: userId)) {
                 upserts.append(list)
             }
@@ -110,10 +120,11 @@ actor SyncEngine {
         }
         // Guarded per-row clear: a row edited again mid-push keeps its
         // flag (updatedAt no longer matches) and re-pushes next kick.
-        for list in lists {
+        for list in sendable {
             try await listDao.markListSynced(id: list.id, updatedAt: list.updatedAt)
         }
         let items = try await itemDao.pendingSyncItemsForAccount(userId)
+            .filter { !neverSentTombstones.contains($0.listId) }
         if !items.isEmpty {
             // Never carries picked_up_at: iOS v1 acts as a pre-Got-This client.
             try await remote.upsertItems(items.map { $0.syncLocal.toRow() })
@@ -154,17 +165,42 @@ actor SyncEngine {
     // plain catchUp starts from the stored sync point, which on a re-join is
     // already current and silently no-ops. Also the user-driven recovery road
     // if a replica ever goes bad: leave + re-enter the code.
+    //
+    // The removal runs inside the gate: outside it, a catch-up already in
+    // flight could set the old mark again after the removal, and the "full"
+    // pull would start from it. (Android removes it outside its Mutex; see
+    // SYNC-08.)
     func fullCatchUp(listId: String) async throws -> Result<Void, AppError> {
-        syncPoints.remove(listId: listId)
-        return try await catchUp(listId: listId)
+        try await safeCall {
+            try await serially {
+                syncPoints.remove(listId: listId)
+                try await catchUpLocked(listId: listId)
+            }
+        }
     }
 
     // MARK: - Apply
 
+    // One write transaction for the whole apply. The repositories write the
+    // same database without taking the gate, so a read-then-write in separate
+    // transactions lets a local edit (a tick, a rename) commit in between and
+    // be overwritten with pendingSync = 0: lost on screen and never pushed.
+    // Inside one transaction the skip decision and the write see the same
+    // state: an edit that commits first makes the row dirty and wins; one that
+    // commits after lands on top. It also makes the apply all-or-nothing, so a
+    // failure leaves the sync point and every row as they were (SYNC-07).
+    // (Android reads and writes in separate Room calls; see SYNC-10.)
     private func apply(userId: String, listRows: [ListRow], itemRows: [ItemRow]) async throws {
         let lockedIds = ownership.lockedListIds()
-        for row in listRows {
-            let local = try await listDao.listRaw(id: row.id)
+        try await listDao.writer.write { db in
+            try Self.applyLists(db, userId: userId, rows: listRows, lockedIds: lockedIds)
+            try Self.applyItems(db, rows: itemRows)
+        }
+    }
+
+    private static func applyLists(_ db: Database, userId: String, rows: [ListRow], lockedIds: Set<String>) throws {
+        for row in rows {
+            let local = try ShoppingListRecord.fetchOne(db, key: row.id)
             // The deletion of a list this phone never had: nothing to hide, so
             // nothing to store.
             if local == nil && row.deletedAt != nil { continue }
@@ -172,7 +208,7 @@ actor SyncEngine {
             // owners) is claimed the moment the server returns it for this
             // account — that answer is the proof of membership. Even when the
             // local row is dirty and the incoming data loses below.
-            if let local, local.accountId == nil { try await listDao.claimList(id: row.id, accountId: userId) }
+            if let local, local.accountId == nil { try ShoppingListDao.claimList(db, id: row.id, accountId: userId) }
             if try shouldSkip(localDirty: local?.pendingSync, localUpdatedAt: local?.updatedAt, incomingIso: row.updatedAt) {
                 continue
             }
@@ -186,26 +222,30 @@ actor SyncEngine {
             // echoed back) — unrecoverably, since the rows are gone rather than
             // tombstoned and the sync point has already moved past them.
             if local == nil {
-                try await listDao.insertList(record)
+                try record.insert(db)
             } else {
-                try await listDao.updateList(record)
+                try record.update(db)
             }
         }
-        for row in itemRows {
+    }
+
+    private static func applyItems(_ db: Database, rows: [ItemRow]) throws {
+        for row in rows {
             // FK guard: an item whose list isn't in the database yet can't be
             // inserted (CASCADE FK). The list row lands via the same catch-up
             // that brought the item, so the next pass picks the item up.
-            if try await listDao.listRaw(id: row.listId) == nil { continue }
-            let local = try await itemDao.itemRaw(id: row.id)
+            if try !ShoppingListRecord.exists(db, key: row.listId) { continue }
+            let local = try ShoppingItemRecord.fetchOne(db, key: row.id)
             if local == nil && row.deletedAt != nil { continue }
             if try shouldSkip(localDirty: local?.pendingSync, localUpdatedAt: local?.updatedAt, incomingIso: row.updatedAt) {
                 continue
             }
             let record = ShoppingItemRecord(syncLocal: try row.toRecord(local: local?.syncLocal))
             if local == nil {
-                try await itemDao.insertItem(record)
+                // Same upsert as ShoppingItemDao.insertItem (SYNC-11).
+                try record.upsert(db)
             } else {
-                try await itemDao.updateItem(record)
+                try record.update(db)
             }
         }
     }
@@ -214,7 +254,7 @@ actor SyncEngine {
     // out-timestamp it at the server), or the incoming stamp is no newer than
     // what we already applied (the same row again — discovery returns every
     // row on every pass — or a stale/out-of-order fetch).
-    private func shouldSkip(localDirty: Bool?, localUpdatedAt: Int64?, incomingIso: String?) throws -> Bool {
+    private static func shouldSkip(localDirty: Bool?, localUpdatedAt: Int64?, incomingIso: String?) throws -> Bool {
         guard let incomingIso else { return true } // defensive: server rows always carry it
         guard let localDirty, let localUpdatedAt else { return false } // no local row → apply
         return try localDirty || incomingIso.isoToMillis() <= localUpdatedAt
