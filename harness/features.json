@@ -234,7 +234,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 36)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F14",
@@ -309,7 +309,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDetailChromeTests/testTopBarActionsAreShareLiveThenShareAsText && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F18",
@@ -518,7 +518,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncEngineAccountCatchUpTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 14)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F29",
@@ -612,7 +612,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShareRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 13)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F34",
