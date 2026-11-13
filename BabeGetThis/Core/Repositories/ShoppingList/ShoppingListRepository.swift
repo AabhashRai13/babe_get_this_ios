@@ -40,26 +40,55 @@ struct ShoppingListRepository: Sendable {
         let owners = authStateManager.dataOwner
         let dao = listDao
         return AsyncThrowingStream { continuation in
+            // flatMapLatest: cancelling the old query is only cooperative, and a value it has
+            // already read could still be yielded after the new owner's. Each query gets a
+            // generation and only the current one reaches the stream.
+            let gate = OwnerGeneration()
             let task = Task {
                 var current: Task<Void, Never>?
                 for await owner in owners {
+                    let generation = gate.advance()
                     current?.cancel()
                     current = Task {
                         do {
                             for try await rows in dao.observeListsWithItemCount(accountId: owner).values(in: dao.writer) {
-                                continuation.yield(rows.map { $0.toDomain() })
+                                let lists = rows.map { $0.toDomain() }
+                                gate.ifCurrent(generation) { continuation.yield(lists) }
                             }
                         } catch is CancellationError {
                             // The owner changed; the next query has taken over.
                         } catch {
-                            continuation.finish(throwing: error)
+                            gate.ifCurrent(generation) { continuation.finish(throwing: error) }
                         }
                     }
                 }
+                gate.advance()
                 current?.cancel()
                 continuation.finish()
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Which owner query may emit. Advancing and the check-then-yield share one lock, so once
+    /// `advance()` returns nothing from an older query reaches the stream.
+    private final class OwnerGeneration: @unchecked Sendable {
+        private let lock = NSLock()
+        private var current = 0
+
+        @discardableResult
+        func advance() -> Int {
+            lock.withLock {
+                current += 1
+                return current
+            }
+        }
+
+        /// Runs `body` under the lock if `generation` is still current. `body` must not block.
+        func ifCurrent(_ generation: Int, _ body: () -> Void) {
+            lock.withLock {
+                if generation == current { body() }
+            }
         }
     }
 

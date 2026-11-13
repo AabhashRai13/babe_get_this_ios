@@ -100,6 +100,27 @@ final class ShoppingListRepositoryTests: XCTestCase {
         XCTAssertEqual(["mine"], lists.map(\.id))
     }
 
+    // The reason allLists() follows the data owner: signing in or out swaps the lists on
+    // screen without anyone asking, and nothing of the previous owner's arrives afterwards.
+    func testSigningInAndOutSwapsTheListsOnTheSameStream() async throws {
+        try await seed("guest")
+        try await seed("mine", accountId: "u1")
+        try await seed("theirs", accountId: "u2")
+        let auth = authStateFor(nil)
+        var lists = repositoryAs(auth).allLists().makeAsyncIterator()
+
+        let asGuest = try await lists.next()
+        XCTAssertEqual(asGuest?.map(\.id), ["guest"])
+
+        auth.login(token: "token-u1", userId: "u1", userName: "Ann", userEmail: "ann@example.com")
+        let signedIn = try await lists.next()
+        XCTAssertEqual(signedIn?.map(\.id), ["mine"])
+
+        auth.logout()
+        let signedOut = try await lists.next()
+        XCTAssertEqual(signedOut?.map(\.id), ["guest"])
+    }
+
     func testIsAccountListTellsAccountListsFromGuestLists() async throws {
         try await seed("guest")
         try await seed("mine", accountId: "u1")
