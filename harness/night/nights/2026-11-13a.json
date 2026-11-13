@@ -1,0 +1,75 @@
+{
+  "night_id": "2026-11-13a",
+  "base_ref": "harness/per-task-wave-requirements",
+  "worker_deadline": "17:45",
+  "total_deadline": "18:30",
+  "merge_order": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F05",
+      "slug": "f05-start-screen",
+      "model": "sonnet",
+      "timeout_min": 120,
+      "budget_usd": 12,
+      "sim": "bgt-night-1",
+      "owned": [
+        "BabeGetThis/Features/Welcome/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/Welcome/",
+        "docs/night/2026-11-13a-f05-start-screen.md"
+      ],
+      "brief": "harness/night/briefs/F05.md"
+    },
+    {
+      "n": 2,
+      "id": "F06",
+      "slug": "f06-list-repository",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-2",
+      "owned": [
+        "BabeGetThis/Core/Repositories/ShoppingList/",
+        "BabeGetThisTests/Repositories/ShoppingList/",
+        "docs/night/2026-11-13a-f06-list-repository.md"
+      ],
+      "brief": "harness/night/briefs/F06.md"
+    },
+    {
+      "n": 3,
+      "id": "F19",
+      "slug": "f19-auth-repository",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-3",
+      "owned": [
+        "BabeGetThis/Core/Auth/Repository/",
+        "BabeGetThisTests/Auth/Repository/",
+        "docs/night/2026-11-13a-f19-auth-repository.md"
+      ],
+      "brief": "harness/night/briefs/F19.md"
+    },
+    {
+      "n": 4,
+      "id": "F40",
+      "slug": "f40-voice-sheet",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-4",
+      "owned": [
+        "BabeGetThis/Features/VoiceCapture/",
+        "BabeGetThisTests/VoiceCapture/",
+        "docs/night/2026-11-13a-f40-voice-sheet.md"
+      ],
+      "brief": "harness/night/briefs/F40.md"
+    }
+  ]
+}
