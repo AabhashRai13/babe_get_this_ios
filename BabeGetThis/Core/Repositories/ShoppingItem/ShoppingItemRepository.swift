@@ -40,19 +40,17 @@ struct ShoppingItemRepository: Sendable {
         let itemValues = itemDao.observeItemsByListId(listId).values(in: itemDao.writer)
         let categoryValues = categoryDao.observeAllCategories().values(in: categoryDao.writer)
         return AsyncThrowingStream { continuation in
-            // Flow.combine: emit once both sides have a value, then on every change.
-            let latest = LatestPair()
-            let emit: @Sendable () -> Void = {
-                if let (items, categories) = latest.both {
-                    let names = Dictionary(categories.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
-                    continuation.yield(items.map { $0.toStored(categoryName: $0.categoryId.flatMap { names[$0] }) })
-                }
+            // Flow.combine: emit once both sides have a value, then on every change. Storing a
+            // side, reading the pair and yielding happen in one critical section, so the last
+            // value emitted always holds the latest of both sides.
+            let latest = LatestPair { items, categories in
+                let names = Dictionary(categories.map { ($0.id, $0.name) }, uniquingKeysWith: { first, _ in first })
+                continuation.yield(items.map { $0.toStored(categoryName: $0.categoryId.flatMap { names[$0] }) })
             }
             let itemsTask = Task {
                 do {
                     for try await items in itemValues {
                         latest.set(items: items)
-                        emit()
                     }
                 } catch {
                     continuation.finish(throwing: error)
@@ -62,7 +60,6 @@ struct ShoppingItemRepository: Sendable {
                 do {
                     for try await categories in categoryValues {
                         latest.set(categories: categories)
-                        emit()
                     }
                 } catch {
                     continuation.finish(throwing: error)
@@ -75,18 +72,38 @@ struct ShoppingItemRepository: Sendable {
         }
     }
 
-    /// Latest value from each observation; the lock also orders the two emitters.
+    /// Latest value from each observation. Each `set` stores its side and, once both sides
+    /// are known, calls `emit` with the pair while still holding the lock, so the two
+    /// observations' emissions are serialised in the order their values were stored.
+    /// `emit` must not block (`AsyncThrowingStream.Continuation.yield` doesn't).
     private final class LatestPair: @unchecked Sendable {
         private let lock = NSLock()
         private var items: [ShoppingItemRecord]?
         private var categories: [CategoryRecord]?
+        private let emit: @Sendable ([ShoppingItemRecord], [CategoryRecord]) -> Void
 
-        var both: ([ShoppingItemRecord], [CategoryRecord])? {
-            lock.withLock { items.flatMap { items in categories.map { (items, $0) } } }
+        init(emit: @escaping @Sendable ([ShoppingItemRecord], [CategoryRecord]) -> Void) {
+            self.emit = emit
         }
 
-        func set(items: [ShoppingItemRecord]) { lock.withLock { self.items = items } }
-        func set(categories: [CategoryRecord]) { lock.withLock { self.categories = categories } }
+        func set(items: [ShoppingItemRecord]) {
+            lock.withLock {
+                self.items = items
+                emitIfComplete()
+            }
+        }
+
+        func set(categories: [CategoryRecord]) {
+            lock.withLock {
+                self.categories = categories
+                emitIfComplete()
+            }
+        }
+
+        /// Call with the lock held.
+        private func emitIfComplete() {
+            if let items, let categories { emit(items, categories) }
+        }
     }
 
     // MARK: - Writes
