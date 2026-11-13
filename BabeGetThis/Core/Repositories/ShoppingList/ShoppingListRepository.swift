@@ -162,6 +162,61 @@ struct ShoppingListRepository: Sendable {
         }
     }
 
+    /// Captures the items before deleting the list; the CASCADE wipes them on a hard
+    /// delete, so the caller holds them for undo. Account lists soft-delete instead: the
+    /// tombstone must survive and sync for the deletion to reach other members and the
+    /// account's other phones, and the item rows stay hidden behind it. Even a list that
+    /// hasn't reached the server yet gets a tombstone: a push may be uploading it right
+    /// now, and only the push (serialised with that upload) can tell whether the
+    /// tombstone must follow it or the row can simply go.
+    func deleteListAndCaptureItems(listId: String) async throws -> Result<[ShoppingItemRecord], AppError> {
+        try await safeCall {
+            let items = try await itemDao.itemsByListIdOnce(listId)
+            if try await isAccountList(listId) {
+                try await listDao.softDeleteList(id: listId, now: Self.nowMillis())
+                syncKicker.pushSoon()
+            } else {
+                try await listDao.deleteList(id: listId)
+            }
+            return items
+        }
+    }
+
+    /// Undo for a delete: puts the list back with its items so derived fields such as
+    /// `isCompleted` recompute correctly.
+    func restoreListWithItems(list: ShoppingList, items: [ShoppingItemRecord]) async throws -> Result<Void, AppError> {
+        try await safeCall {
+            if var raw = try await listDao.listRaw(id: list.id), raw.accountId != nil {
+                // Account list, soft-deleted: the rows never left the database, so undo
+                // just clears the tombstone and pushes. Re-inserting from the domain
+                // model would wipe accountId and shareCode and detach the list from
+                // sync. UPDATE, never insert-or-replace: a REPLACE is DELETE + INSERT,
+                // and the CASCADE would wipe every item of the restored list.
+                raw.deletedAt = nil
+                raw.updatedAt = Self.nowMillis()
+                raw.pendingSync = true
+                try await listDao.updateList(raw)
+                syncKicker.pushSoon()
+            } else {
+                // The row is gone: a guest list, or an account list the push dropped
+                // because it never reached the server. It comes back as a list of
+                // whoever owns the device's lists now, as a new list would. One
+                // transaction, so a half-done restore can't drop the cached items.
+                let owner = authStateManager.dataOwnerId
+                var record = list.toRecord()
+                record.accountId = owner
+                record.pendingSync = owner != nil
+                let restored = owner == nil ? items : items.map {
+                    var item = $0
+                    item.pendingSync = true
+                    return item
+                }
+                try await listDao.insertListWithItems(record, items: restored)
+                if owner != nil { syncKicker.pushSoon() }
+            }
+        }
+    }
+
     // MARK: - Helpers
 
     /// Draft → item row, shared by createListWithItems and addItemsToList. The trust-boundary
