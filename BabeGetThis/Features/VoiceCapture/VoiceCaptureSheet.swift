@@ -4,6 +4,7 @@ import SwiftUI
 /// the list) and reacts to `onDismiss` / `onSwitchToType`. Entry points are wired elsewhere.
 struct VoiceCaptureSheet: View {
     @State private var model: VoiceCaptureSheetModel
+    @Environment(\.scenePhase) private var scenePhase
     private let persist: VoiceCaptureViewModel.Persist
 
     init(
@@ -23,6 +24,37 @@ struct VoiceCaptureSheet: View {
     }
 
     var body: some View {
+        // Scrolls so the largest Dynamic Type sizes never cut off the buttons.
+        ScrollView {
+            content
+                .frame(maxWidth: .infinity)
+                .padding(.horizontal, AppMetrics.welcomePadding)
+                .padding(.bottom, 32)
+                .padding(.top, 16)
+        }
+        .scrollBounceBehavior(.basedOnSize)
+        .background(AppColors.surface)
+        // VOICE-05: full height (Android skipPartiallyExpanded = true).
+        .presentationDetents([.large])
+        .presentationDragIndicator(.visible)
+        .task { await model.onAppear(persist: persist) }
+        .onChange(of: model.viewModel.state) { _, _ in
+            model.stateChanged()
+            // The content switches in place; say what appeared so VoiceOver users hear it.
+            if let announcement = model.content.announcement {
+                AccessibilityNotification.Announcement(announcement).post()
+            }
+        }
+        // Back from Settings with the microphone allowed: start recording.
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active { model.sceneBecameActive() }
+        }
+        // Swipe-down (or the host closing it): one tested path, like Android's onDismissRequest.
+        .onDisappear { model.sheetDisappeared() }
+    }
+
+    @ViewBuilder
+    private var content: some View {
         VStack(spacing: 0) {
             switch model.content {
             case .idle:
@@ -50,16 +82,6 @@ struct VoiceCaptureSheet: View {
                     .padding(.top, 8)
             }
         }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, AppMetrics.welcomePadding)
-        .padding(.bottom, 32)
-        .padding(.top, 16)
-        .background(AppColors.surface)
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .task { await model.onAppear(persist: persist) }
-        .onChange(of: model.viewModel.state) { _, _ in model.stateChanged() }
-        .onDisappear { model.viewModel.cancel() }
     }
 
     private func messageBlock(_ message: String) -> some View {
@@ -78,10 +100,9 @@ private struct RecordingContent: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Image(systemName: "mic.circle.fill")
-                .font(.system(size: 88))
-                .foregroundStyle(AppColors.primary)
-                .padding(.vertical, 24)
+            // VOICE-05: the pebble animation (decorative, hidden from VoiceOver).
+            PebbleListeningIndicator()
+                .frame(width: 200, height: 200)
             // Timer is view-local so the view model isn't updated every tick.
             TimelineView(.periodic(from: startedAt, by: 0.2)) { context in
                 let total = Int(context.date.timeIntervalSince(startedAt))
@@ -107,7 +128,8 @@ private struct TranscribingContent: View {
 
     var body: some View {
         VStack(spacing: 20) {
-            ProgressView().padding(.top, 20)
+            // VOICE-05: the 5-bar waveform rather than a spinner, which reads as "loading".
+            TranscribingWaveform().padding(.top, 20)
             Text(copy.line)
                 .id(copy.line)
                 .transition(.opacity)
