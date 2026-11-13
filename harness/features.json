@@ -122,7 +122,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListDeleteUndoTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F08",
@@ -137,7 +137,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingItemRepositoryTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 11)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F09",
@@ -178,7 +178,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ListsViewModelTests/testEmptyListSubtitleIsNoItemsYet && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F11",
@@ -363,7 +363,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/AuthNetworkTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F21",
@@ -380,7 +380,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/LoginViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F22",
