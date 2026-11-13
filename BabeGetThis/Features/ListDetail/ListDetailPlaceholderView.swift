@@ -7,8 +7,21 @@ struct ListDetailPlaceholderView: View {
     @Environment(AppContainer.self) private var container
 
     var body: some View {
-        ListDetailScreen(list: list, source: container.itemRepository)
+        ListDetailScreen(list: list, source: container.itemRepository,
+                         authState: { [authState = container.authState] in authState.authState },
+                         makeVoiceViewModel: { container.makeVoiceCaptureViewModel() })
     }
+}
+
+/// UIKit share sheet for "Share as text".
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+    let text: String
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        UIActivityViewController(activityItems: [text], applicationActivities: nil)
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 /// List detail screen: progress, active items grouped by shop then category, completed items,
@@ -21,10 +34,16 @@ private struct ListDetailScreen: View {
     @State private var editingItem: ShoppingItem?
     @State private var undoTask: Task<Void, Never>?
     @State private var errorTask: Task<Void, Never>?
+    @State private var chrome: ListDetailChromeModel
+    private let makeVoiceViewModel: () -> VoiceCaptureViewModel
 
-    init(list: ShoppingListSummary, source: any ListDetailItemsSource) {
+    init(list: ShoppingListSummary, source: any ListDetailItemsSource,
+         authState: @escaping () -> AuthState,
+         makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel) {
         self.list = list
+        self.makeVoiceViewModel = makeVoiceViewModel
         _model = State(initialValue: ListDetailViewModel(listId: list.id, source: source))
+        _chrome = State(initialValue: ListDetailChromeModel(listName: list.name, authState: authState))
     }
 
     var body: some View {
@@ -40,17 +59,76 @@ private struct ListDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.background)
         .overlay(alignment: .bottomTrailing) {
-            // The empty state has its own "Add first item" button (Android hides the FAB too).
-            if model.hasLoaded && !model.isEmpty {
+            VStack(alignment: .trailing, spacing: 12) {
                 Button {
-                    showingAdd = true
+                    chrome.voiceFabTapped()
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    Image(systemName: "mic.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColors.primary)
+                        .frame(width: 48, height: 48)
+                        .background(AppColors.surface, in: Circle())
+                        .shadow(radius: 2, y: 1)
                 }
-                .buttonStyle(TonalFABStyle())
-                .padding(AppMetrics.screenPadding)
-                .accessibilityIdentifier("add-item-button")
+                .accessibilityLabel("Add by voice")
+                .accessibilityIdentifier("voice-fab")
+                // The empty state has its own "Add first item" button (Android hides the FAB too).
+                if model.hasLoaded && !model.isEmpty {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .buttonStyle(TonalFABStyle())
+                    .accessibilityIdentifier("add-item-button")
+                }
             }
+            .padding(AppMetrics.screenPadding)
+        }
+        .overlay {
+            if let prompt = chrome.authPrompt {
+                AuthPromptDialog(content: prompt,
+                                 onLogin: { chrome.promptSignIn() },
+                                 onRegister: { chrome.promptCreateAccount() },
+                                 onDismiss: { chrome.dismissAuthPrompt() })
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ForEach(ListDetailChromeModel.topBarActions) { action in
+                    Button(action.title, systemImage: action.systemImage) { chrome.perform(action) }
+                        .labelStyle(.iconOnly)
+                        .accessibilityIdentifier("detail.\(action.rawValue)")
+                }
+            }
+        }
+        .sheet(item: $chrome.authRoute) { route in
+            AuthSheet(initialRoute: route, onDone: { chrome.authRoute = nil })
+        }
+        .sheet(isPresented: $chrome.isVoicePresented) {
+            VoiceCaptureSheet(
+                viewModel: makeVoiceViewModel(),
+                // TODO(F41): add the transcribed items to this list.
+                persist: { _ in .failure(.unknown("Adding items from voice isn't available yet.")) },
+                onDismiss: { chrome.isVoicePresented = false },
+                onSwitchToType: {
+                    chrome.isVoicePresented = false
+                    showingAdd = true
+                })
+        }
+        .sheet(isPresented: $chrome.isShareLivePresented) {
+            // Placeholder: the share dialog is F34.
+            Text("Share list live")
+                .font(.title3.bold())
+                .padding()
+                .presentationDetents([.medium])
+        }
+        .sheet(isPresented: Binding(
+            get: { chrome.sharedText != nil },
+            set: { if !$0 { chrome.sharedText = nil } }
+        )) {
+            ActivityShareSheet(text: chrome.sharedText ?? "")
+                .presentationDetents([.medium, .large])
         }
         .overlay(alignment: .bottom) {
             VStack(spacing: 8) {
