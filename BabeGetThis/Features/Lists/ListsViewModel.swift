@@ -52,6 +52,15 @@ final class ListsViewModel {
     /// A failed write's message, for the screen to show once.
     var errorMessage: String?
 
+    /// "<name> deleted", while the Undo snackbar is up.
+    private(set) var undoMessage: String?
+    /// The list whose rename dialog is open (Android `editingList`).
+    private(set) var renamingList: ShoppingListSummary?
+
+    /// The repository's own models, kept so a delete can be undone with every field.
+    @ObservationIgnored private var domainLists: [ShoppingList] = []
+    /// Cached because the CASCADE wipes a guest list's items with the list row.
+    @ObservationIgnored private var pendingDelete: (list: ShoppingList, items: [ShoppingItemRecord])?
     @ObservationIgnored private let repository: ShoppingListRepository?
     @ObservationIgnored private let authState: AuthStateManager?
 
@@ -106,6 +115,7 @@ final class ListsViewModel {
         guard let repository else { return }
         do {
             for try await fresh in repository.allLists() {
+                domainLists = fresh
                 lists = fresh.map(ShoppingListSummary.init)
             }
         } catch is CancellationError {
@@ -132,6 +142,72 @@ final class ListsViewModel {
         case .failure(let error):
             errorMessage = error.message
             return nil
+        }
+    }
+
+    // MARK: - Delete, undo, rename
+
+    /// Deletes a list (swipe) and offers Undo. Only offers it when the list was captured,
+    /// so the snackbar never advertises an action that can't be honoured.
+    func deleteList(id: String) async {
+        guard let repository else { return }
+        let captured = domainLists.first { $0.id == id }
+        let result: Result<[ShoppingItemRecord], AppError>
+        do {
+            result = try await repository.deleteListAndCaptureItems(listId: id)
+        } catch {
+            return // Cancelled.
+        }
+        switch result {
+        case .success(let items):
+            if let captured {
+                pendingDelete = (captured, items)
+                undoMessage = "\(captured.name) deleted"
+            }
+        case .failure(let error):
+            errorMessage = error.message
+        }
+    }
+
+    /// Restores the last deleted list with its items. The pending copy is cleared only once
+    /// the restore succeeded, so a failed attempt can be retried.
+    func undoDelete() async {
+        undoMessage = nil
+        guard let repository, let pending = pendingDelete else { return }
+        let result: Result<Void, AppError>
+        do {
+            result = try await repository.restoreListWithItems(list: pending.list, items: pending.items)
+        } catch {
+            return // Cancelled.
+        }
+        switch result {
+        case .success: pendingDelete = nil
+        case .failure(let error): errorMessage = error.message
+        }
+    }
+
+    /// The snackbar timed out: Undo is no longer on offer.
+    func dismissUndo() { undoMessage = nil }
+
+    func startRenaming(id: String) {
+        renamingList = lists.first { $0.id == id }
+    }
+
+    func cancelRenaming() { renamingList = nil }
+
+    /// Renames through the repository (which trims and validates). The dialog closes on
+    /// success and stays open, with the error shown, on failure.
+    func renameList(id: String, to newName: String) async {
+        guard let repository else { return }
+        let result: Result<Void, AppError>
+        do {
+            result = try await repository.updateListName(listId: id, newName: newName)
+        } catch {
+            return // Cancelled.
+        }
+        switch result {
+        case .success: renamingList = nil
+        case .failure(let error): errorMessage = error.message
         }
     }
 }

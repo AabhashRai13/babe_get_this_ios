@@ -130,6 +130,76 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertTrue(stored.isEmpty)
     }
 
+    // MARK: - Delete, undo and rename (HOME-09, HOME-10, HOME-11)
+
+    func testDeleteThenUndoRestoresList() async throws {
+        try await seedList("groceries", items: 3, picked: 3)
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        XCTAssertTrue(vm.lists[0].isCompleted)
+
+        await vm.deleteList(id: "groceries")
+
+        XCTAssertEqual(vm.undoMessage, "groceries deleted")
+        try await waitUntil { vm.lists.isEmpty }
+
+        await vm.undoDelete()
+
+        XCTAssertNil(vm.undoMessage)
+        try await waitUntil { vm.lists.count == 1 }
+        // The items came back with the list, so it is still completed.
+        XCTAssertEqual(vm.lists.first?.totalItems, 3)
+        XCTAssertTrue(vm.lists[0].isCompleted)
+    }
+
+    func testUndoWithNothingDeletedDoesNothing() async throws {
+        let vm = observedViewModel()
+        await vm.undoDelete()
+        XCTAssertNil(vm.errorMessage)
+        XCTAssertTrue(vm.lists.isEmpty)
+    }
+
+    func testDeletingUnknownListOffersNoUndo() async throws {
+        let vm = observedViewModel()
+        await vm.deleteList(id: "missing")
+        XCTAssertNil(vm.undoMessage)
+    }
+
+    func testDismissUndoClearsTheSnackbar() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        await vm.deleteList(id: "a")
+        XCTAssertNotNil(vm.undoMessage)
+        vm.dismissUndo()
+        XCTAssertNil(vm.undoMessage)
+    }
+
+    func testRenameListUpdatesTheName() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        vm.startRenaming(id: "a")
+        XCTAssertEqual(vm.renamingList?.id, "a")
+
+        await vm.renameList(id: "a", to: "  Hardware ")
+
+        XCTAssertNil(vm.renamingList)
+        try await waitUntil { vm.lists.first?.name == "Hardware" }
+    }
+
+    func testRenameToBlankReportsErrorAndKeepsDialog() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        vm.startRenaming(id: "a")
+
+        await vm.renameList(id: "a", to: "   ")
+
+        XCTAssertEqual(vm.errorMessage, "List name can't be empty.")
+        XCTAssertNotNil(vm.renamingList)
+    }
+
     // MARK: - Tabs, panes and date buckets (HOME-05, HOME-08)
 
     func testPaneFollowsTab() {
