@@ -11,20 +11,28 @@ final class AppContainer {
     let welcome: WelcomeRepository
     let session: StartSession
     let welcomeViewModel: WelcomeViewModel
+    let database: AppDatabase
+    let listRepository: ShoppingListRepository
     let lists: ListsViewModel
     /// Lists pushed on launch (from `-openList <id>`), for deterministic screenshots.
     let initialPath: [ShoppingListSummary]
 
     init(config: AppConfig, authState: AuthStateManager = AuthStateManager(tokenStore: KeychainTokenStore()),
-         welcome: WelcomeRepository = WelcomeRepository(), forcedScreen: StartScreen? = nil,
-         lists: ListsViewModel = ListsViewModel(), initialPath: [ShoppingListSummary] = []) {
+         database: AppDatabase, welcome: WelcomeRepository = WelcomeRepository(), forcedScreen: StartScreen? = nil,
+         initialPath: [ShoppingListSummary] = []) {
         self.config = config
         self.authState = authState
         self.welcome = welcome
         let session = StartSession(authState: authState, welcome: welcome, forcedScreen: forcedScreen)
         self.session = session
         self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
-        self.lists = lists
+        self.database = database
+        let listRepository = ShoppingListRepository(
+            listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
+            authStateManager: authState, syncKicker: NoOpSyncKicker(),
+            safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+        self.listRepository = listRepository
+        self.lists = ListsViewModel(repository: listRepository, authState: authState)
         self.initialPath = initialPath
     }
 
@@ -39,17 +47,38 @@ final class AppContainer {
         //   -sampleData            skip Welcome and show the fixed sample lists
         //   -openList <listId>     also open that sample list's detail screen
         if config.environment != .prod, arguments.contains("-sampleData") {
-            return AppContainer(config: config, forcedScreen: .lists,
-                                lists: ListsViewModel(lists: ShoppingListSummary.samples),
-                                initialPath: LaunchRoute.initialPath(arguments: arguments))
+            return sampleContainer(config: config, forcedScreen: .lists,
+                                   initialPath: LaunchRoute.initialPath(arguments: arguments))
         }
-        let container = AppContainer(config: config)
+        let database: AppDatabase
+        do {
+            database = try AppDatabase.onDisk()
+        } catch {
+            fatalError("Could not open the local database: \(error)")
+        }
+        let container = AppContainer(config: config, database: database)
         container.authState.initialize()
         return container
     }
 
     static var preview: AppContainer {
-        AppContainer(config: .preview, forcedScreen: .welcome, lists: ListsViewModel(lists: ShoppingListSummary.samples))
+        sampleContainer(config: .preview, forcedScreen: .welcome)
+    }
+
+    /// A signed-out guest on an in-memory database seeded with the sample lists.
+    private static func sampleContainer(config: AppConfig, forcedScreen: StartScreen,
+                                        initialPath: [ShoppingListSummary] = []) -> AppContainer {
+        let database: AppDatabase
+        do {
+            database = try AppDatabase.inMemory()
+            try SampleListSeeder.seed(database)
+        } catch {
+            fatalError("Could not seed the sample database: \(error)")
+        }
+        let authState = AuthStateManager(tokenStore: InMemoryTokenStore())
+        authState.initialize()
+        return AppContainer(config: config, authState: authState, database: database,
+                            forcedScreen: forcedScreen, initialPath: initialPath)
     }
 }
 
