@@ -62,6 +62,7 @@ targets:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
         ITSAppUsesNonExemptEncryption: false
+        NSMicrophoneUsageDescription: Babe, Get This uses the microphone to turn what you say into list items.
         NSAppTransportSecurity:
           NSAllowsLocalNetworking: true
         BGTEnvironment: $(BGT_ENVIRONMENT)

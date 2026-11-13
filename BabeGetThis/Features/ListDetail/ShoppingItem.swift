@@ -74,8 +74,16 @@ struct ItemDraft: Equatable {
     var shop = ""
     var note = ""
 
+    /// The manual add-item sheet's rule: name and quantity are both required.
+    /// Not for spoken items, which often have no quantity: see `isSavableVoiceItem`.
     var isValid: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             && !quantity.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    /// The voice rule. Android's voice ItemDraft has a nullable quantity and goes straight to
+    /// the repository (`draftsToItems`: `quantity.orEmpty()`), so a spoken item needs only a name.
+    var isSavableVoiceItem: Bool {
+        !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 }

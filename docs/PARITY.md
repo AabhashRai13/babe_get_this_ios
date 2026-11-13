@@ -311,6 +311,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **VOICE-06** [todo] (K/feature/shoppinglist/ui/viewModels/ShoppingListViewModel.kt) No review step: drafts are saved straight away.
   - From the chooser: a new list is created with its items in one transaction, then opened.
   - From the mic inside a list: the items are added to that list.
+  - Spoken items need only a name; a missing quantity is saved as empty (`draftsToItems`: `quantity.orEmpty()`). The manual add rule (quantity required) does not apply.
 - **VOICE-07** [todo] (T/feature/shoppinglist/ui/viewModels/AutoNameVoiceListTest.kt) Auto-name: the first draft name, trimmed and capped at 40 ("List" if blank), plus " + N more" when there are more items. Port AutoNameVoiceListTest (10).
 - **VOICE-08** [todo] (D/product-decisions/003-voice-to-list-requires-authentication.md) Voice opens only when Authenticated. Signed-out and SessionExpired users get the "Sign in to use voice" prompt.
 
@@ -433,6 +434,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Postgres changes on `public.lists` (`id=eq.<id>`) and `public.items` (`list_id=eq.<id>`), merged into one signal.
   - Every SUBSCRIBED status (the first join and every re-join) also signals.
   - The channel is removed when collection ends.
+  - iOS: each subscription gets its own topic `list-<listId>-<uuid>`, because supabase-swift reuses a registered topic (Android's `channel(...)` builds a new channel each time).
 - **RT-02** [todo] (REALTIME_TEST_FINDINGS.md) Realtime carries no data: every signal → `catchUp(listId)`. Measured median latency is about 0.7–0.9 s.
 - **RT-03** [todo] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) On the detail screen, keyed on whether the list is shared:
   - Shared: catch up once, then subscribe.

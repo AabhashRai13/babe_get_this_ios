@@ -13,6 +13,25 @@ final class ThemeTests: XCTestCase {
         }
     }
 
+    func testFixedColorAssetsExistAndMatchAndroidInBothModes() {
+        let expected: [String: (CGFloat, CGFloat, CGFloat)] = [
+            "SwipeDelete": (0xE5, 0x39, 0x35), "SwipeComplete": (0x43, 0xA0, 0x47), "OnSwipe": (0xFF, 0xFF, 0xFF),
+        ]
+        XCTAssertEqual(Set(AppColors.fixedAssetNames), Set(expected.keys))
+        for name in AppColors.fixedAssetNames {
+            let color = UIColor(named: name, in: .main, compatibleWith: nil)
+            XCTAssertNotNil(color, "missing colour asset \(name)")
+            for style in [UIUserInterfaceStyle.light, .dark] {
+                var r: CGFloat = 0, g: CGFloat = 0, b: CGFloat = 0, a: CGFloat = 0
+                color?.resolvedColor(with: UITraitCollection(userInterfaceStyle: style)).getRed(&r, green: &g, blue: &b, alpha: &a)
+                let want = expected[name]!
+                XCTAssertEqual(r * 255, want.0, accuracy: 0.5, "\(name) red")
+                XCTAssertEqual(g * 255, want.1, accuracy: 0.5, "\(name) green")
+                XCTAssertEqual(b * 255, want.2, accuracy: 0.5, "\(name) blue")
+            }
+        }
+    }
+
     // Expected values are java.lang.String.hashCode() results.
     func testJavaHashCodeMatchesJVM() {
         XCTAssertEqual(javaHashCode(""), 0)

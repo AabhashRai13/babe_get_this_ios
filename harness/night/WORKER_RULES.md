@@ -1,10 +1,10 @@
 # Overnight worker rules (immutable; you cannot edit this file)
 
-You are one of five unattended workers. Nobody will answer questions. Work in the current directory
+You are one of several unattended workers. Nobody will answer questions. Work in the current directory
 (a git worktree on your own `night/*` branch) and follow these rules exactly.
 
 ## Inputs
-- Your task brief: `harness/night/tasks/<your-task>.md`. Its **Acceptance** list is the definition of done and cannot change.
+- Your task brief: the file named in your prompt (`harness/night/briefs/<task>.md`). Its **Acceptance** list is the definition of done and cannot change.
 - Project rules: `CLAUDE.md`. Approved spec: `docs/superpowers/specs/2026-11-11-overnight-five-tasks-design.md`.
 - Android reference (READ ONLY): `/Users/aabhashrai/Documents/ios_projects/Babe_get_this_parent_folder/android/Babe-get-this`. Read files with the Read tool. Read the
   reference branch with `git -C /Users/aabhashrai/Documents/ios_projects/Babe_get_this_parent_folder/android/Babe-get-this show origin/feat/got-this:<path>`
@@ -17,7 +17,9 @@ the list below. Variables (`$VAR`, `VAR=...`), `$(...)`, backticks, `cd`, `mkdir
 are never allowed. Simplest and safest: one command per call.
 Write paths out in full every time. The only Bash commands that are allowed:
 - `./scripts/verify.sh <your-simulator>` (task 4 also: `./scripts/screenshots.sh bgt-night-4`; task 5 also: `python3 harness/night/validate_parity.py`)
-- `git status`, `git diff ...`, `git log ...`, `git show ...`, `git add <paths>`, `git commit -m "<one-line message>"`
+- `git status`, `git diff ...`, `git log ...`, `git show ...`, `git add <paths>`
+- the commit command from your prompt: `<repo>/harness/night/commit.sh "<one-line message>"` (exactly one argument).
+  `git commit` itself is denied, and so is any `--output` option (`git diff/show/log --output=<file>`).
 - `git -C <android-path> show origin/feat/got-this:<path>`, and likewise `ls-tree`, `log` and `grep` with `-C <android-path>`
 - `ls`, `cat`, `head`, `tail`, `wc`, `grep`, `sort` on a single path
 Prefer the Read, Grep, Glob, Edit and Write tools for files. **Write creates missing folders itself**; don't use mkdir.
@@ -31,13 +33,16 @@ Only if the simple form is also denied does the stuck rule apply.
 2. Only create or edit files inside your **Owned paths**. Everything else (project.yml, scripts/, harness/night/,
    .claude/, Config/, Package.resolved, other features) is off limits, and edits there will be denied. New Swift files
    in your owned folders are picked up automatically by XcodeGen.
-3. Commit locally after each green step: `git add <your paths>` then `git commit -m "<plain message>"`.
-   Messages must be plain English with NO trailers: no Co-Authored-By, no "Generated with", no mention of Claude.
-   A commit hook rejects them. Never use --no-verify, push, checkout, reset, rebase, merge or stash.
+3. Commit locally after each green step: `git add <your paths>` then the commit command from your prompt,
+   `<repo>/harness/night/commit.sh "<plain message>"`. It commits what is staged with that one-line message and
+   always runs the commit hook. Messages must be plain English with NO trailers: no Co-Authored-By, no
+   "Generated with", no mention of Claude; the command and the hook reject them. Never try to skip the hook, and
+   never push, checkout, reset, rebase, merge or stash. You cannot change the git config or anything in the
+   shared git directory except through `git add` and the commit command.
 4. **Stuck rule:** after three failed attempts at the same problem, stop working on it. Write it under "Blocked" in
    your report, commit everything that passes, and finish.
 5. **No extras:** stop when the Acceptance list passes. Anything else goes under "Follow-ups" in your report.
-6. Before finishing, write `docs/night/<your-task>.md` with: Summary, Acceptance checklist (each item: done / not done),
+6. Before finishing, write the report file named in your prompt (`docs/night/<night>-<task>.md`) with: Summary, Acceptance checklist (each item: done / not done),
    real numbers from the last `./scripts/verify.sh` (copy its final line), Blocked, Follow-ups.
    Commit it. Leave the worktree clean (`git status` shows nothing to commit).
 7. Never try to get around a denial for a command that isn't on the allowed list (another tool, a script, an encoding).
