@@ -166,9 +166,28 @@ struct ItemCardActions {
     let onEdit: () -> Void
     let onDelete: () -> Void
 
+    /// The actions of one row of the list detail screen: toggling goes to the view model,
+    /// edit and delete are the screen's.
     @MainActor
-    func swipeController(haptics: any HapticPlaying) -> SwipeableCardController {
-        SwipeableCardController(onSwipeLeft: onDelete, onSwipeRight: onToggle, haptics: haptics)
+    static func forItem(_ item: ShoppingItem, in model: ListDetailViewModel,
+                        onEdit: @escaping () -> Void, onDelete: @escaping () -> Void) -> ItemCardActions {
+        ItemCardActions(onToggle: { Task { await model.toggle(item.id) } }, onEdit: onEdit, onDelete: onDelete)
+    }
+
+    /// The swipeable card the screen shows for `item`: swipe right toggles, swipe left deletes.
+    /// The screen and the tests both build the row through here.
+    @MainActor
+    func card<Content: View>(for item: ShoppingItem, haptics: any HapticPlaying = SystemHapticPlayer(),
+                             @ViewBuilder content: () -> Content) -> SwipeableCard<Content> {
+        // SwipeableCard plays the swipe's own haptic; the tick circle plays its own.
+        SwipeableCard(
+            onSwipeLeft: onDelete,
+            onSwipeRight: onToggle,
+            rightIcon: item.isPickedUp ? "arrow.uturn.backward" : "checkmark",
+            leftActionName: "Delete",
+            rightActionName: item.isPickedUp ? "Mark as not picked up" : "Mark as picked up",
+            haptics: haptics,
+            content: content)
     }
 }
 

@@ -129,8 +129,8 @@ private struct ListDetailScreen: View {
     }
 
     private func itemRow(_ item: ShoppingItem) -> some View {
-        let actions = ItemCardActions(
-            onToggle: { Task { await model.toggle(item.id) } },
+        let actions = ItemCardActions.forItem(
+            item, in: model,
             onEdit: { editingItem = item },
             onDelete: {
                 Task {
@@ -138,14 +138,7 @@ private struct ListDetailScreen: View {
                     if model.undoMessage != nil { scheduleUndoDismissal() }
                 }
             })
-        // SwipeableCard plays the swipe's own haptic; the tick circle plays its own.
-        return SwipeableCard(
-            onSwipeLeft: actions.onDelete,
-            onSwipeRight: actions.onToggle,
-            rightIcon: item.isPickedUp ? "arrow.uturn.backward" : "checkmark",
-            leftActionName: "Delete",
-            rightActionName: item.isPickedUp ? "Mark as not picked up" : "Mark as picked up"
-        ) {
+        return actions.card(for: item) {
             ItemCardView(item: item, onToggle: {
                 SystemHapticPlayer().play(.light)
                 actions.onToggle()

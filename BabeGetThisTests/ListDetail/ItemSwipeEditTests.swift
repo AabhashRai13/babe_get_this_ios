@@ -1,3 +1,4 @@
+import SwiftUI
 import XCTest
 @testable import BabeGetThis
 
@@ -92,8 +93,11 @@ final class ItemCardTests: XCTestCase {
         source.send([TestData.storedItem("a")])
         await listDetailEventually { vm.items.count == 1 }
 
-        let actions = ItemCardActions(onToggle: { Task { await vm.toggle("a") } }, onEdit: {}, onDelete: {})
-        let controller = actions.swipeController(haptics: haptics)
+        // The same construction the screen's itemRow uses.
+        let item = vm.items[0]
+        let controller = ItemCardActions.forItem(item, in: vm, onEdit: {}, onDelete: {})
+            .card(for: item, haptics: haptics) { EmptyView() }
+            .controller
         XCTAssertTrue(controller.isAllowed(.towardTrailing))
 
         // A drag past the 56pt threshold, released slowly.
@@ -106,7 +110,8 @@ final class ItemCardTests: XCTestCase {
     func testShortSwipeRightDoesNothing() {
         var toggles = 0
         let actions = ItemCardActions(onToggle: { toggles += 1 }, onEdit: {}, onDelete: {})
-        actions.swipeController(haptics: RecordingHapticPlayer()).end(translation: 30, velocity: 0)
+        actions.card(for: ShoppingItem(id: "a", name: "Milk", quantity: "1"), haptics: RecordingHapticPlayer()) { EmptyView() }
+            .controller.end(translation: 30, velocity: 0)
         XCTAssertEqual(toggles, 0)
     }
 
@@ -114,7 +119,8 @@ final class ItemCardTests: XCTestCase {
         var toggles = 0
         var deletes = 0
         let actions = ItemCardActions(onToggle: { toggles += 1 }, onEdit: {}, onDelete: { deletes += 1 })
-        actions.swipeController(haptics: RecordingHapticPlayer()).end(translation: -80, velocity: 0)
+        actions.card(for: ShoppingItem(id: "a", name: "Milk", quantity: "1"), haptics: RecordingHapticPlayer()) { EmptyView() }
+            .controller.end(translation: -80, velocity: 0)
         XCTAssertEqual(deletes, 1)
         XCTAssertEqual(toggles, 0)
     }
