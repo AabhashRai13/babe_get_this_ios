@@ -62,7 +62,10 @@
         "BabeGetThisTests/ListsViewModelTests.swift",
         "docs/night/2026-11-13b-f10-lists-on-database.md"
       ],
-      "brief": "harness/night/briefs/F10.md"
+      "brief": "harness/night/briefs/F10.md",
+      "requires": [
+        "F06"
+      ]
     },
     {
       "n": 4,
