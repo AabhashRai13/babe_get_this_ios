@@ -159,10 +159,25 @@ struct GroupHeaderView: View {
     }
 }
 
+/// What an item card can do: the tick circle and a swipe right toggle picked up, a tap edits,
+/// a swipe left deletes.
+struct ItemCardActions {
+    let onToggle: () -> Void
+    let onEdit: () -> Void
+    let onDelete: () -> Void
+
+    @MainActor
+    func swipeController(haptics: any HapticPlaying) -> SwipeableCardController {
+        SwipeableCardController(onSwipeLeft: onDelete, onSwipeRight: onToggle, haptics: haptics)
+    }
+}
+
 /// One item: tick circle, name, italic note, quantity and category chips (Android `ShoppingItemCard`).
+/// Tapping the card (not the circle) opens the editor.
 struct ItemCardView: View {
     let item: ShoppingItem
     let onToggle: () -> Void
+    var onEdit: () -> Void = {}
 
     var body: some View {
         HStack(alignment: .center, spacing: 7) {
@@ -226,6 +241,9 @@ struct ItemCardView: View {
         }
         .shadow(color: AppColors.shadow.opacity(item.isPickedUp ? 0 : 0.06), radius: 3, y: 1)
         .animation(.easeOut(duration: 0.22), value: item.isPickedUp)
+        .contentShape(RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
+        .onTapGesture(perform: onEdit)
+        .accessibilityAction(named: "Edit", onEdit)
     }
 }
 

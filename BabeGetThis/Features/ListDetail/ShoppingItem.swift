@@ -85,6 +85,15 @@ struct ItemDraft: Equatable {
     var shop = ""
     var note = ""
 
+    /// Android shows `n/limit` as supporting text once a field is at its limit (`length >= limit`).
+    var nameCounter: String? { Self.counter(name, limit: Self.nameLimit) }
+    var noteCounter: String? { Self.counter(note, limit: Self.noteLimit) }
+    var shopCounter: String? { Self.counter(shop, limit: Self.shopLimit) }
+
+    private static func counter(_ text: String, limit: Int) -> String? {
+        text.count >= limit ? "\(text.count)/\(limit)" : nil
+    }
+
     /// The manual add-item sheet's rule: name and quantity are both required.
     /// Not for spoken items, which often have no quantity: see `isSavableVoiceItem`.
     var isValid: Bool {
@@ -96,5 +105,13 @@ struct ItemDraft: Equatable {
     /// the repository (`draftsToItems`: `quantity.orEmpty()`), so a spoken item needs only a name.
     var isSavableVoiceItem: Bool {
         !name.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+}
+
+extension ItemDraft {
+    /// Edit mode: the dialog opens pre-filled with the item's data.
+    init(editing item: ShoppingItem) {
+        self.init(name: item.name, quantity: item.quantity, categoryId: item.categoryId,
+                  shop: item.shop ?? "", note: item.note ?? "")
     }
 }
