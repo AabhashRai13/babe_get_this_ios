@@ -1,31 +1,46 @@
 import SwiftUI
 
-/// List detail screen: progress, active items grouped by shop then category, completed items.
-/// An empty list shows the first-item prompt instead (Android `ShoppingItemsScreen`).
-/// Keeps the placeholder's type name and initialiser so `ListsView` is unchanged.
+/// Entry point for the list detail screen. Keeps the placeholder's type name and initialiser
+/// so `ListsView` is unchanged; the item repository comes from the `AppContainer` in the environment.
 struct ListDetailPlaceholderView: View {
+    let list: ShoppingListSummary
+    @Environment(AppContainer.self) private var container
+
+    var body: some View {
+        ListDetailScreen(list: list, source: container.itemRepository)
+    }
+}
+
+/// List detail screen: progress, active items grouped by shop then category, completed items,
+/// all live from the database. An empty list shows the first-item prompt instead
+/// (Android `ShoppingItemsScreen`).
+private struct ListDetailScreen: View {
     let list: ShoppingListSummary
     @State private var model: ListDetailViewModel
     @State private var showingAdd = false
     @State private var undoTask: Task<Void, Never>?
+    @State private var errorTask: Task<Void, Never>?
 
-    init(list: ShoppingListSummary) {
+    init(list: ShoppingListSummary, source: any ListDetailItemsSource) {
         self.list = list
-        _model = State(initialValue: ListDetailViewModel(listId: list.id))
+        _model = State(initialValue: ListDetailViewModel(listId: list.id, source: source))
     }
 
     var body: some View {
         Group {
-            if model.isEmpty {
+            if !model.hasLoaded {
+                Color.clear
+            } else if model.isEmpty {
                 FirstItemPromptView { showingAdd = true }
             } else {
                 itemList
             }
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.background)
         .overlay(alignment: .bottomTrailing) {
             // The empty state has its own "Add first item" button (Android hides the FAB too).
-            if !model.isEmpty {
+            if model.hasLoaded && !model.isEmpty {
                 Button {
                     showingAdd = true
                 } label: {
@@ -37,21 +52,39 @@ struct ListDetailPlaceholderView: View {
             }
         }
         .overlay(alignment: .bottom) {
-            if let message = model.undoMessage {
-                UndoSnackbar(message: message) {
-                    undoTask?.cancel()
-                    withAnimation { model.undoDelete() }
+            VStack(spacing: 8) {
+                if let message = model.errorMessage {
+                    Snackbar(message: message)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
-                .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding * 2)
-                .transition(.move(edge: .bottom).combined(with: .opacity))
+                if let message = model.undoMessage {
+                    UndoSnackbar(message: message) {
+                        undoTask?.cancel()
+                        SystemHapticPlayer().play(.light)
+                        // Not tied to the screen: an undo tapped just before leaving still runs.
+                        Task { await model.undoDelete() }
+                    }
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                }
             }
+            .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding * 2)
         }
         .animation(.easeOut(duration: 0.25), value: model.items)
-        .animation(.easeOut(duration: 0.25), value: model.pendingUndo?.item.id)
+        .animation(.easeOut(duration: 0.25), value: model.undoMessage)
+        .animation(.easeOut(duration: 0.25), value: model.errorMessage)
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAdd) {
-            AddItemSheet { model.add($0) }
+            AddItemSheet { await model.add($0) }
+        }
+        .task { await model.observeItems() }
+        .onChange(of: model.errorMessage) { _, message in
+            guard message != nil else { return }
+            errorTask?.cancel()
+            errorTask = Task {
+                try? await Task.sleep(for: SnackbarDuration.short)
+                if !Task.isCancelled { model.errorMessage = nil }
+            }
         }
     }
 
@@ -92,16 +125,22 @@ struct ListDetailPlaceholderView: View {
     }
 
     private func itemRow(_ item: ShoppingItem) -> some View {
-        ItemCardView(item: item) { model.toggle(item.id) }
-            .plainRow(bottom: 8)
-            .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                Button(role: .destructive) {
-                    model.delete(item.id)
-                    scheduleUndoDismissal()
-                } label: {
-                    Label("Delete", systemImage: "trash")
+        ItemCardView(item: item) {
+            SystemHapticPlayer().play(.light)
+            Task { await model.toggle(item.id) }
+        }
+        .plainRow(bottom: 8)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                SystemHapticPlayer().play(.medium)
+                Task {
+                    await model.delete(item.id)
+                    if model.undoMessage != nil { scheduleUndoDismissal() }
                 }
+            } label: {
+                Label("Delete", systemImage: "trash")
             }
+        }
     }
 
     private func scheduleUndoDismissal() {

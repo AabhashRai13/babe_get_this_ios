@@ -1,9 +1,30 @@
 import SwiftUI
 
+/// Decides when the progress card celebrates (Android `ProgressCard`'s `hasInitialized` guard):
+/// only on a change from not finished to finished, never for the first value it is shown,
+/// so opening a finished list doesn't replay the celebration.
+struct ProgressCardCelebration: Equatable {
+    private var lastAllDone: Bool?
+
+    /// Feed every value the card shows, starting with the first. Returns whether to celebrate now.
+    mutating func update(allDone: Bool) -> Bool {
+        defer { lastAllDone = allDone }
+        return lastAllDone == false && allDone
+    }
+}
+
 /// "3 of 7 picked up", percentage badge and progress bar (Android `ProgressCard`).
+/// On the transition to finished the card pops from 0.85 back to 1 with a spring, the check
+/// pops in with a bouncy spring, and the container pulses toward primary and back.
+/// The Success haptic is the view model's (`ListDetailViewModel.completionCount`).
 struct ProgressCardView: View {
     let total: Int
     let pickedUp: Int
+
+    @State private var celebration = ProgressCardCelebration()
+    @State private var cardScale: CGFloat = 1
+    @State private var checkScale: CGFloat = 1
+    @State private var pulse: Double = 0
 
     private var progress: Double { total == 0 ? 0 : Double(pickedUp) / Double(total) }
     private var allDone: Bool { total > 0 && pickedUp == total }
@@ -16,6 +37,8 @@ struct ProgressCardView: View {
                         Image(systemName: "checkmark.circle.fill")
                             .font(.title)
                             .foregroundStyle(AppColors.onPrimaryContainer)
+                            .scaleEffect(checkScale)
+                            .transition(.scale.combined(with: .opacity))
                     }
                     Text(allDone ? "All done!" : "\(pickedUp) of \(total) picked up")
                         .font(.subheadline.weight(.semibold))
@@ -41,8 +64,15 @@ struct ProgressCardView: View {
             .animation(.easeOut(duration: 0.25), value: progress)
         }
         .padding(AppMetrics.screenPadding)
-        .background(allDone ? AppColors.primaryContainer : AppColors.surfaceContainerLow,
-                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
+        .background {
+            // The pulse blends the container toward primary and back (Android `lerp`).
+            RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
+                .fill(allDone ? AppColors.primaryContainer : AppColors.surfaceContainerLow)
+                .overlay {
+                    RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
+                        .fill(AppColors.primary.opacity(pulse))
+                }
+        }
         .overlay {
             if !allDone {
                 RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous)
@@ -50,7 +80,36 @@ struct ProgressCardView: View {
             }
         }
         .shadow(color: AppColors.shadow.opacity(0.08), radius: 4, y: 2)
+        .scaleEffect(cardScale)
+        .animation(.easeOut(duration: 0.2), value: allDone)
+        .onChange(of: allDone, initial: true) { _, done in
+            if celebration.update(allDone: done) {
+                celebrate()
+            } else if !done {
+                // Unticking or re-opening: reset without animating.
+                checkScale = 0
+                pulse = 0
+            }
+        }
         .accessibilityElement(children: .combine)
+    }
+
+    private func celebrate() {
+        var snap = Transaction()
+        snap.disablesAnimations = true
+        withTransaction(snap) {
+            cardScale = 0.85
+            checkScale = 0
+            pulse = 0
+        }
+        // Spring.DampingRatioLowBouncy (0.75) and DampingRatioHighBouncy (0.2) at StiffnessMediumLow.
+        withAnimation(.interpolatingSpring(stiffness: 1500, damping: 2 * 0.75 * sqrt(1500))) { cardScale = 1 }
+        withAnimation(.interpolatingSpring(stiffness: 400, damping: 2 * 0.2 * sqrt(400))) { checkScale = 1 }
+        withAnimation(.easeOut(duration: 0.18)) {
+            pulse = 1
+        } completion: {
+            withAnimation(.easeInOut(duration: 0.32)) { pulse = 0 }
+        }
     }
 }
 

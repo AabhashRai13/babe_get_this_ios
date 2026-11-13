@@ -3,9 +3,11 @@ import SwiftUI
 /// Add-item sheet: name and quantity required, then category, shop and note (Android `AddItemDialog`).
 /// Labels and placeholders are Android's `strings.xml` copy.
 struct AddItemSheet: View {
-    let onAdd: (ItemDraft) -> Void
+    /// Saves the draft; returns whether it was saved.
+    let onAdd: @MainActor (ItemDraft) async -> Bool
     @Environment(\.dismiss) private var dismiss
     @State private var draft = ItemDraft()
+    @State private var isSaving = false
 
     var body: some View {
         NavigationStack {
@@ -57,10 +59,14 @@ struct AddItemSheet: View {
                 }
                 ToolbarItem(placement: .confirmationAction) {
                     Button("Add") {
-                        onAdd(draft)
-                        dismiss()
+                        isSaving = true
+                        Task {
+                            // Android keeps the dialog open when the save fails.
+                            if await onAdd(draft) { dismiss() }
+                            isSaving = false
+                        }
                     }
-                    .disabled(!draft.isValid)
+                    .disabled(!draft.isValid || isSaving)
                 }
             }
         }
