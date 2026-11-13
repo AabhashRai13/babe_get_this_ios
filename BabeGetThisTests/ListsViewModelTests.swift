@@ -69,10 +69,17 @@ final class ListsViewModelTests: XCTestCase {
     }
 
     func testListsUpdateLiveWhenTheDatabaseChanges() async throws {
+        try await seedList("groceries")
         let vm = observedViewModel()
-        try await waitUntil { vm.hasNoLists }
+        // The first emission is in (the list, still empty) before anything else changes, so
+        // the counts below can only come from a later, live emission.
+        try await waitUntil { vm.lists.count == 1 }
+        XCTAssertEqual(vm.lists.first?.totalItems, 0)
 
-        try await seedList("groceries", items: 2, picked: 1)
+        try await db.items.insertItems([
+            TestData.itemEntity(id: "i1", listId: "groceries", isPickedUp: true),
+            TestData.itemEntity(id: "i2", listId: "groceries"),
+        ])
 
         try await waitUntil { vm.lists.first?.totalItems == 2 }
         XCTAssertEqual(vm.lists.first?.pickedUpItems, 1)
