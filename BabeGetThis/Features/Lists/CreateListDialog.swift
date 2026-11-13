@@ -12,7 +12,9 @@ struct CreateListDialogState: Equatable {
     static let maxNameLength = 40
 
     let currentName: String?
-    private(set) var name: String
+    /// Bound straight to the text field; `revertIfTooLong(previous:)` then enforces the limit,
+    /// so a rejected value really changes and the field re-syncs to the kept one.
+    var name: String
 
     /// Pass `currentName` for rename mode: the field starts with it and the button says Save.
     init(currentName: String? = nil) {
@@ -39,6 +41,12 @@ struct CreateListDialogState: Equatable {
         if value.count <= Self.maxNameLength { name = value }
     }
 
+    /// The field's side of `type(_:)`: the field has already taken `name`, so an over-long
+    /// value (typed or pasted) is replaced by the one before it, never clipped.
+    mutating func revertIfTooLong(previous: String) {
+        if name.count > Self.maxNameLength { name = previous }
+    }
+
     /// The outcome with the trimmed name, or nil while the name is blank.
     func confirm() -> Outcome? {
         guard isConfirmEnabled else { return nil }
@@ -53,13 +61,17 @@ struct CreateListDialogState: Equatable {
 struct CreateListDialog: View {
     @State private var state: CreateListDialogState
     @FocusState private var isFocused: Bool
+    /// The confirmed write is in flight: Create stays disabled until it ends.
+    let isBusy: Bool
     let onDismiss: () -> Void
     let onConfirm: (CreateListDialogState.Outcome) -> Void
 
     init(currentName: String? = nil,
+         isBusy: Bool = false,
          onDismiss: @escaping () -> Void,
          onConfirm: @escaping (CreateListDialogState.Outcome) -> Void) {
         _state = State(initialValue: CreateListDialogState(currentName: currentName))
+        self.isBusy = isBusy
         self.onDismiss = onDismiss
         self.onConfirm = onConfirm
     }
@@ -75,14 +87,14 @@ struct CreateListDialog: View {
                     .foregroundStyle(AppColors.textPrimary)
                     .accessibilityAddTraits(.isHeader)
                 VStack(alignment: .leading, spacing: 4) {
-                    TextField(state.fieldLabel, text: Binding(get: { state.name }, set: { state.type($0) }),
-                              prompt: Text(state.placeholder))
+                    TextField(state.fieldLabel, text: $state.name, prompt: Text(state.placeholder))
                         .textFieldStyle(.roundedBorder)
                         .focused($isFocused)
                         .submitLabel(.done)
                         .onSubmit(confirm)
                         .accessibilityLabel(state.fieldLabel)
                         .accessibilityIdentifier("lists.nameField")
+                        .onChange(of: state.name) { old, _ in state.revertIfTooLong(previous: old) }
                     if let counter = state.counterText {
                         Text(counter)
                             .font(.caption)
@@ -96,7 +108,7 @@ struct CreateListDialog: View {
                         .accessibilityIdentifier("lists.dialog.cancel")
                     Button(state.confirmTitle, action: confirm)
                         .fontWeight(.semibold)
-                        .disabled(!state.isConfirmEnabled)
+                        .disabled(!state.isConfirmEnabled || isBusy)
                         .accessibilityIdentifier("lists.dialog.confirm")
                 }
             }
@@ -110,6 +122,7 @@ struct CreateListDialog: View {
     }
 
     private func confirm() {
+        guard !isBusy else { return }
         if let outcome = state.confirm() { onConfirm(outcome) }
     }
 }

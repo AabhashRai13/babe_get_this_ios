@@ -98,4 +98,33 @@ final class CreateListDialogTests: XCTestCase {
         XCTAssertFalse(dialog.isConfirmEnabled)
         XCTAssertNil(dialog.confirm())
     }
+
+    // MARK: - The field's rule (the text field binds `name` and reverts an over-long value)
+
+    func testAnOverLongEditIsRevertedToThePreviousName() {
+        var dialog = create()
+        dialog.name = String(repeating: "x", count: 40)
+        let previous = dialog.name
+        dialog.name += "y"
+
+        dialog.revertIfTooLong(previous: previous)
+
+        XCTAssertEqual(dialog.name, previous)
+    }
+
+    func testAnOverLongPasteIntoAnEmptyFieldLeavesItEmpty() {
+        var dialog = create()
+        dialog.name = String(repeating: "x", count: 45)
+
+        dialog.revertIfTooLong(previous: "")
+
+        XCTAssertEqual(dialog.name, "")
+    }
+
+    func testAnEditWithinTheLimitIsKept() {
+        var dialog = create()
+        dialog.name = "Groceries"
+        dialog.revertIfTooLong(previous: "Grocerie")
+        XCTAssertEqual(dialog.name, "Groceries")
+    }
 }
