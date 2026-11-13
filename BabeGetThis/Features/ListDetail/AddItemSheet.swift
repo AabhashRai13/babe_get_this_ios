@@ -4,16 +4,20 @@ import SwiftUI
 /// Labels and placeholders are Android's `strings.xml` copy.
 struct AddItemSheet: View {
     /// Saves the draft (adds, or edits when `editing` is set); returns whether it was saved.
-    let onAdd: @MainActor (ItemDraft) async -> Bool
+    let onAdd: @MainActor (ItemDraft, CategoryPickerModel) async -> Bool
     private let isEditMode: Bool
     @Environment(\.dismiss) private var dismiss
     @State private var draft: ItemDraft
+    @State private var picker: CategoryPickerModel
     @State private var isSaving = false
 
     /// Pass `editing` to open pre-filled in edit mode ("Edit Item" / "Save"), like Android's `editingItem`.
-    init(editing item: ShoppingItem? = nil, onAdd: @escaping @MainActor (ItemDraft) async -> Bool) {
+    /// `categorySource` creates the custom category when "Other" is picked.
+    init(editing item: ShoppingItem? = nil, categorySource: (any CategoryPickerSource)? = nil,
+         onAdd: @escaping @MainActor (ItemDraft, CategoryPickerModel) async -> Bool) {
         self.onAdd = onAdd
         isEditMode = item != nil
+        _picker = State(initialValue: CategoryPickerModel(selectedId: item?.categoryId, source: categorySource))
         _draft = State(initialValue: item.map { ItemDraft(editing: $0) } ?? ItemDraft())
     }
 
@@ -32,12 +36,7 @@ struct AddItemSheet: View {
                     }
                 }
                 Section {
-                    Picker("Category (optional)", selection: $draft.categoryId) {
-                        Text("None").tag(String?.none)
-                        ForEach(DefaultCategories.sortedByName, id: \.id) { category in
-                            Text(category.name).tag(String?.some(category.id))
-                        }
-                    }
+                    CategoryPickerView(picker: picker)
                     LabeledField(label: "Shop (optional)", counter: draft.shopCounter) {
                         TextField("Shop (optional)", text: $draft.shop,
                                   prompt: Text("e.g. Whole Foods, Costco"))
@@ -70,7 +69,7 @@ struct AddItemSheet: View {
                         isSaving = true
                         Task {
                             // Android keeps the dialog open when the save fails.
-                            if await onAdd(draft) { dismiss() }
+                            if await onAdd(draft, picker) { dismiss() }
                             isSaving = false
                         }
                     }
