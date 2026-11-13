@@ -113,7 +113,10 @@ final class SupabaseAuthRemoteTests: XCTestCase {
         try? await remote.signOut()
 
         XCTAssertNil(remote.currentSession())
-        XCTAssertEqual(AuthRemoteURLStub.requests.last?.path, "/auth/v1/logout")
+        let logout = try XCTUnwrap(AuthRemoteURLStub.requests.last)
+        XCTAssertEqual(logout.path, "/auth/v1/logout")
+        // Only this device: other devices keep their sessions (Android's LOCAL default).
+        XCTAssertEqual(logout.query("scope"), ["local"])
     }
 }
 

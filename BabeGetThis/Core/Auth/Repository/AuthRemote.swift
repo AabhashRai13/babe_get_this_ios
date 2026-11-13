@@ -79,8 +79,10 @@ final class SupabaseAuthRemote: AuthRemote {
 
     /// supabase-swift removes the stored session before it posts /logout, so even a
     /// failed (offline) sign-out leaves no session behind to be restored on next launch.
+    /// Local scope, like Android (supabase-kt defaults to `SignOutScope.LOCAL`): supabase-swift
+    /// defaults to `.global`, which would also revoke the user's sessions on other devices.
     func signOut() async throws {
-        try await client.auth.signOut()
+        try await client.auth.signOut(scope: .local)
     }
 
     private static func session(_ session: Session) -> AuthRemoteSession {
