@@ -13,6 +13,7 @@ final class AppContainer {
     let welcomeViewModel: WelcomeViewModel
     let database: AppDatabase
     let listRepository: ShoppingListRepository
+    let itemRepository: ShoppingItemRepository
     let lists: ListsViewModel
     /// Lists pushed on launch (from `-openList <id>`), for deterministic screenshots.
     let initialPath: [ShoppingListSummary]
@@ -27,11 +28,14 @@ final class AppContainer {
         self.session = session
         self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
         self.database = database
+        let safeCall = SafeCall(reporter: SilentAppErrorReporter())
         let listRepository = ShoppingListRepository(
             listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
-            authStateManager: authState, syncKicker: NoOpSyncKicker(),
-            safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+            authStateManager: authState, syncKicker: NoOpSyncKicker(), safeCall: safeCall)
         self.listRepository = listRepository
+        self.itemRepository = ShoppingItemRepository(
+            itemDao: database.items, categoryDao: database.categories, listDao: database.lists,
+            syncKicker: NoOpSyncKicker(), safeCall: safeCall)
         self.lists = ListsViewModel(repository: listRepository, authState: authState)
         self.initialPath = initialPath
     }
