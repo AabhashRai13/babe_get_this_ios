@@ -42,8 +42,13 @@ private struct ListDetailScreen: View {
          makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
-        _model = State(initialValue: ListDetailViewModel(listId: list.id, source: source))
-        _chrome = State(initialValue: ListDetailChromeModel(listName: list.name, authState: authState))
+        let viewModel = ListDetailViewModel(listId: list.id, source: source)
+        _model = State(initialValue: viewModel)
+        _chrome = State(initialValue: ListDetailChromeModel(
+            listName: list.name, authState: authState,
+            shareTextProvider: { [name = list.name] in
+                ShoppingListShareText.format(listName: name, items: viewModel.items)
+            }))
     }
 
     var body: some View {
