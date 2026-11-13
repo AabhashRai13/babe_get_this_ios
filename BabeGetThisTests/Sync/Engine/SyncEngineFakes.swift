@@ -26,6 +26,10 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
     private var _onFetchItems: @Sendable () async throws -> Void = {}
     private var _joinResult: String?
     private var _joinCalledWith: String?
+    private var _itemReads: [String] = []
+    private var _failItemFetchFor: String?
+    private var _accountItemSinces: [String?] = []
+    private var _failAccountItems = false
 
     var upsertedLists: [ListRow] { locked { _upsertedLists } }
     var upsertedItems: [ItemRow] { locked { _upsertedItems } }
@@ -35,6 +39,21 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
     var lastListSince: String? { locked { _lastListSince } }
     var lastItemSince: String? { locked { _lastItemSince } }
     var joinCalledWith: String? { locked { _joinCalledWith } }
+    /// Every item read of an account catch-up, in the order it was made:
+    /// "account" for the account-wide request, "items:<listId>" for a full pull.
+    var itemReads: [String] { locked { _itemReads } }
+    /// The since of each account-wide item request, in order.
+    var accountItemSinces: [String?] { locked { _accountItemSinces } }
+
+    /// Fail the full item pull of this one list (a dropped request mid-pass).
+    var failItemFetchFor: String? {
+        get { locked { _failItemFetchFor } }
+        set { locked { _failItemFetchFor = newValue } }
+    }
+    var failAccountItems: Bool {
+        get { locked { _failAccountItems } }
+        set { locked { _failAccountItems = newValue } }
+    }
 
     var listRows: [ListRow] {
         get { locked { _listRows } }
@@ -113,16 +132,20 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
     func fetchItems(listId: String, sinceIso: String?) async throws -> [ItemRow] {
         try await onFetchItems()
         return try locked {
-            if _failFetches { throw FakeRemoteFailure() }
+            if _failFetches || listId == _failItemFetchFor { throw FakeRemoteFailure() }
             _itemFetchListIds.append(listId)
+            _itemReads.append("items:\(listId)")
             _lastItemSince = sinceIso
             return _itemRows.filter { $0.listId == listId }
         }
     }
 
+    // Rows are filtered by since the way the server's gte would.
     func fetchAccountItems(sinceIso: String?) async throws -> [ItemRow] {
         try locked {
-            if _failFetches { throw FakeRemoteFailure() }
+            if _failFetches || _failAccountItems { throw FakeRemoteFailure() }
+            _accountItemSinces.append(sinceIso)
+            _itemReads.append("account")
             return _itemRows.filter { sinceIso == nil || ($0.updatedAt ?? "") >= sinceIso! }
         }
     }

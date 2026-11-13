@@ -179,6 +179,79 @@ actor SyncEngine {
         }
     }
 
+    // MARK: - Account catch-up
+
+    // Key of the account-wide high-water mark in SyncPointStore. Every other
+    // key is a list id (a UUID), so this can't collide.
+    static let accountSyncPoint = "account"
+
+    // The whole account in a handful of requests — every account list syncs
+    // now, so two requests per list on every app open would not scale
+    // (docs/technical-decisions/008).
+    //
+    // Discovery-first: the server's RLS-scoped view IS the account's list set.
+    // It fetches every list row, not "changed since": joining a list adds a
+    // membership row without touching the list's updated_at, so a since-filter
+    // would never discover it. The items changed since ONE account-wide sync
+    // point come in one request too (RLS scopes it to the account's lists the
+    // same way); lists new to this phone then get their full item history. The
+    // point moves only after everything landed, so a failed pass is redone.
+    func catchUpAccount() async throws -> Result<Void, AppError> {
+        try await safeCall {
+            try await serially { try await catchUpAccountLocked() }
+        }
+    }
+
+    private func catchUpAccountLocked() async throws {
+        guard let userId = currentUserId() else { return }
+        let known = Set(try await listDao.accountListIds(accountId: userId))
+        let discovered = try await remote.fetchAllLists()
+        let fresh = discovered.filter { !known.contains($0.id) && $0.deletedAt == nil }
+        let freshIds = Set(fresh.map(\.id))
+        try await apply(userId: userId, listRows: discovered.filter { !freshIds.contains($0.id) }, itemRows: [])
+        // An empty answer is also what a request without a session gets
+        // (RLS filters, it doesn't fail), and a kick can run before the
+        // stored session has loaded. Only an answer with rows in it says
+        // which first-run claims are real.
+        if !discovered.isEmpty {
+            try await releaseUnverifiedClaims(userId: userId, confirmed: Set(discovered.map(\.id)))
+        }
+
+        // Known lists BEFORE the lists new to this phone, and the sync point
+        // from what was read before any full pull: every stamp in it is
+        // older than every full pull, so a change to a new list right after
+        // its pull is newer than the point and the next pass fetches it.
+        // Read the other way round, a batch read after the pull could set a
+        // point past that change, and the account pass would skip it for
+        // good. The discovered list rows were read first of all, so their
+        // stamps are safe in the point too — which is what moves it along
+        // on a pass with no item changes.
+        let since = syncPoints.get(listId: Self.accountSyncPoint)
+        let rows = try await known.isEmpty ? [] : remote.fetchAccountItems(sinceIso: since)
+        try await apply(userId: userId, listRows: [], itemRows: rows)
+        let newest = (rows.compactMap(\.updatedAt) + discovered.compactMap(\.updatedAt)).max()
+        if let newest { syncPoints.set(listId: Self.accountSyncPoint, iso: newest) }
+
+        // A list new to this phone lands together with its whole history,
+        // never before it: once its row is in the database it counts as known,
+        // and a known list only gets items newer than the account sync point.
+        // If the pull fails, the row stays out and the next pass tries again.
+        // List and items go in one apply, so one transaction.
+        for list in fresh {
+            let items = try await remote.fetchItems(listId: list.id, sinceIso: nil)
+            try await apply(userId: userId, listRows: [list], itemRows: items)
+        }
+    }
+
+    // The server has answered: first-run claims it didn't return aren't this
+    // account's, so let them go before they are ever pushed again.
+    private func releaseUnverifiedClaims(userId: String, confirmed: Set<String>) async throws {
+        let unverified = ownership.unverifiedListIds()
+        if unverified.isEmpty { return }
+        try await listDao.releaseClaims(ids: Array(unverified.subtracting(confirmed)), userId: userId)
+        ownership.setUnverifiedListIds([])
+    }
+
     // MARK: - Apply
 
     // One write transaction for the whole apply. The repositories write the
