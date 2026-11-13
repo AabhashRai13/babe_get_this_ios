@@ -26,7 +26,7 @@ struct AuthPromptDialog: View {
 
     var body: some View {
         ZStack {
-            Color.black.opacity(0.4)
+            AppColors.scrim
                 .ignoresSafeArea()
                 .onTapGesture(perform: onDismiss)
             VStack(alignment: .leading, spacing: 16) {
