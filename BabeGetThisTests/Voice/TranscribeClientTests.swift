@@ -99,7 +99,7 @@ final class TranscribeClientTests: XCTestCase {
         return TranscribeClient(
             baseURL: baseURL,
             session: URLSession(configuration: config),
-            accessToken: { "test-token" },
+            auth: TranscribeBearerAuth(currentToken: { "test-token" }, expireSession: {}),
             isOnline: { isOnline }
         )
     }
@@ -231,6 +231,29 @@ final class TranscribeClientTests: XCTestCase {
         StubURLProtocol.enqueue(.failure(URLError(.networkConnectionLost)))
         let error = await expectError(makeClient())
         guard case .network = error else { return XCTFail("expected network") }
+    }
+
+    func testATransportCancelOfALiveTaskIsANetworkError() async {
+        // URLSession reports .cancelled for a rejected challenge or an invalidated session
+        // too; only a cancelled task is a cancellation (same rule as SafeCall).
+        StubURLProtocol.enqueue(.failure(URLError(.cancelled)))
+        let error = await expectError(makeClient())
+        guard case .network = error else { return XCTFail("expected network, got \(String(describing: error))") }
+    }
+
+    func testCancellingTheTaskIsACancellationNotAnError() async {
+        let client = makeClient()
+        let file = audio!
+        let task = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            return try await client.transcribeAndParse(audioFile: file)
+        }
+        do {
+            _ = try await task.value
+            XCTFail("expected cancellation")
+        } catch {
+            XCTAssertTrue(error is CancellationError, "got \(error)")
+        }
     }
 
     func testMalformedBodyDoesNotEscapeAsAnException() async {
