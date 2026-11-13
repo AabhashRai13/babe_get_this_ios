@@ -1,0 +1,83 @@
+{
+  "night_id": "2026-11-13c",
+  "base_ref": "harness/optional-ac-check",
+  "worker_deadline": "22:00",
+  "total_deadline": "22:45",
+  "require_ac": false,
+  "merge_order": [
+    1,
+    2,
+    3,
+    4
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F11",
+      "slug": "f11-list-actions",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Lists/",
+        "BabeGetThisTests/Lists/",
+        "BabeGetThisTests/ListsViewModelTests.swift",
+        "docs/night/2026-11-13c-f11-list-actions.md"
+      ],
+      "brief": "harness/night/briefs/F11.md"
+    },
+    {
+      "n": 2,
+      "id": "F14",
+      "slug": "f14-detail-on-database",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-2",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/ListDetail/",
+        "docs/night/2026-11-13c-f14-detail-on-database.md"
+      ],
+      "brief": "harness/night/briefs/F14.md"
+    },
+    {
+      "n": 3,
+      "id": "F22",
+      "slug": "f22-register-forgot",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-3",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Auth/Register/",
+        "BabeGetThis/Features/Auth/ForgotPassword/",
+        "BabeGetThisTests/Register/",
+        "BabeGetThisTests/ForgotPassword/",
+        "docs/night/2026-11-13c-f22-register-forgot.md"
+      ],
+      "brief": "harness/night/briefs/F22.md"
+    },
+    {
+      "n": 4,
+      "id": "F26",
+      "slug": "f26-sync-engine-push",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-4",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Sync/Engine/",
+        "BabeGetThisTests/Sync/Engine/",
+        "docs/night/2026-11-13c-f26-sync-engine-push.md"
+      ],
+      "brief": "harness/night/briefs/F26.md"
+    }
+  ]
+}

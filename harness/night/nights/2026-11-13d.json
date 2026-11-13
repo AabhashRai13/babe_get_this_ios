@@ -1,0 +1,71 @@
+{
+  "night_id": "2026-11-13d",
+  "base_ref": "night/2026-11-13c/integration",
+  "worker_deadline": "02:30",
+  "total_deadline": "03:15",
+  "require_ac": false,
+  "merge_order": [
+    1,
+    2,
+    3
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F12",
+      "slug": "f12-create-chooser",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "requires": [
+        "F11"
+      ],
+      "owned": [
+        "BabeGetThis/Features/Lists/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/Lists/",
+        "BabeGetThisTests/ListsViewModelTests.swift",
+        "BabeGetThisTests/AuthPrompt/",
+        "docs/night/2026-11-13d-f12-create-chooser.md"
+      ],
+      "brief": "harness/night/briefs/F12.md"
+    },
+    {
+      "n": 2,
+      "id": "F15",
+      "slug": "f15-item-swipe-edit",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-2",
+      "requires": [
+        "F14"
+      ],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThisTests/ListDetail/",
+        "docs/night/2026-11-13d-f15-item-swipe-edit.md"
+      ],
+      "brief": "harness/night/briefs/F15.md"
+    },
+    {
+      "n": 3,
+      "id": "F27",
+      "slug": "f27-sync-catch-up",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-3",
+      "requires": [
+        "F26"
+      ],
+      "owned": [
+        "BabeGetThis/Core/Sync/Engine/",
+        "BabeGetThisTests/Sync/Engine/",
+        "docs/night/2026-11-13d-f27-sync-catch-up.md"
+      ],
+      "brief": "harness/night/briefs/F27.md"
+    }
+  ]
+}
