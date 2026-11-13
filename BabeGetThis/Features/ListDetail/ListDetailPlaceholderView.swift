@@ -9,7 +9,8 @@ struct ListDetailPlaceholderView: View {
     var body: some View {
         ListDetailScreen(list: list, source: container.itemRepository,
                          authState: { [authState = container.authState] in authState.authState },
-                         makeVoiceViewModel: { container.makeVoiceCaptureViewModel() })
+                         makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
+                         leaveCleaner: container.listRepository)
     }
 }
 
@@ -35,15 +36,18 @@ private struct ListDetailScreen: View {
     @State private var undoTask: Task<Void, Never>?
     @State private var errorTask: Task<Void, Never>?
     @State private var chrome: ListDetailChromeModel
+    @State private var leaveGuard: ListLeaveGuard
     private let makeVoiceViewModel: () -> VoiceCaptureViewModel
 
     init(list: ShoppingListSummary, source: any ListDetailItemsSource,
          authState: @escaping () -> AuthState,
-         makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel) {
+         makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
+         leaveCleaner: any ListLeaveCleaning) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
         _model = State(initialValue: ListDetailViewModel(listId: list.id, source: source))
         _chrome = State(initialValue: ListDetailChromeModel(listName: list.name, authState: authState))
+        _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
     var body: some View {
@@ -140,8 +144,9 @@ private struct ListDetailScreen: View {
                     UndoSnackbar(message: message) {
                         undoTask?.cancel()
                         SystemHapticPlayer().play(.light)
-                        // Not tied to the screen: an undo tapped just before leaving still runs.
-                        Task { await model.undoDelete() }
+                        // Not tied to the screen: an undo tapped just before leaving still runs,
+                        // and the leave teardown waits for it.
+                        leaveGuard.trackUndo { await model.undoDelete() }
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -160,6 +165,7 @@ private struct ListDetailScreen: View {
             AddItemSheet(editing: item) { await model.edit(item.id, with: $0) }
         }
         .task { await model.observeItems() }
+        .leaveEmptyListGuard(leaveGuard, model: model)
         .onChange(of: model.errorMessage) { _, message in
             guard message != nil else { return }
             errorTask?.cancel()
