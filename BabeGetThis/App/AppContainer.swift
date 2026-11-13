@@ -7,15 +7,23 @@ import Observation
 @MainActor
 final class AppContainer {
     let config: AppConfig
-    let session: SessionStore
+    let authState: AuthStateManager
+    let welcome: WelcomeRepository
+    let session: StartSession
+    let welcomeViewModel: WelcomeViewModel
     let lists: ListsViewModel
     /// Lists pushed on launch (from `-openList <id>`), for deterministic screenshots.
     let initialPath: [ShoppingListSummary]
 
-    init(config: AppConfig, session: SessionStore = SessionStore(), lists: ListsViewModel = ListsViewModel(),
-         initialPath: [ShoppingListSummary] = []) {
+    init(config: AppConfig, authState: AuthStateManager = AuthStateManager(tokenStore: KeychainTokenStore()),
+         welcome: WelcomeRepository = WelcomeRepository(), forcedScreen: StartScreen? = nil,
+         lists: ListsViewModel = ListsViewModel(), initialPath: [ShoppingListSummary] = []) {
         self.config = config
+        self.authState = authState
+        self.welcome = welcome
+        let session = StartSession(authState: authState, welcome: welcome, forcedScreen: forcedScreen)
         self.session = session
+        self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
         self.lists = lists
         self.initialPath = initialPath
     }
@@ -31,15 +39,17 @@ final class AppContainer {
         //   -sampleData            skip Welcome and show the fixed sample lists
         //   -openList <listId>     also open that sample list's detail screen
         if config.environment != .prod, arguments.contains("-sampleData") {
-            return AppContainer(config: config, session: SessionStore(state: .guest),
+            return AppContainer(config: config, forcedScreen: .lists,
                                 lists: ListsViewModel(lists: ShoppingListSummary.samples),
                                 initialPath: LaunchRoute.initialPath(arguments: arguments))
         }
-        return AppContainer(config: config)
+        let container = AppContainer(config: config)
+        container.authState.initialize()
+        return container
     }
 
     static var preview: AppContainer {
-        AppContainer(config: .preview, lists: ListsViewModel(lists: ShoppingListSummary.samples))
+        AppContainer(config: .preview, forcedScreen: .welcome, lists: ListsViewModel(lists: ShoppingListSummary.samples))
     }
 }
 

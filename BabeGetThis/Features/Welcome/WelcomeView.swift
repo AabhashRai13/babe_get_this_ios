@@ -21,11 +21,12 @@ struct WelcomeView: View {
                     } label: {
                         Text("Sign in")
                     }
+                    .simultaneousGesture(TapGesture().onEnded { container.welcomeViewModel.onSignIn() })
                     .buttonStyle(PrimaryButtonStyle())
                     .accessibilityIdentifier("welcome.signIn")
 
                     Button("Continue as guest") {
-                        container.session.continueAsGuest()
+                        container.welcomeViewModel.onContinueAsGuest()
                     }
                     .buttonStyle(OutlinedButtonStyle())
                     .accessibilityIdentifier("welcome.guest")

@@ -8,10 +8,12 @@ struct RootView: View {
 
     var body: some View {
         Group {
-            switch container.session.state {
-            case .signedOut:
+            switch container.session.screen {
+            case .launch:
+                AppColors.background.ignoresSafeArea()
+            case .welcome:
                 NavigationStack { WelcomeView() }
-            case .guest:
+            case .lists:
                 NavigationStack(path: $listsPath) { ListsView(viewModel: container.lists) }
                     .onAppear {
                         guard !appliedInitialPath else { return }
@@ -20,7 +22,7 @@ struct RootView: View {
                     }
             }
         }
-        .animation(.default, value: container.session.state)
+        .animation(.default, value: container.session.screen)
     }
 }
 
