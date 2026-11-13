@@ -30,6 +30,7 @@ private struct ActivityShareSheet: UIViewControllerRepresentable {
 private struct ListDetailScreen: View {
     let list: ShoppingListSummary
     @State private var model: ListDetailViewModel
+    @Environment(AppContainer.self) private var container
     @State private var showingAdd = false
     @State private var editingItem: ShoppingItem?
     @State private var undoTask: Task<Void, Never>?
@@ -159,10 +160,12 @@ private struct ListDetailScreen: View {
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAdd) {
-            AddItemSheet { await model.add($0) }
+            AddItemSheet(categorySource: container.categoryPickerSource) { await model.add($0, picker: $1) }
         }
         .sheet(item: $editingItem) { item in
-            AddItemSheet(editing: item) { await model.edit(item.id, with: $0) }
+            AddItemSheet(editing: item, categorySource: container.categoryPickerSource) {
+                await model.edit(item.id, with: $0, picker: $1)
+            }
         }
         .task { await model.observeItems() }
         .onChange(of: model.errorMessage) { _, message in
