@@ -40,6 +40,14 @@ final class AppContainer {
         self.initialPath = initialPath
     }
 
+    /// A fresh voice capture view model per sheet: real microphone, real transcribe API.
+    func makeVoiceCaptureViewModel() -> VoiceCaptureViewModel {
+        let auth = TranscribeBearerAuth(tokenStore: KeychainTokenStore(), authStateManager: authState)
+        return VoiceCaptureViewModel(
+            recorder: AVVoiceRecorder(),
+            transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth))
+    }
+
     static func live(bundle: Bundle = .main, arguments: [String] = ProcessInfo.processInfo.arguments) -> AppContainer {
         let config: AppConfig
         do {

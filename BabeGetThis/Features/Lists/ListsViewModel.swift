@@ -145,6 +145,39 @@ final class ListsViewModel {
         }
     }
 
+    // MARK: - Create chooser and voice gate
+
+    /// The Type / Voice chooser sheet is up.
+    private(set) var isChooserPresented = false
+    /// The name-the-list dialog is up (the Type path).
+    var isNamingList = false
+    /// The voice capture sheet is up (signed-in accounts only).
+    var isVoicePresented = false
+    /// The sign-in prompt for a gated feature, nil when none is showing.
+    private(set) var authPrompt: AuthPromptContent?
+
+    /// Create button: opens the chooser.
+    func startCreating() { isChooserPresented = true }
+
+    func dismissChooser() { isChooserPresented = false }
+
+    func pickType() {
+        isChooserPresented = false
+        isNamingList = true
+    }
+
+    /// Voice needs a live account session (Android: guests get the auth prompt instead).
+    func pickVoice() {
+        isChooserPresented = false
+        if authState?.liveSessionUserId != nil {
+            isVoicePresented = true
+        } else {
+            authPrompt = .voice
+        }
+    }
+
+    func dismissAuthPrompt() { authPrompt = nil }
+
     // MARK: - Delete, undo, rename
 
     /// Deletes a list (swipe) and offers Undo. Only offers it when the list was captured,

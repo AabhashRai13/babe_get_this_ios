@@ -200,6 +200,58 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertNotNil(vm.renamingList)
     }
 
+    // MARK: - Create chooser and voice gate (HOME-12, AUTH-10, VOICE-08)
+
+    func testCreateOpensTheChooser() {
+        let vm = observedViewModel()
+        vm.startCreating()
+        XCTAssertTrue(vm.isChooserPresented)
+        vm.dismissChooser()
+        XCTAssertFalse(vm.isChooserPresented)
+    }
+
+    func testPickTypeClosesChooserAndOpensNameDialog() {
+        let vm = observedViewModel()
+        vm.startCreating()
+        vm.pickType()
+        XCTAssertFalse(vm.isChooserPresented)
+        XCTAssertTrue(vm.isNamingList)
+    }
+
+    func testVoiceRequiresAuthenticated() {
+        let guest = observedViewModel(authStateFor(nil))
+        guest.startCreating()
+        guest.pickVoice()
+        XCTAssertFalse(guest.isChooserPresented)
+        XCTAssertFalse(guest.isVoicePresented)
+        XCTAssertEqual(guest.authPrompt, .voice)
+
+        let signedIn = observedViewModel(authStateFor("u1"))
+        signedIn.startCreating()
+        signedIn.pickVoice()
+        XCTAssertFalse(signedIn.isChooserPresented)
+        XCTAssertTrue(signedIn.isVoicePresented)
+        XCTAssertNil(signedIn.authPrompt)
+    }
+
+    func testExpiredSessionIsPromptedLikeAGuest() {
+        let tokens = InMemoryTokenStore()
+        tokens.saveUserId("u1")
+        let auth = AuthStateManager(tokenStore: tokens)
+        auth.initialize()
+        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        vm.pickVoice()
+        XCTAssertEqual(vm.authPrompt, .voice)
+        XCTAssertFalse(vm.isVoicePresented)
+    }
+
+    func testDismissAuthPromptClearsIt() {
+        let vm = observedViewModel()
+        vm.pickVoice()
+        vm.dismissAuthPrompt()
+        XCTAssertNil(vm.authPrompt)
+    }
+
     // MARK: - Tabs, panes and date buckets (HOME-05, HOME-08)
 
     func testPaneFollowsTab() {
