@@ -68,6 +68,7 @@ final class ListsViewModel {
     @ObservationIgnored private let authState: AuthStateManager?
     @ObservationIgnored private let shareJoiner: (any ListJoining)?
     @ObservationIgnored private let ownership: (any ListOwnershipStore)?
+    @ObservationIgnored private var signOutSubscription: AuthStateSubscription?
 
     /// How many guest lists just moved into the account; the screen says so once, then
     /// `dismissAdoptionNotice()` (Android `adoptionNotice`). A second claim while the notice
@@ -111,6 +112,33 @@ final class ListsViewModel {
         let pending = ownership?.adoptionNotice ?? 0
         self.adoptionNotice = pending
         if pending > 0 { self.adoptionNoticeShownCount = pending }
+        // The lists screen is gone once the account signs out (RootView shows Welcome), so no
+        // view is left to clear its sheets; this view model outlives it and must do it itself.
+        signOutSubscription = authState.observeSignOuts { [weak self] in
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.closeEverythingAfterSignOut() }
+            } else {
+                Task { @MainActor in self?.closeEverythingAfterSignOut() }
+            }
+        }
+    }
+
+    /// Signing out clears the stack to Welcome (NAV-04; Android pops the lists screen and with it
+    /// all its state). Android also closes the profile sheet as soon as the account goes
+    /// (`LaunchedEffect(hasAccount)`). Nothing opened before the sign-out may reappear on the
+    /// next sign-in, so every sheet, prompt, push and pending request is dropped here.
+    private func closeEverythingAfterSignOut() {
+        profileRequested = false
+        isSettingsPresented = false
+        authRoute = nil
+        authPrompt = nil
+        isChooserPresented = false
+        isNamingList = false
+        isVoicePresented = false
+        isJoinDialogPresented = false
+        isJoinAuthPromptPresented = false
+        renamingList = nil
+        openListRequest = nil
     }
 
     /// A lost session keeps the account's lists on screen (Android decision 008); the screen
@@ -317,7 +345,8 @@ final class ListsViewModel {
     var profileName: String? { authState?.userName }
     var profileEmail: String? { authState?.userEmail }
 
-    /// Asked for by the avatar. Only shown while an account exists, so signing out closes it.
+    /// Asked for by the avatar. Only shown while an account exists; a sign-out also clears the
+    /// request itself, so the sheet can't reopen on the next sign-in.
     private var profileRequested = false
     var isProfilePresented: Bool {
         get { profileRequested && hasAccount }
