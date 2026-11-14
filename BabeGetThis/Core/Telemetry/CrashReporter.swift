@@ -10,8 +10,9 @@ protocol CrashReporter: Sendable {
     /// State attached to every later report. The key is an enum so the set stays small.
     func setKey(_ key: CrashKey, value: String)
 
-    /// Reports a handled error. Not everything is sent: the implementation applies
-    /// `ErrorReportingPolicy`, so no call site can skip the filter.
+    /// Reports a handled error. Not everything is sent: `TelemetryVendors` wraps every reporter
+    /// in `PolicyFilteredCrashReporter`, which applies `ErrorReportingPolicy`, so no call site can
+    /// skip the filter.
     func recordNonFatal(_ error: any Error, appError: AppError)
 
     /// The Supabase user UUID while signed in, nil on sign-out. Nothing else identifying.

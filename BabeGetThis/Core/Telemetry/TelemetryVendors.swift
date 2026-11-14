@@ -32,7 +32,15 @@ struct FirebaseSettings: Equatable, Sendable {
 /// configured, no-ops otherwise. The whole vendor commitment is in this type.
 struct TelemetryVendors: Sendable {
     let analytics: any AnalyticsRepository
+    /// Always behind `PolicyFilteredCrashReporter`, so only Unknown and Database errors are
+    /// recorded as non-fatals whichever vendor sits underneath (ERR-03).
     let crashReporter: any CrashReporter
+
+    init(analytics: any AnalyticsRepository, crashReporter: any CrashReporter) {
+        self.analytics = analytics
+        self.crashReporter = crashReporter is PolicyFilteredCrashReporter
+            ? crashReporter : PolicyFilteredCrashReporter(wrapped: crashReporter)
+    }
 
     /// Sends nothing and never touches Firebase.
     static let noOp = TelemetryVendors(analytics: NoOpAnalyticsRepository(), crashReporter: NoOpCrashReporter())

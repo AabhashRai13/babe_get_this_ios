@@ -26,3 +26,32 @@ enum ErrorReportingPolicy {
         }
     }
 }
+
+/// Applies `ErrorReportingPolicy` in front of any crash reporter and forwards everything else
+/// (ERR-03). Vendor-neutral, so the filter the app ships is the one the tests run:
+/// `TelemetryVendors` wraps every crash reporter in it, Firebase or not.
+struct PolicyFilteredCrashReporter: CrashReporter {
+    let wrapped: any CrashReporter
+
+    func breadcrumb(_ message: String) {
+        wrapped.breadcrumb(message)
+    }
+
+    func setKey(_ key: CrashKey, value: String) {
+        wrapped.setKey(key, value: value)
+    }
+
+    func recordNonFatal(_ error: any Error, appError: AppError) {
+        // The filter, applied where no call site can skip it.
+        guard ErrorReportingPolicy.shouldReport(appError) else { return }
+        wrapped.recordNonFatal(error, appError: appError)
+    }
+
+    func setUser(_ userId: String?) {
+        wrapped.setUser(userId)
+    }
+
+    func setCollectionEnabled(_ enabled: Bool) {
+        wrapped.setCollectionEnabled(enabled)
+    }
+}

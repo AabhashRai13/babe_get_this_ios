@@ -53,8 +53,12 @@ final class ErrorReportingPolicyTests: XCTestCase {
 
     // MARK: - The composition, end to end: real errors through SafeCall with the app's wiring.
 
+    /// The app's composition: `TelemetryVendors` puts the shipped `PolicyFilteredCrashReporter`
+    /// in front of the vendor (here a recorder standing in for Crashlytics), and the container
+    /// hands that reporter to SafeCall.
     private func policedSafeCall(_ transmitted: RecordingCrashReporter) -> SafeCall {
-        SafeCall(reporter: ErrorReporter(crashReporter: PolicedCrashReporter(sink: transmitted)))
+        let vendors = TelemetryVendors(analytics: RecordingAnalytics(), crashReporter: transmitted)
+        return SafeCall(reporter: ErrorReporter(crashReporter: vendors.crashReporter))
     }
 
     func testASessionOfflineProducesNoNonFatalsAtAll() async throws {
@@ -78,19 +82,30 @@ final class ErrorReportingPolicyTests: XCTestCase {
 
         XCTAssertEqual([.unknown], transmitted.nonFatals.map(\.kind))
     }
-}
 
-/// Applies the policy the way `FirebaseCrashlyticsCrashReporter.recordNonFatal` does, then
-/// records what would have been sent.
-private struct PolicedCrashReporter: CrashReporter {
-    let sink: RecordingCrashReporter
+    func testEveryVendorTheAppCanRunWithIsFiltered() {
+        let transmitted = RecordingCrashReporter()
+        let reporter = TelemetryVendors(analytics: RecordingAnalytics(), crashReporter: transmitted).crashReporter
 
-    func breadcrumb(_ message: String) {}
-    func setKey(_ key: CrashKey, value: String) {}
-    func recordNonFatal(_ error: any Error, appError: AppError) {
-        guard ErrorReportingPolicy.shouldReport(appError) else { return }
-        sink.recordNonFatal(error, appError: appError)
+        for error in all {
+            reporter.recordNonFatal(TestFailure(message: "x"), appError: error)
+        }
+
+        XCTAssertEqual([.unknown, .database], transmitted.nonFatals.map(\.kind))
     }
-    func setUser(_ userId: String?) {}
-    func setCollectionEnabled(_ enabled: Bool) {}
+
+    func testTheFilterForwardsEverythingElse() {
+        let transmitted = RecordingCrashReporter()
+        let reporter = PolicyFilteredCrashReporter(wrapped: transmitted)
+
+        reporter.breadcrumb("b")
+        reporter.setKey(.flavor, value: "prod")
+        reporter.setUser("u1")
+        reporter.setCollectionEnabled(false)
+
+        XCTAssertEqual(["b"], transmitted.breadcrumbs)
+        XCTAssertEqual(["prod"], transmitted.values(for: .flavor))
+        XCTAssertEqual(["u1"], transmitted.users)
+        XCTAssertEqual([false], transmitted.collection)
+    }
 }

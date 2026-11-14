@@ -36,6 +36,6 @@ final class FirebaseSettingsTests: XCTestCase {
         let vendors = TelemetryVendors.make(settings: nil)
 
         XCTAssertTrue(vendors.analytics is NoOpAnalyticsRepository)
-        XCTAssertTrue(vendors.crashReporter is NoOpCrashReporter)
+        XCTAssertTrue((vendors.crashReporter as? PolicyFilteredCrashReporter)?.wrapped is NoOpCrashReporter)
     }
 }

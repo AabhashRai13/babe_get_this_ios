@@ -17,6 +17,9 @@ extension Crashlytics: CrashlyticsClient {}
 /// Crashlytics behind `CrashReporter` (port of Android `CrashlyticsCrashReporter`). Uncaught
 /// crashes need no code: Crashlytics installs its handlers when Firebase is configured. This
 /// makes those reports worth reading. Only use it after Firebase is configured.
+///
+/// `ErrorReportingPolicy` is applied by `PolicyFilteredCrashReporter`, which `TelemetryVendors`
+/// wraps around every crash reporter, so this type forwards what it is given.
 struct FirebaseCrashlyticsCrashReporter: CrashReporter {
     private static let appErrorKey = "app_error"
 
@@ -36,8 +39,6 @@ struct FirebaseCrashlyticsCrashReporter: CrashReporter {
     }
 
     func recordNonFatal(_ error: any Error, appError: AppError) {
-        // The filter, applied where no call site can skip it.
-        guard ErrorReportingPolicy.shouldReport(appError) else { return }
         let crashlytics = client()
         // Group reports by our classification, not only by stack.
         crashlytics.setCustomValue(appError.kind.name, forKey: Self.appErrorKey)
