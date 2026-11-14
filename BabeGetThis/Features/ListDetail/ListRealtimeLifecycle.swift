@@ -43,20 +43,36 @@ struct SharedListRemoteChanges: ListChangesSource {
 /// closes) tears everything down.
 ///
 /// The engine and remote are resolved only when needed: a guest list never builds the sync stack.
+///
+/// A channel that ends (supabase-swift's subscribe gives up after its own retries, or the server
+/// closes the channel) is subscribed again after a backoff of 1, 2, 4, 8, 16, then 30 s, for as
+/// long as the list stays shared and the screen open. Android's supabase-kt client keeps
+/// rejoining on its own, so RT-01/RT-03 assume the channel lives as long as the screen.
 @MainActor
 final class ListRealtimeLifecycle {
+    /// Waits before a re-subscribe; throws when the task is cancelled. Tests skip the wait.
+    typealias Sleep = @Sendable (Duration) async throws -> Void
+
     let listId: String
     private let shareState: any ListShareStateSource
     private let resolveCatchUp: @MainActor () -> any ListCatchingUp
     private let resolveChanges: @MainActor () -> any ListChangesSource
+    private let sleep: Sleep
 
     init(listId: String, shareState: any ListShareStateSource,
          catchUp: @escaping @MainActor () -> any ListCatchingUp,
-         changes: @escaping @MainActor () -> any ListChangesSource) {
+         changes: @escaping @MainActor () -> any ListChangesSource,
+         sleep: @escaping Sleep = { try await Task.sleep(for: $0) }) {
         self.listId = listId
         self.shareState = shareState
         self.resolveCatchUp = catchUp
         self.resolveChanges = changes
+        self.sleep = sleep
+    }
+
+    /// The wait before re-subscribe number `attempt` (0-based): 1, 2, 4, 8, 16, then 30 s.
+    nonisolated static func resubscribeDelay(attempt: Int) -> Duration {
+        .seconds(min(1 << min(attempt, 5), 30))
     }
 
     /// Follows the list's share state until the calling task is cancelled.
@@ -81,13 +97,25 @@ final class ListRealtimeLifecycle {
     private func follow(shared: Bool) async {
         if shared {
             await catchUp()
-            guard !Task.isCancelled else { return }
-            do {
-                for try await _ in resolveChanges().changes(listId: listId) {
-                    await catchUp()
+            var attempt = 0
+            while !Task.isCancelled {
+                do {
+                    // Every element, including the SUBSCRIBED of each (re)join, catches up, so a
+                    // re-subscribe leaves no gap.
+                    for try await _ in resolveChanges().changes(listId: listId) {
+                        attempt = 0
+                        await catchUp()
+                    }
+                } catch {
+                    // The channel ended with an error; subscribe again below.
                 }
-            } catch {
-                // The channel failed; the next screen open (or share-state change) subscribes again.
+                guard !Task.isCancelled else { return }
+                do {
+                    try await sleep(Self.resubscribeDelay(attempt: attempt))
+                } catch {
+                    return
+                }
+                attempt += 1
             }
         } else if (try? await shareState.isAccountList(listId)) == true, !Task.isCancelled {
             await catchUp()
