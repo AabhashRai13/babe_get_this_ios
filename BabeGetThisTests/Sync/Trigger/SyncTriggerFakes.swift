@@ -6,11 +6,13 @@ final class TriggerFakeEngine: SyncTriggerEngine, @unchecked Sendable {
     private let lock = NSLock()
     private var pushes = 0
     private var catchUps = 0
+    private var listCatchUps: [String] = []
     private var states: [AuthState] = []
     private var live: (AuthState) -> Bool = { _ in false }
 
     var pushCount: Int { lock.withLock { pushes } }
     var catchUpAccountCount: Int { lock.withLock { catchUps } }
+    var catchUpListIds: [String] { lock.withLock { listCatchUps } }
     var authStates: [AuthState] { lock.withLock { states } }
 
     func answerOnAuthState(_ answer: @escaping (AuthState) -> Bool) {
@@ -24,6 +26,11 @@ final class TriggerFakeEngine: SyncTriggerEngine, @unchecked Sendable {
 
     func catchUpAccount() async throws -> Result<Void, AppError> {
         lock.withLock { catchUps += 1 }
+        return .success(())
+    }
+
+    func catchUp(listId: String) async throws -> Result<Void, AppError> {
+        lock.withLock { listCatchUps.append(listId) }
         return .success(())
     }
 

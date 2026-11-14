@@ -16,6 +16,9 @@ protocol SyncTriggerEngine: Sendable {
     func push() async throws -> Result<Void, AppError>
     func catchUpAccount() async throws -> Result<Void, AppError>
     func onAuthState(_ state: AuthState) async -> Bool
+    /// One list's changes from the server. Not a trigger action: the container routes the
+    /// list repository's catch-up through the same started-only engine.
+    func catchUp(listId: String) async throws -> Result<Void, AppError>
 }
 
 extension SyncEngine: SyncTriggerEngine {}

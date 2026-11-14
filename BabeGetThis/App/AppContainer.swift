@@ -43,13 +43,16 @@ final class AppContainer {
             await containerRef.container?.syncTriggerEngine()
         })
         self.syncTrigger = syncTrigger
-        // catchUp lets leaving an empty list that is on the server delete it (DATA-06). The
-        // repository only calls it with a live session, which only exists in a started app.
+        // catchUp lets leaving an empty list that is on the server delete it (DATA-06). It goes
+        // through the same gate as the trigger: an unstarted container fails it, so the list
+        // stays and no Supabase client is built, and a started one uses the injected engine.
         let listRepository = ShoppingListRepository(
             listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
             authStateManager: authState, syncKicker: syncTrigger, safeCall: safeCall,
             catchUp: { [containerRef] listId in
-                guard let engine = await containerRef.container?.syncEngine else { return .failure(.unknown()) }
+                guard let engine = await containerRef.container?.syncTriggerEngine() else {
+                    return .failure(.unknown())
+                }
                 return try await engine.catchUp(listId: listId)
             })
         self.listRepository = listRepository
