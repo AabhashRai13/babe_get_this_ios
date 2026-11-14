@@ -33,8 +33,9 @@ packages:
     url: https://github.com/supabase/supabase-swift
     from: "2.0.0"
   GoogleSignIn:
+    # 9.0+ for signIn(...nonce:), so the id token carries our hashed nonce (AUTH-05).
     url: https://github.com/google/GoogleSignIn-iOS
-    from: "8.0.0"
+    from: "10.0.0"
 
 targets:
   BabeGetThis:
