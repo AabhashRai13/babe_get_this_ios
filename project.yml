@@ -101,6 +101,9 @@ targets:
         # FirebaseApp.configure and TelemetryConsent.applyPersisted() at app start, which turns it
         # on when "Usage analytics" is on. Not the permanent ..._DEACTIVATED key.
         FIREBASE_ANALYTICS_COLLECTION_ENABLED: false
+        # TEL-03: screen_view is logged by hand from the Screen enum. Firebase's automatic one would
+        # add a second screen_view per UIHostingController with no screen_name.
+        FirebaseAutomaticScreenReportingEnabled: false
         # App Store id for "Rate the app" (SET-02). Empty until the app has a listing.
         BGTAppStoreID: $(BGT_APP_STORE_ID)
         CFBundleURLTypes:
