@@ -32,11 +32,12 @@ struct LoginView: View {
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
 
+            // Pinned below the scroll (LoginScreenCopy.pinnedFooter), never scrolled out of view.
             HStack(spacing: 4) {
-                Text("Don't have an account?")
+                Text(LoginScreenCopy.noAccount)
                     .font(.subheadline)
                     .foregroundStyle(AppColors.textSecondary)
-                Button("Sign up", action: onNavigateToRegister)
+                Button(LoginScreenCopy.signUp, action: onNavigateToRegister)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppColors.primary)
             }
@@ -91,7 +92,7 @@ struct LoginView: View {
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "envelope").foregroundStyle(AppColors.primary)
-                    TextField("Email", text: emailBinding)
+                    TextField(LoginScreenCopy.email, text: emailBinding)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -109,9 +110,9 @@ struct LoginView: View {
                 Image(systemName: "lock").foregroundStyle(AppColors.primary)
                 Group {
                     if passwordVisible {
-                        TextField("Password", text: passwordBinding)
+                        TextField(LoginScreenCopy.password, text: passwordBinding)
                     } else {
-                        SecureField("Password", text: passwordBinding)
+                        SecureField(LoginScreenCopy.password, text: passwordBinding)
                     }
                 }
                 .textContentType(.password)
@@ -134,7 +135,7 @@ struct LoginView: View {
     private var forgotPassword: some View {
         HStack {
             Spacer()
-            Button("Forgot password?", action: onNavigateToForgotPassword)
+            Button(LoginScreenCopy.forgotPassword, action: onNavigateToForgotPassword)
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppColors.primary)
         }
@@ -146,7 +147,7 @@ struct LoginView: View {
             if viewModel.isLoading {
                 ProgressView().tint(AppColors.onPrimary)
             } else {
-                Text("Sign in").fontWeight(.semibold)
+                Text(LoginScreenCopy.signIn).fontWeight(.semibold)
             }
         }
         .buttonStyle(PrimaryButtonStyle())
@@ -157,7 +158,7 @@ struct LoginView: View {
         Button { viewModel.signInWithGoogle() } label: {
             HStack(spacing: 12) {
                 Image(systemName: "g.circle")
-                Text("Continue with Google").fontWeight(.semibold)
+                Text(LoginScreenCopy.continueWithGoogle).fontWeight(.semibold)
             }
         }
         .buttonStyle(OutlinedButtonStyle())

@@ -81,7 +81,7 @@ final class ListsViewModel {
 
     /// A sheet is up on the lists screen. An alert presented from the same view while one is
     /// up can be swallowed, so the adoption notice waits for it to go.
-    var isSheetPresented: Bool { authRoute != nil || isChooserPresented || isVoicePresented }
+    var isSheetPresented: Bool { authRoute != nil || isChooserPresented || isVoicePresented || isProfilePresented }
 
     /// The notice shows once there is a count and no sheet is up: a claim lands right after
     /// signing in, often while the auth sheet is still on screen.
@@ -282,6 +282,71 @@ final class ListsViewModel {
     func promptCreateAccount() {
         authPrompt = nil
         authRoute = .register
+    }
+
+    // MARK: - Top bar and session banner (HOME-13, HOME-14, NAV-05)
+
+    /// The top bar's account control (Android `AccountAction`).
+    enum AccountControl: Equatable {
+        /// An account owns this phone's lists (signed in, or a lost session): a round avatar
+        /// with this initial, or a person glyph when nil. Opens the profile sheet.
+        case avatar(initial: String?)
+        /// Nobody is signed in: a "Sign in" pill that opens Login.
+        case signIn
+    }
+
+    static let sessionExpiredMessage = "You've been signed out. Sign in again to keep your lists in sync."
+    static let sessionExpiredAction = "Sign in"
+    static let signInPill = "Sign in"
+
+    /// Signed in or a lost session. The profile sheet is the only way to sign out, which is the
+    /// only way the account's lists leave the phone, so it stays while the session is expired.
+    var hasAccount: Bool { authState?.authState.ownerId != nil }
+
+    var accountControl: AccountControl {
+        guard hasAccount else { return .signIn }
+        return .avatar(initial: Self.initial(name: authState?.userName, email: authState?.userEmail))
+    }
+
+    /// The first letter of the name, else of the email, upper-cased; nil when neither is known.
+    static func initial(name: String?, email: String?) -> String? {
+        for candidate in [name, email] {
+            if let first = candidate?.trimmingCharacters(in: .whitespacesAndNewlines).first {
+                return String(first).uppercased()
+            }
+        }
+        return nil
+    }
+
+    var profileName: String? { authState?.userName }
+    var profileEmail: String? { authState?.userEmail }
+
+    /// Asked for by the avatar. Only shown while an account exists, so signing out closes it.
+    private var profileRequested = false
+    var isProfilePresented: Bool {
+        get { profileRequested && hasAccount }
+        set { profileRequested = newValue }
+    }
+
+    /// The account control: the profile sheet for an account, Login otherwise.
+    func tapAccountControl() {
+        if hasAccount {
+            profileRequested = true
+        } else {
+            authRoute = .login
+        }
+    }
+
+    /// The session-expired banner's "Sign in": Login, like Android `onNavigateToLogin`.
+    func signInAgain() {
+        authRoute = .login
+    }
+
+    /// Settings is pushed from the lists in every auth state (NAV-05).
+    var isSettingsPresented = false
+
+    func openSettings() {
+        isSettingsPresented = true
     }
 
     // MARK: - Delete, undo, rename

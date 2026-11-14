@@ -35,14 +35,14 @@ struct RegisterView: View {
 
                     VStack(alignment: .leading, spacing: 14) {
                         field(icon: "person", error: nil) {
-                            TextField(AuthCopy.name, text: binding(\.name, viewModel.onNameChange))
+                            TextField(RegisterScreenCopy.name, text: binding(\.name, viewModel.onNameChange))
                                 .textContentType(.name)
                                 .focused($focus, equals: .name)
                                 .submitLabel(.next)
                                 .onSubmit { focus = .email }
                         }
                         field(icon: "envelope", error: viewModel.emailError) {
-                            TextField("Email", text: binding(\.email, viewModel.onEmailChange))
+                            TextField(RegisterScreenCopy.email, text: binding(\.email, viewModel.onEmailChange))
                                 .keyboardType(.emailAddress)
                                 // .username, not .emailAddress: AutoFill saves the new password
                                 // against this field (it would offer the owner's own address).
@@ -55,14 +55,14 @@ struct RegisterView: View {
                         }
                         field(icon: "lock", error: viewModel.passwordError,
                               trailing: toggle($passwordVisible, field: "password")) {
-                            secure("Password", binding(\.password, viewModel.onPasswordChange), visible: passwordVisible)
+                            secure(RegisterScreenCopy.password, binding(\.password, viewModel.onPasswordChange), visible: passwordVisible)
                                 .focused($focus, equals: .password)
                                 .submitLabel(.next)
                                 .onSubmit { focus = .confirm }
                         }
                         field(icon: "lock", error: viewModel.confirmPasswordError,
                               trailing: toggle($confirmVisible, field: "confirm password")) {
-                            secure("Confirm password", binding(\.confirmPassword, viewModel.onConfirmPasswordChange),
+                            secure(RegisterScreenCopy.confirmPassword, binding(\.confirmPassword, viewModel.onConfirmPasswordChange),
                                    visible: confirmVisible)
                                 .focused($focus, equals: .confirm)
                                 .submitLabel(.go)
@@ -77,7 +77,7 @@ struct RegisterView: View {
                         if viewModel.isLoading {
                             ProgressView().tint(AppColors.onPrimary)
                         } else {
-                            Text("Create account").fontWeight(.semibold)
+                            Text(RegisterScreenCopy.createAccount).fontWeight(.semibold)
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -89,10 +89,10 @@ struct RegisterView: View {
             .scrollDismissesKeyboard(.interactively)
 
             HStack(spacing: 4) {
-                Text("Already have an account?")
+                Text(RegisterScreenCopy.haveAccount)
                     .font(.subheadline)
                     .foregroundStyle(AppColors.textSecondary)
-                Button("Sign in", action: onNavigateToLogin)
+                Button(RegisterScreenCopy.signIn, action: onNavigateToLogin)
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppColors.primary)
             }
