@@ -57,20 +57,9 @@ struct ListsView: View {
         .navigationTitle("Babe, Get This")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button(JoinListCopy.action, systemImage: "person.badge.plus") {
-                    SystemHapticPlayer().play(.light)
-                    viewModel.startJoining()
-                }
-                .accessibilityIdentifier("lists.join")
-                // Before the account control, and available in every auth state (NAV-05).
-                Button(SettingsView.title, systemImage: "gearshape") {
-                    SystemHapticPlayer().play(.light)
-                    viewModel.openSettings()
-                }
-                .accessibilityIdentifier("lists.settings")
-                AccountControlButton(control: viewModel.accountControl) {
-                    SystemHapticPlayer().play(.light)
-                    viewModel.tapAccountControl()
+                // HOME-13 order, from the view model; Settings is there in every auth state (NAV-05).
+                ForEach(viewModel.topBarActions, id: \.self) { action in
+                    topBarButton(action)
                 }
             }
         }
@@ -198,6 +187,24 @@ struct ListsView: View {
         }
         .navigationDestination(for: ShoppingListSummary.self) { list in
             ListDetailPlaceholderView(list: list)
+        }
+    }
+
+    @ViewBuilder
+    private func topBarButton(_ action: ListsViewModel.TopBarAction) -> some View {
+        let tap = {
+            SystemHapticPlayer().play(.light)
+            viewModel.perform(action)
+        }
+        switch action {
+        case .join:
+            Button(JoinListCopy.action, systemImage: "person.badge.plus", action: tap)
+                .accessibilityIdentifier("lists.join")
+        case .settings:
+            Button(SettingsView.title, systemImage: "gearshape", action: tap)
+                .accessibilityIdentifier("lists.settings")
+        case .account(let control):
+            AccountControlButton(control: control, action: tap)
         }
     }
 }

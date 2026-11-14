@@ -315,7 +315,7 @@ final class ListsViewModel {
     // MARK: - Top bar and session banner (HOME-13, HOME-14, NAV-05)
 
     /// The top bar's account control (Android `AccountAction`).
-    enum AccountControl: Equatable {
+    enum AccountControl: Hashable {
         /// An account owns this phone's lists (signed in, or a lost session): a round avatar
         /// with this initial, or a person glyph when nil. Opens the profile sheet.
         case avatar(initial: String?)
@@ -369,6 +369,24 @@ final class ListsViewModel {
 
     /// Settings is pushed from the lists in every auth state (NAV-05).
     var isSettingsPresented = false
+
+    /// The top bar's trailing actions, which the screen renders in this order.
+    enum TopBarAction: Hashable {
+        case join, settings, account(AccountControl)
+    }
+
+    /// HOME-13: Join, Settings, then the account control, in every auth state (so Settings is
+    /// always reachable, NAV-05).
+    var topBarActions: [TopBarAction] { [.join, .settings, .account(accountControl)] }
+
+    /// A tap on one of `topBarActions`.
+    func perform(_ action: TopBarAction) {
+        switch action {
+        case .join: startJoining()
+        case .settings: openSettings()
+        case .account: tapAccountControl()
+        }
+    }
 
     func openSettings() {
         isSettingsPresented = true
