@@ -109,7 +109,8 @@ private struct ProfileSheetContent: View {
             ))
             .textContentType(.name)
             .submitLabel(.done)
-            .onSubmit { if viewModel.hasNameChanged { viewModel.saveName() } }
+            // The view model also ignores a save while anything is running (Return during a save).
+            .onSubmit { if viewModel.hasNameChanged && !viewModel.isBusy { viewModel.saveName() } }
             .accessibilityIdentifier("profile.name")
             // Save shows only while there is a different, non-blank name to save.
             if viewModel.hasNameChanged {
@@ -120,6 +121,7 @@ private struct ProfileSheetContent: View {
                     Button(ProfileCopy.save) { viewModel.saveName() }
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(AppColors.primary)
+                        .disabled(viewModel.isBusy)
                         .accessibilityIdentifier("profile.save")
                 }
             }
@@ -144,7 +146,8 @@ private struct ProfileSheetContent: View {
             }
         }
         .buttonStyle(OutlinedButtonStyle())
-        .disabled(viewModel.isLoggingOut)
+        // Log out and Delete account never run together.
+        .disabled(viewModel.isBusy)
         .accessibilityIdentifier("profile.logout")
     }
 
@@ -161,7 +164,7 @@ private struct ProfileSheetContent: View {
             }
         }
         .frame(minHeight: 44)
-        .disabled(viewModel.isDeletingAccount)
+        .disabled(viewModel.isBusy)
         .accessibilityIdentifier("profile.deleteAccount")
     }
 

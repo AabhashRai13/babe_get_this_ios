@@ -363,4 +363,74 @@ final class ProfileViewModelTests: XCTestCase {
 
         XCTAssertEqual(log.count("welcome.reset"), 0)
     }
+
+    // MARK: - iOS hardening: one save, sign-out or deletion at a time (not in Android's test)
+
+    func testDeleteWhileLoggingOutStartsNothing() async {
+        let vm = buildViewModel()
+
+        vm.logout()
+        XCTAssertTrue(vm.isBusy)
+        vm.deleteAccount()
+        await settle(vm)
+
+        XCTAssertEqual(log.count("deleteAccount"), 0, "\(log.calls)")
+        XCTAssertEqual(log.count("logout"), 1)
+        XCTAssertFalse(vm.isDeletingAccount)
+        XCTAssertFalse(vm.isBusy)
+    }
+
+    func testLogoutWhileDeletingStartsNothing() async {
+        let vm = buildViewModel()
+
+        vm.deleteAccount()
+        vm.logout()
+        await settle(vm)
+
+        XCTAssertEqual(log.count("deleteAccount"), 1)
+        XCTAssertEqual(log.count("logout"), 0, "\(log.calls)")
+        XCTAssertEqual(log.count("push"), 1, "only the deletion's push ran")
+        XCTAssertFalse(vm.isLoggingOut)
+    }
+
+    func testASecondSaveWhileSavingStartsNothing() async {
+        let vm = buildSignedIn()
+        vm.onNameChanged("New Name")
+
+        vm.saveName()
+        // Return pressed again before the first save finished.
+        vm.saveName()
+        await settle(vm)
+
+        XCTAssertEqual(auth.updateNameCalls, ["New Name"])
+        XCTAssertFalse(vm.isSaving)
+    }
+
+    func testSignOutAnywayWhileDeletingStartsNothing() async {
+        sync.unsyncedAccounts = ["u1"]
+        let vm = buildViewModel()
+        vm.logout()
+        await settle(vm)
+        XCTAssertTrue(vm.showUnsyncedSignOutWarning)
+
+        vm.deleteAccount()
+        vm.confirmSignOutAnyway()
+        await settle(vm)
+
+        XCTAssertEqual(log.count("logout"), 0, "\(log.calls)")
+        XCTAssertEqual(log.count("deleteAccount"), 1)
+        XCTAssertFalse(vm.showUnsyncedSignOutWarning)
+    }
+
+    func testANewActionStartsOnceTheLastOneFinished() async {
+        let vm = buildSignedIn()
+        vm.onNameChanged("New Name")
+
+        vm.saveName()
+        await settle(vm)
+        vm.logout()
+        await settle(vm)
+
+        XCTAssertTrue(log.contains(inOrder: ["updateUserName", "push", "evictAccountLists", "logout"]), "\(log.calls)")
+    }
 }

@@ -30,6 +30,12 @@ final class ProfileViewModel {
     private(set) var showUnsyncedSignOutWarning = false
     private(set) var toast: Toast?
 
+    /// A save, sign-out or deletion is running. One at a time: a deletion queued behind a
+    /// sign-out would find no session, fail, and leave the account in place with its lists
+    /// already gone; a second save would race the first. (Android guards each button only by its
+    /// own flag; this is iOS hardening, not a parity change.)
+    var isBusy: Bool { isSaving || isLoggingOut || isDeletingAccount }
+
     /// True when the user has typed a different name than what's saved.
     var hasNameChanged: Bool {
         !editedName.allSatisfy(\.isWhitespace) && editedName != userName
@@ -67,6 +73,7 @@ final class ProfileViewModel {
 
     /// Saves the edited name to the backend (and locally).
     func saveName() {
+        guard !isBusy else { return }
         let newName = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !newName.isEmpty else {
             show(Self.nameEmptyMessage)
@@ -98,6 +105,7 @@ final class ProfileViewModel {
     /// once the account is gone: a deletion that fails (offline, server error) must leave every
     /// list and unsynced edit in place.
     func deleteAccount() {
+        guard !isBusy else { return }
         isDeletingAccount = true
         inFlight = Task { [auth, sync, welcome] in
             // Push while the session still exists.
@@ -125,6 +133,7 @@ final class ProfileViewModel {
     /// Signing out takes every account list off the phone. Push first; if anything still
     /// hasn't reached the server (offline), ask before throwing it away.
     func logout() {
+        guard !isBusy else { return }
         isLoggingOut = true
         inFlight = Task { [account, sync] in
             await sync.push()
@@ -141,6 +150,7 @@ final class ProfileViewModel {
 
     func confirmSignOutAnyway() {
         showUnsyncedSignOutWarning = false
+        guard !isBusy else { return }
         isLoggingOut = true
         inFlight = Task { await completeSignOut() }
     }

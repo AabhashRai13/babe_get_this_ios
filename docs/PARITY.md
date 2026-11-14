@@ -277,6 +277,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Confirm "Delete account?" with the deletion body and "Delete" / "Cancel".
   - Order: push → RPC `delete_user` → evict → reset Welcome → "Your account has been deleted".
   - A failure keeps every list on the phone.
+  - iOS hardening: one save, sign-out or deletion runs at a time. While one runs, Save, Log out and Delete account are disabled and the view model ignores another start (Return in the name field included). Android guards each button only by its own flag.
 
 ## Settings
 
