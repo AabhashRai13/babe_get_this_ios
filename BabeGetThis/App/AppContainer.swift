@@ -66,8 +66,22 @@ final class AppContainer {
         self.lists = ListsViewModel(repository: listRepository, authState: authState,
                                     shareJoiner: joiner, ownership: ownership)
         self.initialPath = initialPath
+        // Sync and auth are resolved on the first save, sign-out or deletion, so building the
+        // profile opens no Supabase client.
+        self.profile = ProfileViewModel(
+            account: authState,
+            auth: DeferredProfileAuth { [containerRef] in
+                guard let container = containerRef.container else { return UnavailableProfileAuth() }
+                return container.authRepository
+            },
+            sync: DeferredProfileSync { [containerRef] in containerRef.container?.syncEngine },
+            welcome: welcome)
         containerRef.container = self
     }
+
+    /// The profile sheet's state (PROF-01..03). Owned here so a sign-out or deletion finishes
+    /// after the sheet closes.
+    let profile: ProfileViewModel
 
     @ObservationIgnored private let safeCall: SafeCall
     /// What the trigger kicks; nil until `start()`, so unstarted containers never sync.
