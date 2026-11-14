@@ -11,3 +11,24 @@ protocol AppErrorReporter: Sendable {
 struct SilentAppErrorReporter: AppErrorReporter {
     func report(_ error: any Error, mapped: AppError) {}
 }
+
+/// A reporter built from a closure (Android `ErrorReporter`). The app wires it to
+/// `CrashReporter.recordNonFatal`, which applies `ErrorReportingPolicy` (ERR-03). A closure
+/// that throws is contained here: telemetry that can break the app it watches is worse than
+/// telemetry that misses a report.
+struct ErrorReporter: AppErrorReporter {
+    private let body: @Sendable (any Error, AppError) throws -> Void
+
+    init(_ body: @escaping @Sendable (any Error, AppError) throws -> Void) {
+        self.body = body
+    }
+
+    /// Hands every mapped error to `crashReporter`, which filters it.
+    init(crashReporter: any CrashReporter) {
+        self.init { error, mapped in crashReporter.recordNonFatal(error, appError: mapped) }
+    }
+
+    func report(_ error: any Error, mapped: AppError) {
+        try? body(error, mapped)
+    }
+}
