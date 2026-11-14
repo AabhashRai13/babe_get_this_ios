@@ -1,10 +1,10 @@
 import XCTest
 @testable import BabeGetThis
 
-/// Port of Android's ShoppingItemsViewModelTest (list-completed and delete/undo cases, the
-/// add/toggle success and failure cases) against a fake repository, plus database-backed
-/// cases that run the real `ShoppingItemRepository` on an in-memory database. Lock, share,
-/// reminder, Got This and telemetry cases are out of iOS v1 or land with their features.
+/// List detail view model cases beyond the direct ports of Android's ShoppingItemsViewModelTest
+/// (those are in `ShoppingItemsViewModelTests`): list-completed against a fake repository,
+/// the undo snackbar, and database-backed cases that run the real `ShoppingItemRepository`
+/// on an in-memory database.
 @MainActor
 final class ListDetailViewModelTests: XCTestCase {
     private var source: FakeListDetailItemsSource!
@@ -224,79 +224,6 @@ final class ListDetailViewModelTests: XCTestCase {
 
     // MARK: Delete + Undo
 
-    func testDeleteItemCachesTheItemCallsRepositoryAndOffersUndoWithItemName() async {
-        let vm = buildViewModel()
-        await emit([item("1", name: "Milk")], to: vm)
-
-        await vm.delete("1")
-
-        XCTAssertEqual(source.deleted, ["1"])
-        XCTAssertEqual(vm.undoMessage, "Milk deleted")
-        XCTAssertEqual(vm.pendingUndo?.name, "Milk")
-    }
-
-    func testUndoDeleteItemRestoresThePreviouslyDeletedItemViaRepository() async {
-        let target = item("1", name: "Milk")
-        let vm = buildViewModel()
-        await emit([target], to: vm)
-
-        await vm.delete("1")
-        await vm.undoDelete()
-
-        XCTAssertEqual(source.restored, [target])
-        XCTAssertNil(vm.pendingUndo)
-    }
-
-    func testUndoDeleteItemWithNoPendingDeleteIsANoOp() async {
-        let vm = buildViewModel()
-
-        await vm.undoDelete()
-
-        XCTAssertTrue(source.restored.isEmpty)
-    }
-
-    func testDeleteItemOnRepositoryErrorShowsTheErrorAndDoesNotCacheForUndo() async {
-        source.deleteResult = .failure(.database("boom"))
-        let vm = buildViewModel()
-        await emit([item("1", name: "Milk")], to: vm)
-
-        await vm.delete("1")
-
-        XCTAssertEqual(vm.errorMessage, "boom")
-        XCTAssertNil(vm.undoMessage)
-        // No undo offered, no restore allowed.
-        await vm.undoDelete()
-        XCTAssertTrue(source.restored.isEmpty)
-    }
-
-    func testDeleteItemOffersNoUndoWhenTheItemWasNeverInState() async {
-        let vm = buildViewModel()
-        await emit([], to: vm)
-
-        await vm.delete("ghost")
-
-        XCTAssertEqual(source.deleted, ["ghost"])
-        XCTAssertNil(vm.undoMessage)
-        XCTAssertNil(vm.pendingUndo)
-    }
-
-    func testAFailedRestoreKeepsTheCacheSoUndoCanBeRetried() async {
-        let target = item("1", name: "Milk")
-        let vm = buildViewModel()
-        await emit([target], to: vm)
-        await vm.delete("1")
-
-        source.restoreResult = .failure(.database("restore failed"))
-        await vm.undoDelete()
-        XCTAssertEqual(vm.errorMessage, "restore failed")
-        XCTAssertEqual(vm.pendingUndo, target)
-
-        source.restoreResult = .success(())
-        await vm.undoDelete()
-        XCTAssertEqual(source.restored, [target, target])
-        XCTAssertNil(vm.pendingUndo)
-    }
-
     func testDismissUndoMakesDeleteFinal() async {
         let vm = buildViewModel()
         await emit([item("1", name: "Red wine")], to: vm)
@@ -320,74 +247,7 @@ final class ListDetailViewModelTests: XCTestCase {
         XCTAssertEqual(ListDetailViewModel.undoSnackbarDuration, .seconds(4))
     }
 
-    // MARK: Add and toggle
-
-    func testAddItemSuccessClosesTheSheet() async {
-        let vm = buildViewModel()
-
-        let saved = await vm.add(ItemDraft(name: "Milk", quantity: "2 L", categoryId: "cat-dairy-eggs"))
-
-        XCTAssertTrue(saved)
-        XCTAssertEqual(source.added.count, 1)
-        XCTAssertEqual(source.added.first?.name, "Milk")
-        XCTAssertEqual(source.added.first?.quantity, "2 L")
-        XCTAssertEqual(source.added.first?.categoryId, "cat-dairy-eggs")
-        XCTAssertNil(vm.errorMessage)
-    }
-
-    func testAddItemFailureSurfacesTheErrorAndKeepsTheSheetOpen() async {
-        source.addResult = .failure(.validation("Item name can't be empty."))
-        let vm = buildViewModel()
-
-        let saved = await vm.add(ItemDraft(name: "Milk", quantity: "1"))
-
-        XCTAssertFalse(saved)
-        XCTAssertEqual(vm.errorMessage, "Item name can't be empty.")
-    }
-
-    func testTogglePickedUpDelegatesToTheRepository() async {
-        let vm = buildViewModel()
-        await emit([item("1"), item("2", isPickedUp: true)], to: vm)
-
-        await vm.toggle("1")
-        await vm.toggle("2")
-
-        XCTAssertEqual(source.toggled.map(\.itemId), ["1", "2"])
-        XCTAssertEqual(source.toggled.map(\.isPickedUp), [true, false])
-    }
-
-    func testTogglePickedUpFailureSurfacesTheError() async {
-        source.toggleResult = .failure(.database("toggle failed"))
-        let vm = buildViewModel()
-        await emit([item("1")], to: vm)
-
-        await vm.toggle("1")
-
-        XCTAssertEqual(vm.errorMessage, "toggle failed")
-    }
-
     // MARK: uiState
-
-    func testUiStateSplitsActiveFromCompleted() async {
-        let vm = buildViewModel()
-        await emit([item("1"), item("2", isPickedUp: true), item("3")], to: vm)
-
-        XCTAssertEqual(vm.activeItems.map(\.id), ["1", "3"])
-        XCTAssertEqual(vm.completedItems.map(\.id), ["2"])
-        XCTAssertEqual(vm.totalCount, 3)
-        XCTAssertEqual(vm.pickedUpCount, 1)
-        XCTAssertEqual(vm.percent, 33)
-    }
-
-    func testUiStateIsEmptyForAnEmptyList() async {
-        let vm = buildViewModel()
-        await emit([], to: vm)
-
-        XCTAssertTrue(vm.isEmpty)
-        XCTAssertTrue(vm.activeItems.isEmpty)
-        XCTAssertTrue(vm.completedItems.isEmpty)
-        XCTAssertTrue(vm.activeGroups.isEmpty)
-    }
 
     func testNothingIsShownBeforeTheItemsHaveLoaded() {
         let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)

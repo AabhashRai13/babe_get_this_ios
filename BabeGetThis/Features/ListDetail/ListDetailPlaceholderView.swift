@@ -10,7 +10,18 @@ struct ListDetailPlaceholderView: View {
         ListDetailScreen(list: list, source: container.itemRepository,
                          authState: { [authState = container.authState] in authState.authState },
                          makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
-                         leaveCleaner: container.listRepository)
+                         leaveCleaner: container.listRepository,
+                         sharer: DeferredListSharer { [container] in container.shareRepository })
+    }
+}
+
+/// A `ListSharing` that finds the share repository on the main actor when a share starts, so
+/// opening a list builds no Supabase client.
+private struct DeferredListSharer: ListSharing {
+    let resolve: @MainActor @Sendable () -> any ListSharing
+
+    func share(listId: String) async throws -> Result<String, AppError> {
+        try await resolve().share(listId: listId)
     }
 }
 
@@ -50,13 +61,17 @@ private struct ListDetailScreen: View {
     init(list: ShoppingListSummary, source: any ListDetailItemsSource,
          authState: @escaping () -> AuthState,
          makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
-         leaveCleaner: any ListLeaveCleaning) {
+         leaveCleaner: any ListLeaveCleaning,
+         sharer: any ListSharing) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
         let viewModel = ListDetailViewModel(listId: list.id, source: source)
         _model = State(initialValue: viewModel)
+        let shareLive = ShareLiveViewModel(listId: list.id, authState: authState, sharer: sharer,
+                                           reportError: { viewModel.errorMessage = $0 })
         _chrome = State(initialValue: ListDetailChromeModel(
-            listName: list.name, authState: authState, items: { viewModel.items }))
+            listName: list.name, authState: authState, items: { viewModel.items },
+            shareLive: shareLive))
         _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
@@ -124,8 +139,9 @@ private struct ListDetailScreen: View {
         .sheet(isPresented: $chrome.isVoicePresented) {
             VoiceCaptureSheet(
                 viewModel: makeVoiceViewModel(),
-                // TODO(F41): add the transcribed items to this list.
-                persist: { _ in .failure(.unknown("Adding items from voice isn't available yet.")) },
+                persist: { [listId = list.id, repository = container.listRepository] in
+                    await saveVoiceDrafts($0, intoList: listId, using: repository)
+                },
                 onDismiss: { chrome.isVoicePresented = false },
                 onSwitchToType: {
                     chrome.isVoicePresented = false
@@ -133,11 +149,10 @@ private struct ListDetailScreen: View {
                 })
         }
         .sheet(isPresented: $chrome.isShareLivePresented) {
-            // Placeholder: the share dialog is F34.
-            Text("Share list live")
-                .font(.title3.bold())
-                .padding()
-                .presentationDetents([.medium])
+            if let shareLive = chrome.shareLive {
+                ShareLiveSheet(viewModel: shareLive, onDone: { chrome.isShareLivePresented = false })
+                    .presentationDetents([.medium])
+            }
         }
         .sheet(isPresented: Binding(
             get: { chrome.sharedText != nil },
@@ -179,6 +194,14 @@ private struct ListDetailScreen: View {
             }
         }
         .task { await model.observeItems() }
+        // Live sync while open (RT-03); SwiftUI cancels it, closing any channel, when the screen goes.
+        .task(id: list.id) {
+            await ListRealtimeLifecycle(
+                listId: list.id, shareState: container.listRepository,
+                catchUp: { [container] in container.syncEngine },
+                changes: { [container] in SharedListRemoteChanges(remote: container.sharedListRemote) }
+            ).run()
+        }
         .leaveEmptyListGuard(leaveGuard, model: model)
         .onChange(of: model.errorMessage) { _, message in
             guard message != nil else { return }

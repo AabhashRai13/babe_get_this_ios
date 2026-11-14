@@ -4,6 +4,7 @@ import SwiftUI
 /// (Active only) and the lists grouped into date buckets.
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
+    @Environment(\.openURL) private var openURL
     /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
     var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
     /// Pushes a list's detail screen onto the navigation path (a tap on a card, or a new list).
@@ -48,8 +49,11 @@ struct ListsView: View {
         .navigationTitle("Babe, Get This")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button("Join a list", systemImage: "person.badge.plus") {}
-                    .disabled(true) // Sharing lands with sync.
+                Button(JoinListCopy.action, systemImage: "person.badge.plus") {
+                    SystemHapticPlayer().play(.light)
+                    viewModel.startJoining()
+                }
+                .accessibilityIdentifier("lists.join")
                 Button("Settings", systemImage: "gearshape") {}
                     .disabled(true)
             }
@@ -110,6 +114,19 @@ struct ListsView: View {
                                  onDismiss: { viewModel.dismissAuthPrompt() })
             }
         }
+        .overlay {
+            // Joining a shared list (SHARE-04): the code dialog when signed in, else the prompt.
+            if viewModel.isJoinDialogPresented {
+                JoinListDialog(model: viewModel.joinField, error: viewModel.joinError, isJoining: viewModel.isJoining,
+                               onDismiss: { viewModel.dismissJoinDialog() },
+                               onJoin: { code in Task { await viewModel.joinList(code: code) } })
+            } else if viewModel.isJoinAuthPromptPresented {
+                AuthPromptDialog(content: .share,
+                                 onLogin: { viewModel.promptSignIn() },
+                                 onRegister: { viewModel.promptCreateAccount() },
+                                 onDismiss: { viewModel.dismissJoinAuthPrompt() })
+            }
+        }
         .sheet(item: $viewModel.authRoute) { route in
             AuthSheet(initialRoute: route, onDone: { viewModel.authRoute = nil })
         }
@@ -136,6 +153,20 @@ struct ListsView: View {
                         viewModel.isNamingList = true
                     })
             }
+        }
+        // Android's dialog has body text only, no title. The count is the one captured for the
+        // notice, so it can't drop to 0 while the alert closes; the notice waits until no
+        // sheet (such as the auth sheet it follows) is up.
+        .alert(Text(verbatim: ""), isPresented: Binding(
+            get: { viewModel.isAdoptionNoticePresented },
+            set: { if !$0 { viewModel.dismissAdoptionNotice() } }
+        ), presenting: viewModel.adoptionNoticeShownCount) { _ in
+            Button(AdoptionNoticeCopy.ok, role: .cancel) {}
+            Button(AdoptionNoticeCopy.privacyPolicy) {
+                openURL(AdoptionNoticeCopy.privacyPolicyURL)
+            }
+        } message: { count in
+            Text(AdoptionNoticeCopy.message(count: count))
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { viewModel.errorMessage != nil },

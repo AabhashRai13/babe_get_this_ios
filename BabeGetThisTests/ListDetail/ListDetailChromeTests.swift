@@ -67,10 +67,20 @@ final class ListDetailChromeTests: XCTestCase {
         XCTAssertFalse(model.isShareLivePresented)
     }
 
-    func testSignedInShareLiveOpensPlaceholder() {
-        let model = makeModel(.authenticated(userId: "u1"))
+    func testSignedInShareLiveOpensTheSheetWithTheCode() async {
+        let shareLive = ShareLiveViewModel(listId: "L1", authState: { .authenticated(userId: "u1") },
+                                           sharer: CodeSharer(), reportError: { _ in },
+                                           copyToClipboard: { _ in })
+        let model = ListDetailChromeModel(listName: "Groceries", authState: { .authenticated(userId: "u1") },
+                                          haptics: RecordingHaptics(), shareLive: shareLive)
         model.perform(.shareLive)
+        await model.shareTask?.value
         XCTAssertTrue(model.isShareLivePresented)
+        XCTAssertEqual(shareLive.shareCode, "ABC234")
+    }
+
+    private struct CodeSharer: ListSharing {
+        func share(listId: String) async throws -> Result<String, AppError> { .success("ABC234") }
     }
 
     // The screen's wiring: the chrome reads the detail view model's live items and formats

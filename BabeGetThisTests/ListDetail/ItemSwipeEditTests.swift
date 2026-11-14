@@ -2,69 +2,9 @@ import SwiftUI
 import XCTest
 @testable import BabeGetThis
 
-/// Edit goes through the repository and keeps what the dialog doesn't show (Android `onEdit`).
+/// An invalid edit writes nothing. The Android `onEdit` ports are in `ShoppingItemsViewModelTests`.
 @MainActor
 final class ItemEditTests: XCTestCase {
-    func testEditKeepsIdListIdCreatedAtAndPickedUp() async throws {
-        let db = try AppDatabase.inMemory()
-        try await db.lists.insertList(TestData.listEntity(id: "list-1"))
-        try await db.items.insertItem(TestData.itemEntity(
-            id: "i1", name: "Milk", quantity: "2", isPickedUp: true, categoryId: "cat-dairy-eggs",
-            shop: "Aldi", note: "semi", createdAt: 5_000, updatedAt: 5_000))
-        let repository = ShoppingItemRepository(
-            itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
-            syncKicker: CountingSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
-        let vm = ListDetailViewModel(listId: "list-1", source: repository, haptics: RecordingHapticPlayer())
-        let observation = Task { await vm.observeItems() }
-        defer { observation.cancel() }
-        await listDetailEventually { vm.items.count == 1 }
-
-        var draft = ItemDraft(editing: try XCTUnwrap(vm.items.first))
-        draft.name = "  Oat milk  "
-        draft.quantity = "3"
-        draft.shop = "   "
-        draft.note = "barista"
-        draft.categoryId = nil
-        let saved = await vm.edit("i1", with: draft)
-        XCTAssertTrue(saved)
-
-        let row = try await db.items.itemRaw(id: "i1")
-        XCTAssertEqual(row?.id, "i1")
-        XCTAssertEqual(row?.listId, "list-1")
-        XCTAssertEqual(row?.createdAt, 5_000)
-        XCTAssertEqual(row?.isPickedUp, true)
-        XCTAssertEqual(row?.name, "Oat milk")
-        XCTAssertEqual(row?.quantity, "3")
-        XCTAssertNil(row?.shop)
-        XCTAssertEqual(row?.note, "barista")
-        XCTAssertNil(row?.categoryId)
-    }
-
-    func testEditPrefillsTheDraftFromTheItem() {
-        let item = ShoppingItem(id: "i1", name: "Milk", quantity: "2", categoryId: "cat-dairy-eggs",
-                                shop: "Aldi", note: "semi")
-        let draft = ItemDraft(editing: item)
-        XCTAssertEqual(draft.name, "Milk")
-        XCTAssertEqual(draft.quantity, "2")
-        XCTAssertEqual(draft.categoryId, "cat-dairy-eggs")
-        XCTAssertEqual(draft.shop, "Aldi")
-        XCTAssertEqual(draft.note, "semi")
-    }
-
-    func testEditFailureKeepsTheDialogOpenAndShowsTheError() async {
-        let source = FakeListDetailItemsSource()
-        source.updateResult = .failure(.unknown())
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
-        let observation = Task { await vm.observeItems() }
-        defer { observation.cancel() }
-        source.send([TestData.storedItem("a")])
-        await listDetailEventually { vm.items.count == 1 }
-
-        let saved = await vm.edit("a", with: ItemDraft(editing: vm.items[0]))
-        XCTAssertFalse(saved)
-        XCTAssertNotNil(vm.errorMessage)
-    }
-
     func testEditWithAnInvalidDraftWritesNothing() async {
         let source = FakeListDetailItemsSource()
         let vm = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
