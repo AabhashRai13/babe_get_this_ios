@@ -4,6 +4,7 @@ import SwiftUI
 /// (Active only) and the lists grouped into date buckets.
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
+    @Environment(\.openURL) private var openURL
     /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
     var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
     /// Pushes a list's detail screen onto the navigation path (a tap on a card, or a new list).
@@ -151,6 +152,15 @@ struct ListsView: View {
                         viewModel.isVoicePresented = false
                         viewModel.isNamingList = true
                     })
+            }
+        }
+        .alert(AdoptionNoticeCopy.message(count: viewModel.adoptionNotice), isPresented: Binding(
+            get: { viewModel.adoptionNotice > 0 },
+            set: { if !$0 { viewModel.dismissAdoptionNotice() } }
+        )) {
+            Button(AdoptionNoticeCopy.ok, role: .cancel) {}
+            Button(AdoptionNoticeCopy.privacyPolicy) {
+                openURL(AdoptionNoticeCopy.privacyPolicyURL)
             }
         }
         .alert("Something went wrong", isPresented: Binding(
