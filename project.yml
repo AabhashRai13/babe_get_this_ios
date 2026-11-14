@@ -36,6 +36,11 @@ packages:
     # 9.0+ for signIn(...nonce:), so the id token carries our hashed nonce (AUTH-05).
     url: https://github.com/google/GoogleSignIn-iOS
     from: "10.0.0"
+  Firebase:
+    # TEL-01/05: Analytics WITHOUT ad-id support (FirebaseAnalyticsCore, no AdSupport, no ATT)
+    # and Crashlytics. Configured at runtime only when the BGT_FIREBASE_* settings are filled in.
+    url: https://github.com/firebase/firebase-ios-sdk
+    from: "13.0.0"
 
 targets:
   BabeGetThis:
@@ -49,6 +54,10 @@ targets:
         product: Supabase
       - package: GoogleSignIn
         product: GoogleSignIn
+      - package: Firebase
+        product: FirebaseAnalyticsCore
+      - package: Firebase
+        product: FirebaseCrashlytics
     entitlements:
       path: BabeGetThis/Resources/BabeGetThis.entitlements
       properties:
@@ -83,6 +92,13 @@ targets:
         BGTApiBaseURL: $(BGT_API_BASE_URL)
         # Google Sign-In (AUTH-05). Empty until the iOS OAuth client exists: see Secrets.example.xcconfig.
         GIDClientID: $(BGT_GOOGLE_IOS_CLIENT_ID)
+        # Firebase (TEL-01): staging and prod use separate projects; dev sends nothing. Empty = off.
+        BGTFirebaseGoogleAppID: $(BGT_FIREBASE_GOOGLE_APP_ID)
+        BGTFirebaseGCMSenderID: $(BGT_FIREBASE_GCM_SENDER_ID)
+        BGTFirebaseAPIKey: $(BGT_FIREBASE_API_KEY)
+        BGTFirebaseProjectID: $(BGT_FIREBASE_PROJECT_ID)
+        # App Store id for "Rate the app" (SET-02). Empty until the app has a listing.
+        BGTAppStoreID: $(BGT_APP_STORE_ID)
         CFBundleURLTypes:
           - CFBundleURLName: google-sign-in
             CFBundleURLSchemes:
