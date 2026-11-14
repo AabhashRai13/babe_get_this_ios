@@ -18,6 +18,8 @@ final class AppContainer {
     /// Device-local ownership facts (adoption notice, locks, unverified claims).
     let ownership: any ListOwnershipStore
     let lists: ListsViewModel
+    /// The app's real `SyncKicking`: kicks on auth, network and foreground once `start()` ran.
+    let syncTrigger: SyncTrigger
     /// Lists pushed on launch (from `-openList <id>`), for deterministic screenshots.
     let initialPath: [ShoppingListSummary]
 
@@ -34,20 +36,29 @@ final class AppContainer {
         self.database = database
         let safeCall = SafeCall(reporter: SilentAppErrorReporter())
         self.safeCall = safeCall
-        // No catchUp yet: `syncEngine` exists (built lazily below) but nothing triggers it. F30
-        // passes `catchUp: { try await engine.catchUp(listId: $0) }` here, or leaving an empty
-        // list that is on the server never deletes it (DATA-06), and replaces NoOpSyncKicker.
+        let containerRef = WeakContainerRef()
+        // The trigger reaches the engine only once `start()` has turned sync on, so building the
+        // container (tests, `-sampleData`) opens no Supabase client and never touches the network.
+        let syncTrigger = SyncTrigger(engine: { [containerRef] in
+            await containerRef.container?.syncTriggerEngine()
+        })
+        self.syncTrigger = syncTrigger
+        // catchUp lets leaving an empty list that is on the server delete it (DATA-06). The
+        // repository only calls it with a live session, which only exists in a started app.
         let listRepository = ShoppingListRepository(
             listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
-            authStateManager: authState, syncKicker: NoOpSyncKicker(), safeCall: safeCall)
+            authStateManager: authState, syncKicker: syncTrigger, safeCall: safeCall,
+            catchUp: { [containerRef] listId in
+                guard let engine = await containerRef.container?.syncEngine else { return .failure(.unknown()) }
+                return try await engine.catchUp(listId: listId)
+            })
         self.listRepository = listRepository
         self.itemRepository = ShoppingItemRepository(
             itemDao: database.items, categoryDao: database.categories, listDao: database.lists,
-            syncKicker: NoOpSyncKicker(), safeCall: safeCall)
+            syncKicker: syncTrigger, safeCall: safeCall)
         self.ownership = ownership
         // Join goes through `shareRepository`, resolved on the first join so building the lists
-        // opens no Supabase client. Sync triggers and realtime are still F30's.
-        let containerRef = WeakContainerRef()
+        // opens no Supabase client.
         let joiner = DeferredListJoiner { [containerRef] in containerRef.container?.shareRepository }
         self.lists = ListsViewModel(repository: listRepository, authState: authState,
                                     shareJoiner: joiner, ownership: ownership)
@@ -56,6 +67,27 @@ final class AppContainer {
     }
 
     @ObservationIgnored private let safeCall: SafeCall
+    /// What the trigger kicks; nil until `start()`, so unstarted containers never sync.
+    @ObservationIgnored private var startedSyncEngine: (() -> any SyncTriggerEngine)?
+
+    /// App start (APP-05, Android `BabeGetThisApp.onCreate`): register the sync trigger, then
+    /// restore the auth state, both before the first screen decision. The trigger sees the
+    /// restored state, so launching signed in kicks a sync. `syncEngine` and `network` are
+    /// for tests; the app uses the real engine and `NWPathMonitor`.
+    func start(syncEngine engine: (any SyncTriggerEngine)? = nil,
+               network: any NetworkAvailabilitySource = SystemNetworkAvailability()) {
+        if let engine {
+            startedSyncEngine = { engine }
+        } else {
+            startedSyncEngine = { [unowned self] in self.syncEngine }
+        }
+        syncTrigger.register(authStates: authState, network: network)
+        authState.initialize()
+    }
+
+    fileprivate func syncTriggerEngine() -> (any SyncTriggerEngine)? {
+        startedSyncEngine?()
+    }
 
     /// A fresh voice capture view model per sheet: real microphone, real transcribe API.
     func makeVoiceCaptureViewModel() -> VoiceCaptureViewModel {
@@ -90,8 +122,7 @@ final class AppContainer {
         return remote
     }
 
-    /// Built once. Only share and join call it so far; F30 adds the sync triggers, the list
-    /// repository's catchUp and a real SyncKicking.
+    /// Built once, on the first kick, share, join or list catch-up.
     var syncEngine: SyncEngine {
         if let cachedSyncEngine { return cachedSyncEngine }
         let engine = SyncEngine(
@@ -159,7 +190,7 @@ final class AppContainer {
             fatalError("Could not open the local database: \(error)")
         }
         let container = AppContainer(config: config, database: database)
-        container.authState.initialize()
+        container.start()
         return container
     }
 
@@ -167,7 +198,8 @@ final class AppContainer {
         sampleContainer(config: .preview, forcedScreen: .welcome)
     }
 
-    /// A signed-out guest on an in-memory database seeded with the sample lists.
+    /// A signed-out guest on an in-memory database seeded with the sample lists. Never started:
+    /// a guest has nothing to push, and screenshots must not reach the network.
     private static func sampleContainer(config: AppConfig, forcedScreen: StartScreen,
                                         initialPath: [ShoppingListSummary] = []) -> AppContainer {
         let database: AppDatabase
