@@ -311,8 +311,10 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         XCTAssertTrue(source.updated.isEmpty)
     }
 
-    // iOS: the edit sheet closes (and the screen's `editingItem` clears) when `edit` returns true.
-    func testEditItemOnSuccessClosesTheEditSheet() async {
+    // Adapted from Android 409 ("editItem on success clears the editingItem state"): iOS keeps
+    // `editingItem` in the screen's SwiftUI state, which closes the sheet when `edit` returns
+    // true. This checks that return value and the write, not the sheet state.
+    func testASuccessfulEditReturnsTrueSoTheSheetCanClose() async {
         let vm = buildViewModel()
         await emit([item("1")], to: vm)
 
@@ -452,10 +454,13 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     // MARK: Dialog state
     //
-    // iOS keeps which sheet is up in the screen's SwiftUI state; these cover what the
-    // models own: the add sheet starts blank and the edit sheet starts from the item.
+    // Adapted from Android 690 ("add dialog opens and dismisses") and 701 ("edit dialog holds
+    // the item being edited"): iOS keeps which sheet is up (`showingAdd`, `editingItem`) in the
+    // screen's SwiftUI state, which unit tests can't reach. These cover what the models own
+    // instead: a blank add draft can't be saved, and the edit draft starts from the item.
+    // docs/PARITY.md (DET-14) lists them as adapted.
 
-    func testAddDialogOpensBlankAndDismissingItSavesNothing() async {
+    func testABlankAddDraftCannotBeSaved() async {
         let vm = buildViewModel()
         let opened = ItemDraft()
 
@@ -468,7 +473,7 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         XCTAssertTrue(source.added.isEmpty)
     }
 
-    func testEditPrefillsTheDraftFromTheItem() {
+    func testTheEditDraftStartsFromTheItem() {
         let item = ShoppingItem(id: "i1", name: "Milk", quantity: "2", categoryId: "cat-dairy-eggs",
                                 shop: "Aldi", note: "semi")
         let draft = ItemDraft(editing: item)
