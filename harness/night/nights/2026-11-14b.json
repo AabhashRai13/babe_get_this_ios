@@ -1,0 +1,73 @@
+{
+  "night_id": "2026-11-14b",
+  "base_ref": "night/2026-11-14a/integration",
+  "worker_deadline": "17:00",
+  "total_deadline": "17:45",
+  "require_ac": false,
+  "merge_order": [
+    1,
+    3,
+    2
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F30",
+      "slug": "f30-sync-trigger",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [
+        "F29",
+        "F34"
+      ],
+      "owned": [
+        "BabeGetThis/Core/Sync/Trigger/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/Sync/Trigger/",
+        "BabeGetThisTests/App/",
+        "docs/night/2026-11-14b-f30-sync-trigger.md"
+      ],
+      "brief": "harness/night/briefs/F30.md"
+    },
+    {
+      "n": 2,
+      "id": "F35",
+      "slug": "f35-realtime-detail",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-2",
+      "requires": [
+        "F34"
+      ],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThis/Core/Remote/SharedList/SupabaseSharedListRemote.swift",
+        "BabeGetThisTests/ListDetail/Realtime/",
+        "docs/night/2026-11-14b-f35-realtime-detail.md"
+      ],
+      "brief": "harness/night/briefs/F35.md"
+    },
+    {
+      "n": 3,
+      "id": "F36",
+      "slug": "f36-adoption-notice",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-3",
+      "requires": [
+        "F29"
+      ],
+      "owned": [
+        "BabeGetThis/Features/Lists/",
+        "BabeGetThisTests/ListsViewModelTests.swift",
+        "BabeGetThisTests/Lists/Adoption/",
+        "docs/night/2026-11-14b-f36-adoption-notice.md"
+      ],
+      "brief": "harness/night/briefs/F36.md"
+    }
+  ]
+}

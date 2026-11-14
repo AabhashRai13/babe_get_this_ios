@@ -1,0 +1,88 @@
+{
+  "night_id": "2026-11-14a",
+  "base_ref": "chore/run-configs-sync-sharing-realtime",
+  "worker_deadline": "13:30",
+  "total_deadline": "14:15",
+  "require_ac": false,
+  "merge_order": [
+    1,
+    2,
+    4,
+    3
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F29",
+      "slug": "f29-claim-and-evict",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Sync/Engine/",
+        "BabeGetThis/Core/Sync/Stores/",
+        "BabeGetThis/Core/Database/ShoppingListDao.swift",
+        "BabeGetThisTests/Sync/Engine/",
+        "docs/night/2026-11-14a-f29-claim-and-evict.md"
+      ],
+      "brief": "harness/night/briefs/F29.md"
+    },
+    {
+      "n": 2,
+      "id": "F32",
+      "slug": "f32-detail-viewmodel-tests",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-2",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/ListDetailViewModel.swift",
+        "BabeGetThisTests/ListDetail/",
+        "docs/night/2026-11-14a-f32-detail-viewmodel-tests.md"
+      ],
+      "brief": "harness/night/briefs/F32.md"
+    },
+    {
+      "n": 3,
+      "id": "F34",
+      "slug": "f34-join-and-share-live",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-3",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Share/",
+        "BabeGetThis/Features/Lists/ListsView.swift",
+        "BabeGetThis/Features/Lists/ListsViewModel.swift",
+        "BabeGetThis/Features/ListDetail/ListDetailPlaceholderView.swift",
+        "BabeGetThis/Features/ListDetail/ListDetailChromeModel.swift",
+        "BabeGetThis/App/AppContainer.swift",
+        "BabeGetThisTests/Share/",
+        "docs/night/2026-11-14a-f34-join-and-share-live.md"
+      ],
+      "brief": "harness/night/briefs/F34.md"
+    },
+    {
+      "n": 4,
+      "id": "F41",
+      "slug": "f41-voice-into-lists",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-4",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThis/Features/Lists/ListsDependencies.swift",
+        "BabeGetThisTests/Voice/AutoName/",
+        "BabeGetThisTests/Voice/VoiceListSave/",
+        "docs/night/2026-11-14a-f41-voice-into-lists.md"
+      ],
+      "brief": "harness/night/briefs/F41.md"
+    }
+  ]
+}

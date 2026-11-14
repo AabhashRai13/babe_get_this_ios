@@ -552,7 +552,8 @@
         "APP-05"
       ],
       "depends_on": [
-        "F29"
+        "F29",
+        "F34"
       ],
       "acceptance": [
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SyncTriggerTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
