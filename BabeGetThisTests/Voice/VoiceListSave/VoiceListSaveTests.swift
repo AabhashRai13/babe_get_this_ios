@@ -23,14 +23,20 @@ final class VoiceListSaveTests: XCTestCase {
         ["Milk", "Eggs", "Bread"].map { TestData.draft(name: $0, quantity: nil) }
     }
 
+    @MainActor
     func testSpokenItemsWithoutQuantityAreAllSaved() async throws {
         let drafts = spoken
         XCTAssertTrue(drafts.allSatisfy { $0.quantity.isEmpty && $0.isSavableVoiceItem })
 
-        // Create by voice (Lists screen): a new list with three items.
-        let created = try await repository.createListWithItems(name: autoNameVoiceList(drafts), drafts: drafts)
+        // Create by voice (Lists screen): the hook `ListsView` hands the voice sheet makes a new
+        // list with three items.
+        let lists = ListsViewModel(repository: repository, authState: authStateFor(nil))
+        let created = await lists.createListWithVoice(drafts)
         guard case .success(let newId) = created else { return XCTFail("create failed: \(created)") }
+        let newList = try await db.lists.listRaw(id: newId)
+        XCTAssertEqual(newList?.name, "Milk + 2 more")
         let createdItems = try await db.items.itemsByListIdOnce(newId)
+        XCTAssertEqual(createdItems.count, 3)
         XCTAssertEqual(["Bread", "Eggs", "Milk"], createdItems.map(\.name).sorted())
         XCTAssertTrue(createdItems.allSatisfy { $0.quantity.isEmpty })
 
