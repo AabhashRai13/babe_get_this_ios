@@ -24,6 +24,7 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
     private var _listAlreadyExists = false
     private var _onUpsertItems: @Sendable () async throws -> Void = {}
     private var _onFetchItems: @Sendable () async throws -> Void = {}
+    private var _onFetchAllLists: @Sendable () async throws -> Void = {}
     private var _joinResult: String?
     private var _joinCalledWith: String?
     private var _itemReads: [String] = []
@@ -88,6 +89,11 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
         get { locked { _onFetchItems } }
         set { locked { _onFetchItems = newValue } }
     }
+    /// Runs inside fetchAllLists, before discovery answers (Android's fetchAllGate).
+    var onFetchAllLists: @Sendable () async throws -> Void {
+        get { locked { _onFetchAllLists } }
+        set { locked { _onFetchAllLists = newValue } }
+    }
     var joinResult: String? {
         get { locked { _joinResult } }
         set { locked { _joinResult = newValue } }
@@ -151,7 +157,8 @@ final class FakeSharedListRemote: SharedListRemote, @unchecked Sendable {
     }
 
     func fetchAllLists() async throws -> [ListRow] {
-        try locked {
+        try await onFetchAllLists()
+        return try locked {
             if _failFetches { throw FakeRemoteFailure() }
             return _listRows
         }
