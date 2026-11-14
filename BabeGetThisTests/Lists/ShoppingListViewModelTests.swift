@@ -200,7 +200,7 @@ final class ShoppingListViewModelTests: XCTestCase {
         try await show([list("a")], in: vm)
 
         vm.startRenaming(id: "a")
-        XCTAssertEqual(vm.renamingList?.id, "a")
+        XCTAssertEqual(vm.renamingList, ShoppingListSummary(list("a")))
 
         vm.cancelRenaming()
         XCTAssertNil(vm.renamingList)
@@ -213,6 +213,7 @@ final class ShoppingListViewModelTests: XCTestCase {
 
         await vm.confirmCreate(named: "Groceries")
 
+        XCTAssertEqual(repository.snapshot().createdNames, ["Groceries"])
         XCTAssertEqual(vm.openListRequest?.id, "new-id")
         XCTAssertEqual(vm.openListRequest?.name, "Groceries")
         XCTAssertFalse(vm.isNamingList)
@@ -599,6 +600,7 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
         var renames: [Rename] = []
         var restores: [Restore] = []
         var createdWithItems: [CreatedWithItems] = []
+        var createdNames: [String] = []
         /// False: a new stream yields nothing until `emit`, like a query still loading.
         var emitsInitialValue = true
         /// When set, a restore waits on it before it is recorded.
@@ -635,7 +637,10 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
     }
 
     func createList(name: String) async throws -> Result<String, AppError> {
-        lock.withLock { state.createListResult }
+        lock.withLock {
+            state.createdNames.append(name)
+            return state.createListResult
+        }
     }
 
     func createListWithItems(name: String, drafts: [ItemDraft]) async throws -> Result<String, AppError> {
