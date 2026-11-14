@@ -78,6 +78,8 @@ struct AddItemSheet: View {
             }
         }
         .presentationDetents([.large])
+        // Every category, live (Android `getAllCategories`), so custom ones are offered too.
+        .task { await picker.observeCategories() }
     }
 }
 

@@ -137,6 +137,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - "None" first, then categories A→Z, filtered case-insensitively.
   - When nothing matches: "No categories match "x"".
   - "Other" opens a "New category name" field; the category is created and the item saved with it.
+  - The categories are every category, live (`CategoryRepository.allCategories()`, Android `getAllCategories`), so custom ones are offered and an edited item's custom category is preselected.
+  - iOS deviation: "Other" with a name that already exists (trimmed, ignoring case) reuses that category, and a created category stays selected so a retried save doesn't create it again; Android always inserts a new row.
 - **DET-09** [done] (K/feature/shoppingitems/ui/components/FirstItemPrompt.kt) First-item prompt on an empty list, instead of the item list and with no progress card: circle mark, "List created!", "Add your first item to get started", "Add first item" (`FirstItemPromptView`).
 - **DET-10** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) FABs: a small mic "Add by voice" (always shown; shows the sign-in prompt unless Authenticated) above the extended "+ Add". Medium haptic. The "+ Add" FAB, hidden on an empty list, is already built.
 - **DET-11** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Top-bar actions: "Share live", "Share as text". (Android's lock toggle is out of v1 with PIN lock.)
