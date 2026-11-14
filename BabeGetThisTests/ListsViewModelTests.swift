@@ -371,6 +371,31 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertEqual(vm.greetingTitle(hour: 9), "Good morning")
     }
 
+    // MARK: - Adoption notice (HOME-15)
+
+    func testAdoptionNoticeShownOnce() async throws {
+        let suite = "ListsViewModelTests-\(UUID().uuidString)"
+        defer { UserDefaults().removePersistentDomain(forName: suite) }
+        let store = PrefsListOwnershipStore(defaults: UserDefaults(suiteName: suite)!)
+        let auth = authStateFor("u1")
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let following = Task { await vm.observeAdoptionNotice() }
+        defer { following.cancel() }
+        XCTAssertEqual(vm.adoptionNotice, 0)
+
+        // A claim (F29) writes the count; the screen picks it up live.
+        store.setAdoptionNotice(2)
+        try await waitUntil { vm.adoptionNotice == 2 }
+
+        vm.dismissAdoptionNotice()
+
+        XCTAssertEqual(vm.adoptionNotice, 0)
+        XCTAssertEqual(store.adoptionNotice, 0, "the pending count is cleared in the store")
+        // A new screen over the same store doesn't show it again.
+        let again = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        XCTAssertEqual(again.adoptionNotice, 0)
+    }
+
     // MARK: - List card (HOME-17)
 
     func testCompletedCardShowsCheckAndItemCount() {
