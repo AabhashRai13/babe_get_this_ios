@@ -33,9 +33,10 @@ final class AppContainer {
         self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
         self.database = database
         let safeCall = SafeCall(reporter: SilentAppErrorReporter())
-        // No catchUp yet: there is no SyncEngine here. F30 wires it and must pass
-        // `catchUp: { try await engine.catchUp(listId: $0) }`, or leaving an empty list that is
-        // on the server never deletes it (DATA-06).
+        self.safeCall = safeCall
+        // No catchUp yet: `syncEngine` exists (built lazily below) but nothing triggers it. F30
+        // passes `catchUp: { try await engine.catchUp(listId: $0) }` here, or leaving an empty
+        // list that is on the server never deletes it (DATA-06), and replaces NoOpSyncKicker.
         let listRepository = ShoppingListRepository(
             listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
             authStateManager: authState, syncKicker: NoOpSyncKicker(), safeCall: safeCall)
@@ -44,10 +45,17 @@ final class AppContainer {
             itemDao: database.items, categoryDao: database.categories, listDao: database.lists,
             syncKicker: NoOpSyncKicker(), safeCall: safeCall)
         self.ownership = ownership
-        // No share joiner yet: ShareRepository needs the SyncEngine, which F30 wires (Join is F34).
-        self.lists = ListsViewModel(repository: listRepository, authState: authState, ownership: ownership)
+        // Join goes through `shareRepository`, resolved on the first join so building the lists
+        // opens no Supabase client. Sync triggers and realtime are still F30's.
+        let containerRef = WeakContainerRef()
+        let joiner = DeferredListJoiner { [containerRef] in containerRef.container?.shareRepository }
+        self.lists = ListsViewModel(repository: listRepository, authState: authState,
+                                    shareJoiner: joiner, ownership: ownership)
         self.initialPath = initialPath
+        containerRef.container = self
     }
+
+    @ObservationIgnored private let safeCall: SafeCall
 
     /// A fresh voice capture view model per sheet: real microphone, real transcribe API.
     func makeVoiceCaptureViewModel() -> VoiceCaptureViewModel {
@@ -57,17 +65,61 @@ final class AppContainer {
             transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth))
     }
 
+    // MARK: - Supabase and sync
+
+    /// One client for auth and PostgREST, so server calls carry the signed-in session. Built on
+    /// first use, so launching the app (and every test container) opens no Supabase client until
+    /// someone reaches a sign-in screen, a join or a share.
+    @ObservationIgnored private var cachedSupabaseClient: SupabaseClient?
+
+    private var supabaseClient: SupabaseClient {
+        if let cachedSupabaseClient { return cachedSupabaseClient }
+        let client = SupabaseClient(supabaseURL: config.supabaseURL, supabaseKey: config.supabaseAnonKey)
+        cachedSupabaseClient = client
+        return client
+    }
+
+    @ObservationIgnored private var cachedSharedListRemote: (any SharedListRemote)?
+    @ObservationIgnored private var cachedSyncEngine: SyncEngine?
+    @ObservationIgnored private var cachedShareRepository: ShareRepository?
+
+    var sharedListRemote: any SharedListRemote {
+        if let cachedSharedListRemote { return cachedSharedListRemote }
+        let remote = SupabaseSharedListRemote(client: supabaseClient)
+        cachedSharedListRemote = remote
+        return remote
+    }
+
+    /// Built once. Only share and join call it so far; F30 adds the sync triggers, the list
+    /// repository's catchUp and a real SyncKicking.
+    var syncEngine: SyncEngine {
+        if let cachedSyncEngine { return cachedSyncEngine }
+        let engine = SyncEngine(
+            listDao: database.lists, itemDao: database.items, remote: sharedListRemote,
+            syncPoints: PrefsSyncPointStore(), ownership: ownership,
+            currentUserId: { [authState] in authState.liveSessionUserId }, safeCall: safeCall)
+        cachedSyncEngine = engine
+        return engine
+    }
+
+    var shareRepository: ShareRepository {
+        if let cachedShareRepository { return cachedShareRepository }
+        let repository = ShareRepository(
+            lists: database.lists, remote: sharedListRemote, syncEngine: syncEngine,
+            currentUserId: { [authState] in authState.liveSessionUserId }, safeCall: safeCall)
+        cachedShareRepository = repository
+        return repository
+    }
+
     // MARK: - Auth screens
 
-    /// Built on first use, so launching the app (and every test container) opens no Supabase
-    /// client until someone actually reaches a sign-in screen.
     @ObservationIgnored private var cachedAuthRepository: (any AuthRepository)?
 
     private var authRepository: any AuthRepository {
         if let cachedAuthRepository { return cachedAuthRepository }
-        let client = SupabaseClient(supabaseURL: config.supabaseURL, supabaseKey: config.supabaseAnonKey)
         let repository = SupabaseAuthRepository(
-            remote: SupabaseAuthRemote(client: client), authStateManager: authState, networkMonitor: NetworkMonitor())
+            remote: SupabaseAuthRemote(client: supabaseClient), authStateManager: authState,
+            networkMonitor: NetworkMonitor())
         cachedAuthRepository = repository
         return repository
     }
@@ -139,6 +191,24 @@ extension AppConfig {
         supabaseAnonKey: "",
         apiBaseURL: URL(string: "http://127.0.0.1:8080/")!
     )
+}
+
+/// A `ListJoining` that finds the real joiner on the main actor at join time, so the container
+/// can hand the lists a joiner without building the sync stack up front.
+private struct DeferredListJoiner: ListJoining {
+    let resolve: @MainActor @Sendable () -> (any ListJoining)?
+
+    func join(code: String) async throws -> Result<String, AppError> {
+        guard let joiner = await resolve() else { return .failure(.unknown()) }
+        return try await joiner.join(code: code)
+    }
+}
+
+/// Lets the container's init hand out a closure that reaches the container once it exists,
+/// without keeping it alive.
+@MainActor
+private final class WeakContainerRef {
+    weak var container: AppContainer?
 }
 
 /// Parses launch-argument routes. Pure, so it is unit tested.

@@ -48,8 +48,11 @@ struct ListsView: View {
         .navigationTitle("Babe, Get This")
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
-                Button("Join a list", systemImage: "person.badge.plus") {}
-                    .disabled(true) // Sharing lands with sync.
+                Button(JoinListCopy.action, systemImage: "person.badge.plus") {
+                    SystemHapticPlayer().play(.light)
+                    viewModel.startJoining()
+                }
+                .accessibilityIdentifier("lists.join")
                 Button("Settings", systemImage: "gearshape") {}
                     .disabled(true)
             }
@@ -108,6 +111,19 @@ struct ListsView: View {
                                  onLogin: { viewModel.promptSignIn() },
                                  onRegister: { viewModel.promptCreateAccount() },
                                  onDismiss: { viewModel.dismissAuthPrompt() })
+            }
+        }
+        .overlay {
+            // Joining a shared list (SHARE-04): the code dialog when signed in, else the prompt.
+            if viewModel.isJoinDialogPresented {
+                JoinListDialog(error: viewModel.joinError, isJoining: viewModel.isJoining,
+                               onDismiss: { viewModel.dismissJoinDialog() },
+                               onJoin: { code in Task { await viewModel.joinList(code: code) } })
+            } else if viewModel.isJoinAuthPromptPresented {
+                AuthPromptDialog(content: .share,
+                                 onLogin: { viewModel.promptSignIn() },
+                                 onRegister: { viewModel.promptCreateAccount() },
+                                 onDismiss: { viewModel.dismissJoinAuthPrompt() })
             }
         }
         .sheet(item: $viewModel.authRoute) { route in

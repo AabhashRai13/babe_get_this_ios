@@ -134,10 +134,13 @@ private struct ListDetailScreen: View {
                 })
         }
         .sheet(isPresented: $chrome.isShareLivePresented) {
-            // Placeholder: the share dialog is F34.
-            Text("Share list live")
-                .font(.title3.bold())
-                .padding()
+            ShareLiveSheet(
+                viewModel: ShareLiveViewModel(
+                    listId: list.id,
+                    authState: { [authState = container.authState] in authState.authState },
+                    sharer: container.shareRepository),
+                onDone: { chrome.isShareLivePresented = false },
+                onNeedsSignIn: { chrome.shareLiveNeedsSignIn() })
                 .presentationDetents([.medium])
         }
         .sheet(isPresented: Binding(
