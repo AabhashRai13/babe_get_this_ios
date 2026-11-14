@@ -330,4 +330,37 @@ final class LoginViewModelTests: XCTestCase {
         XCTAssertFalse(LoginEmailValidator.isValid("a b@c.com"))
         XCTAssertFalse(LoginEmailValidator.isValid("a@@b.com"))
     }
+
+    // Three paths share one guard, but the spinner shows only on the button that was pressed:
+    // a Google or Apple attempt must not turn "Sign in" into a spinner.
+    func testOnlyTheRunningPathShowsASpinnerAndEveryButtonIsDisabled() async {
+        let sources: [LoginViewModel.SignInSource] = [.email, .google, .apple]
+        let vm = makeViewModel()
+        fillValid(vm)
+        XCTAssertTrue(vm.isEmailSignInEnabled)
+        XCTAssertFalse(sources.contains { vm.showsSpinner(for: $0) })
+
+        tokens.suspends = true
+        vm.signInWithGoogle()
+        XCTAssertEqual(vm.inFlightSource, .google)
+        XCTAssertEqual(sources.filter { vm.showsSpinner(for: $0) }, [.google])
+        XCTAssertTrue(vm.isLoading, "Google and Apple are disabled")
+        XCTAssertFalse(vm.isEmailSignInEnabled, "Sign in is disabled but shows no spinner")
+        tokens.complete(nil)
+        await settle(vm)
+        XCTAssertNil(vm.inFlightSource)
+        XCTAssertTrue(vm.isEmailSignInEnabled)
+
+        vm.login()
+        XCTAssertEqual(sources.filter { vm.showsSpinner(for: $0) }, [.email])
+        await settle(vm)
+
+        _ = vm.prepareAppleSignIn()
+        vm.completeAppleSignIn(.authorized(identityToken: Data("apple-id-token".utf8), fullName: nil))
+        XCTAssertEqual(sources.filter { vm.showsSpinner(for: $0) }, [.apple])
+        XCTAssertFalse(vm.isEmailSignInEnabled)
+        await settle(vm)
+        XCTAssertNil(vm.inFlightSource)
+        XCTAssertFalse(vm.isLoading)
+    }
 }

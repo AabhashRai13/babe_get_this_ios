@@ -12,8 +12,25 @@ final class LoginViewModel {
     private(set) var email = ""
     private(set) var password = ""
     private(set) var emailError: String?
-    private(set) var isLoading = false
     private(set) var errorMessage: String?
+
+    /// The three ways to sign in on this screen.
+    enum SignInSource: Equatable, Sendable {
+        case email, google, apple
+    }
+
+    /// The path whose sign-in is running, nil when none is. Only its button shows a spinner.
+    private(set) var inFlightSource: SignInSource?
+
+    /// Any sign-in is running: every sign-in button is disabled, so a second tap can't start
+    /// another path.
+    var isLoading: Bool { inFlightSource != nil }
+
+    /// The spinner belongs to the button the user pressed, not to "Sign in" for every path.
+    func showsSpinner(for source: SignInSource) -> Bool { inFlightSource == source }
+
+    /// "Sign in" (email): a valid form and nothing running.
+    var isEmailSignInEnabled: Bool { isFormValid && !isLoading }
 
     var isFormValid: Bool {
         LoginEmailValidator.isValid(email) && !password.allSatisfy(\.isWhitespace)
@@ -68,7 +85,7 @@ final class LoginViewModel {
     func login() {
         guard isFormValid else { return }
         let email = email, password = password
-        signIn { [authRepository] in
+        signIn(.email) { [authRepository] in
             do {
                 return try await authRepository.login(email: email, password: password)
             } catch {
@@ -80,7 +97,7 @@ final class LoginViewModel {
     /// The whole Google flow, run in the view model's task rather than the view's so a
     /// re-render mid-sheet doesn't drop the chosen account.
     func signInWithGoogle() {
-        signIn { [googleTokens, googleAuth, reporter] in
+        signIn(.google) { [googleTokens, googleAuth, reporter] in
             let token: GoogleSignInToken?
             do {
                 token = try await googleTokens.request()
@@ -120,7 +137,7 @@ final class LoginViewModel {
     func completeAppleSignIn(_ outcome: AppleAuthorizationOutcome) {
         guard let rawNonce = pendingAppleNonce else { return }
         pendingAppleNonce = nil
-        signIn { [appleAuth, reporter] in
+        signIn(.apple) { [appleAuth, reporter] in
             let credential: AppleSignInCredential?
             do {
                 credential = try AppleIdTokenSignIn.credential(from: outcome, rawNonce: rawNonce)
@@ -135,25 +152,24 @@ final class LoginViewModel {
         }
     }
 
-    /// Shared by both paths; a nil result means the user backed out. `isLoading` flips
+    /// Shared by every path; a nil result means the user backed out. `inFlightSource` is set
     /// before launching, so a double tap can't open two sheets or race an email login.
-    private func signIn(_ call: @escaping @Sendable () async -> Result<AuthUser, AppError>?) {
+    private func signIn(_ source: SignInSource, _ call: @escaping @Sendable () async -> Result<AuthUser, AppError>?) {
         guard !isLoading else { return }
-        isLoading = true
+        inFlightSource = source
         errorMessage = nil
 
         inFlight = Task { [weak self] in
             let result = await call()
             guard let self else { return }
+            inFlightSource = nil
             switch result {
             case nil:
-                isLoading = false
+                break
             case .success?:
-                isLoading = false
                 analytics.trackAccountLoggedIn()
                 onLoginSuccess?()
             case .failure(let error)?:
-                isLoading = false
                 errorMessage = error.message
             }
         }

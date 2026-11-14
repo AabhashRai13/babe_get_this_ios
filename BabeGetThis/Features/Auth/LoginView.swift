@@ -142,23 +142,29 @@ struct LoginView: View {
         .padding(.top, 8)
     }
 
+    // Each button shows the spinner only for its own path; all three stay disabled while any
+    // sign-in runs.
     private var signInButton: some View {
         Button { viewModel.login() } label: {
-            if viewModel.isLoading {
+            if viewModel.showsSpinner(for: .email) {
                 ProgressView().tint(AppColors.onPrimary)
             } else {
                 Text(LoginScreenCopy.signIn).fontWeight(.semibold)
             }
         }
         .buttonStyle(PrimaryButtonStyle())
-        .disabled(!viewModel.isFormValid || viewModel.isLoading)
+        .disabled(!viewModel.isEmailSignInEnabled)
     }
 
     private var googleButton: some View {
         Button { viewModel.signInWithGoogle() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "g.circle")
-                Text(LoginScreenCopy.continueWithGoogle).fontWeight(.semibold)
+            if viewModel.showsSpinner(for: .google) {
+                ProgressView()
+            } else {
+                HStack(spacing: 12) {
+                    Image(systemName: "g.circle")
+                    Text(LoginScreenCopy.continueWithGoogle).fontWeight(.semibold)
+                }
             }
         }
         .buttonStyle(OutlinedButtonStyle())
@@ -174,7 +180,18 @@ struct LoginView: View {
         }
         .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
         .frame(maxWidth: .infinity, minHeight: AppMetrics.buttonHeight, maxHeight: AppMetrics.buttonHeight)
+        .overlay {
+            // Apple's button can't show a spinner itself: cover its label with one, in its colours.
+            if viewModel.showsSpinner(for: .apple) {
+                ZStack {
+                    colorScheme == .dark ? Color.white : Color.black
+                    ProgressView().tint(colorScheme == .dark ? Color.black : Color.white)
+                }
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: AppMetrics.buttonRadius, style: .continuous))
+        // `.disabled` doesn't dim Apple's button, so dim it while another path runs.
+        .opacity(viewModel.isLoading && !viewModel.showsSpinner(for: .apple) ? 0.5 : 1)
         .disabled(viewModel.isLoading)
     }
 
