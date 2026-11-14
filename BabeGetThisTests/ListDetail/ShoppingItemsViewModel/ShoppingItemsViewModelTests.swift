@@ -24,6 +24,24 @@ private final class FakeCategoryPickerSource: CategoryPickerSource, @unchecked S
     }
 }
 
+/// Android `listRepository.addItemsToList`, mocked: records each call and returns `result`.
+private final class RecordingListItemsAdder: ListItemsAdding, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _calls: [(listId: String, drafts: [ItemDraft])] = []
+    let result: Result<String, AppError>
+
+    var calls: [(listId: String, drafts: [ItemDraft])] { lock.withLock { _calls } }
+
+    init(result: Result<String, AppError>) {
+        self.result = result
+    }
+
+    func addItemsToList(listId: String, drafts: [ItemDraft]) async throws -> Result<String, AppError> {
+        lock.withLock { _calls.append((listId, drafts)) }
+        return result
+    }
+}
+
 /// Port of the core cases of Android's ShoppingItemsViewModelTest (DET-14). On iOS the screen's
 /// state is split, so each case runs against the type that owns it: `ListDetailViewModel`
 /// (items, writes, undo), `ListDetailChromeModel` (auth gate, list name, share text),
@@ -540,22 +558,17 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     // MARK: Voice
 
-    // No detail-screen voice entry exists yet (F41 adds it), so this runs against the list
-    // repository's `addItemsToList(listId:drafts:)`, which that entry calls.
-    func testAddItemsWithVoiceDelegatesAndReturnsTheResultUnchanged() async throws {
-        let db = try AppDatabase.inMemory()
-        try await db.lists.insertList(TestData.listEntity(id: "L1"))
-        let repository = ShoppingListRepository(
-            listDao: db.lists, itemDao: db.items, categoryDao: db.categories,
-            authStateManager: authStateFor(nil), syncKicker: CountingSyncKicker(),
-            safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+    // The detail screen's voice delegate is `saveVoiceDrafts(_:intoList:using:)` (the screen
+    // passes its list id and the list repository).
+    func testAddItemsWithVoiceDelegatesAndReturnsTheResultUnchanged() async {
+        let repository = RecordingListItemsAdder(result: .success("L1"))
         let drafts = [TestData.draft(name: "Milk")]
 
-        let result = try await repository.addItemsToList(listId: "L1", drafts: drafts)
+        let result = await saveVoiceDrafts(drafts, intoList: "L1", using: repository)
 
         XCTAssertEqual(result, .success("L1"))
-        let stored = try await db.items.itemsByListId("L1")
-        XCTAssertEqual(stored.map(\.name), ["Milk"])
+        XCTAssertEqual(repository.calls.map(\.listId), ["L1"])
+        XCTAssertEqual(repository.calls.map(\.drafts), [drafts])
     }
 
     // MARK: Teardown (Android onCleared, ListLeaveGuard)
