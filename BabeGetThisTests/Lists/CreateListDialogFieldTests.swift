@@ -45,9 +45,18 @@ final class CreateListDialogFieldTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(30))
     }
 
+    /// Waits (up to 3 s) for SwiftUI to apply an edit. A fixed sleep alone raced on a loaded
+    /// machine: the update hadn't run when the next key or the assertion came.
+    private func waitUntil(_ condition: () -> Bool) async {
+        for _ in 0..<300 where !condition() {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+    }
+
     private func type(_ text: String, into field: UITextField) async {
         for character in text {
             field.insertText(String(character))
+            await waitUntil { (field.text?.count ?? 0) <= CreateListDialogState.maxNameLength }
             await settle()
         }
     }
@@ -56,8 +65,10 @@ final class CreateListDialogFieldTests: XCTestCase {
         let field = try await hostDialog()
 
         await type(String(repeating: "a", count: 38) + "XYZQ", into: field)
+        let expected = String(repeating: "a", count: 38) + "XY"
+        await waitUntil { field.text == expected }
 
-        XCTAssertEqual(field.text, String(repeating: "a", count: 38) + "XY")
+        XCTAssertEqual(field.text, expected)
         XCTAssertEqual(field.text?.count, CreateListDialogState.maxNameLength)
     }
 
@@ -66,7 +77,7 @@ final class CreateListDialogFieldTests: XCTestCase {
         await type("Groceries", into: field)
 
         field.insertText(String(repeating: "p", count: 41))
-        await settle()
+        await waitUntil { field.text == "Groceries" }
 
         XCTAssertEqual(field.text, "Groceries", "an over-long paste is rejected, not clipped")
     }
@@ -77,7 +88,7 @@ final class CreateListDialogFieldTests: XCTestCase {
         await type(String(repeating: "b", count: 41), into: field)
 
         field.sendActions(for: .editingDidEndOnExit) // Return
-        await settle()
+        await waitUntil { outcome != nil }
 
         XCTAssertEqual(outcome, .create(try XCTUnwrap(field.text)))
         XCTAssertEqual(field.text?.count, CreateListDialogState.maxNameLength)

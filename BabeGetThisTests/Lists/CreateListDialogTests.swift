@@ -99,32 +99,53 @@ final class CreateListDialogTests: XCTestCase {
         XCTAssertNil(dialog.confirm())
     }
 
-    // MARK: - The field's rule (the text field binds `name` and reverts an over-long value)
+    // MARK: - The field's rule (the field writes through `edit`, then `enforceLimit` reverts)
 
     func testAnOverLongEditIsRevertedToThePreviousName() {
         var dialog = create()
-        dialog.name = String(repeating: "x", count: 40)
+        dialog.edit(String(repeating: "x", count: 40))
         let previous = dialog.name
-        dialog.name += "y"
+        dialog.edit(previous + "y")
 
-        dialog.revertIfTooLong(previous: previous)
+        dialog.enforceLimit()
 
         XCTAssertEqual(dialog.name, previous)
     }
 
     func testAnOverLongPasteIntoAnEmptyFieldLeavesItEmpty() {
         var dialog = create()
-        dialog.name = String(repeating: "x", count: 45)
+        dialog.edit(String(repeating: "x", count: 45))
 
-        dialog.revertIfTooLong(previous: "")
+        dialog.enforceLimit()
 
         XCTAssertEqual(dialog.name, "")
     }
 
     func testAnEditWithinTheLimitIsKept() {
         var dialog = create()
-        dialog.name = "Groceries"
-        dialog.revertIfTooLong(previous: "Grocerie")
+        dialog.edit("Grocerie")
+        dialog.edit("Groceries")
+        dialog.enforceLimit()
         XCTAssertEqual(dialog.name, "Groceries")
+    }
+
+    // The hosted field's race: several keys can reach the binding before SwiftUI runs one update
+    // and `onChange`. The last value within the limit is kept as each key lands, so the field
+    // stops at 40 with every key up to the limit, whatever the timing.
+    func testKeysThatLandBeforeOneUpdateStillStopTheFieldAtForty() {
+        var dialog = create()
+        var text = String(repeating: "a", count: 38)
+        dialog.edit(text)
+        dialog.enforceLimit()
+
+        for key in "XYZQ" {
+            text.append(key)
+            dialog.edit(text)
+        }
+        dialog.enforceLimit()
+
+        XCTAssertEqual(dialog.name, String(repeating: "a", count: 38) + "XY")
+        dialog.enforceLimit()
+        XCTAssertEqual(dialog.name.count, CreateListDialogState.maxNameLength, "settled")
     }
 }
