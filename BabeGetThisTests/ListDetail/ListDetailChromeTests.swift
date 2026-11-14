@@ -60,9 +60,40 @@ final class ListDetailChromeTests: XCTestCase {
         XCTAssertTrue(model.isShareLivePresented)
     }
 
-    func testShareAsTextSharesTheListNameForNow() {
+    // The screen's wiring: the chrome reads the detail view model's live items and formats
+    // them itself, so the shared text follows the items shown, not a snapshot.
+    func testShareAsTextFormatsTheScreensLiveItems() async {
+        let source = FakeListDetailItemsSource()
+        let viewModel = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
+        let observing = Task { await viewModel.observeItems() }
+        defer { observing.cancel() }
+        let model = ListDetailChromeModel(listName: "Groceries", authState: { .unauthenticated },
+                                          haptics: RecordingHaptics(), items: { viewModel.items })
+
+        source.send([TestData.storedItem("1", name: "Milk")])
+        await listDetailEventually { viewModel.items.map(\.name) == ["Milk"] }
+        model.perform(.shareAsText)
+        XCTAssertEqual(model.sharedText, ShoppingListShareText.format(listName: "Groceries", items: viewModel.items))
+        XCTAssertTrue(model.sharedText?.contains("Milk") == true)
+        model.shareSheetFinished()
+
+        source.send([TestData.storedItem("1", name: "Milk"), TestData.storedItem("2", name: "Eggs")])
+        await listDetailEventually { viewModel.items.count == 2 }
+        model.perform(.shareAsText)
+        XCTAssertEqual(model.sharedText, ShoppingListShareText.format(listName: "Groceries", items: viewModel.items))
+        XCTAssertTrue(model.sharedText?.contains("Eggs") == true, "read live, not captured earlier")
+    }
+
+    // The activity controller closes itself; the screen reports it so the next tap shares again.
+    func testFinishingTheShareSheetClearsItAndASecondShareWorks() {
         let model = makeModel(.unauthenticated)
         model.perform(.shareAsText)
-        XCTAssertEqual(model.sharedText, "Groceries")
+        XCTAssertNotNil(model.sharedText)
+
+        model.shareSheetFinished()
+        XCTAssertNil(model.sharedText)
+
+        model.perform(.shareAsText)
+        XCTAssertNotNil(model.sharedText)
     }
 }

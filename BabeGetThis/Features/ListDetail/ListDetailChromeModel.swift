@@ -47,20 +47,20 @@ final class ListDetailChromeModel {
     var isShareLivePresented = false
     /// Text handed to the system share sheet; nil when it isn't showing.
     var sharedText: String?
-    /// Builds the plain-text share. A later task (F18) supplies the list formatter; until then
-    /// the list name is shared.
-    @ObservationIgnored var shareTextProvider: () -> String
+    /// The list's items as they are now. Read when "Share as text" is tapped, never captured
+    /// earlier, so the share always matches the screen.
+    @ObservationIgnored private let items: @MainActor () -> [ShoppingItem]
 
     typealias AuthRoute = ListsViewModel.AuthRoute
 
     init(listName: String,
          authState: @escaping () -> AuthState,
          haptics: any HapticPlaying = SystemHapticPlayer(),
-         shareTextProvider: (() -> String)? = nil) {
+         items: @escaping @MainActor () -> [ShoppingItem] = { [] }) {
         self.listName = listName
         self.authState = authState
         self.haptics = haptics
-        self.shareTextProvider = shareTextProvider ?? { listName }
+        self.items = items
     }
 
     private var isAuthenticated: Bool {
@@ -93,8 +93,12 @@ final class ListDetailChromeModel {
     }
 
     private func shareAsTextTapped() {
-        sharedText = shareTextProvider()
+        sharedText = ShoppingListShareText.format(listName: listName, items: items())
     }
+
+    /// The system share sheet finished (an activity ran, or it was closed). UIKit dismisses it
+    /// without SwiftUI noticing, so this clears the text and the next share presents again.
+    func shareSheetFinished() { sharedText = nil }
 
     func dismissAuthPrompt() { authPrompt = nil }
 

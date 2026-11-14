@@ -17,9 +17,16 @@ struct ListDetailPlaceholderView: View {
 /// UIKit share sheet for "Share as text".
 private struct ActivityShareSheet: UIViewControllerRepresentable {
     let text: String
+    /// Runs when the controller finishes (an activity completed or the sheet was closed).
+    /// UIKit dismisses it itself, so SwiftUI's binding has to be cleared here.
+    let onFinish: @MainActor () -> Void
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        let controller = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            Task { @MainActor in onFinish() }
+        }
+        return controller
     }
 
     func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
@@ -49,10 +56,7 @@ private struct ListDetailScreen: View {
         let viewModel = ListDetailViewModel(listId: list.id, source: source)
         _model = State(initialValue: viewModel)
         _chrome = State(initialValue: ListDetailChromeModel(
-            listName: list.name, authState: authState,
-            shareTextProvider: { [name = list.name] in
-                ShoppingListShareText.format(listName: name, items: viewModel.items)
-            }))
+            listName: list.name, authState: authState, items: { viewModel.items }))
         _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
@@ -137,7 +141,7 @@ private struct ListDetailScreen: View {
             get: { chrome.sharedText != nil },
             set: { if !$0 { chrome.sharedText = nil } }
         )) {
-            ActivityShareSheet(text: chrome.sharedText ?? "")
+            ActivityShareSheet(text: chrome.sharedText ?? "", onFinish: { chrome.shareSheetFinished() })
                 .presentationDetents([.medium, .large])
         }
         .overlay(alignment: .bottom) {
