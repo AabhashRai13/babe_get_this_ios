@@ -22,6 +22,8 @@ struct ShareLiveSheet: View {
                 .accessibilityAddTraits(.isHeader)
             if let code = viewModel.shareCode {
                 Text(code)
+                    // The partner has to type it: VoiceOver reads it letter by letter.
+                    .speechSpellsOutCharacters()
                     .font(.largeTitle)
                     .tracking(Self.codeTracking)
                     .foregroundStyle(AppColors.textPrimary)
