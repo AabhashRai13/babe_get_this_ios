@@ -818,7 +818,7 @@
         "! for f in build/DerivedData/Build/Products/Dev-iphonesimulator/BabeGetThis.app/BabeGetThis*; do otool -L \"$f\"; done | grep -q AdSupport.framework",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F45",
