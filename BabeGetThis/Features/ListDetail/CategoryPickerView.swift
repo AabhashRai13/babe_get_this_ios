@@ -16,6 +16,9 @@ struct CategoryPickerView: View {
                 if picker.isCreatingNewCategory {
                     Text(CategoryPickerModel.otherTitle)
                         .frame(maxWidth: .infinity, alignment: .leading)
+                        // The visible label above is hidden from VoiceOver, so name the field here.
+                        .accessibilityLabel("Category (optional)")
+                        .accessibilityValue(CategoryPickerModel.otherTitle)
                 } else {
                     TextField("Category (optional)", text: Binding(
                         get: { picker.searchText },
@@ -43,7 +46,7 @@ struct CategoryPickerView: View {
 
     @ViewBuilder
     private var options: some View {
-        optionRow(CategoryPickerModel.noneTitle) {
+        optionRow(CategoryPickerModel.noneTitle, isSelected: picker.selection == .none) {
             picker.selectNone()
             isExpanded = false
         }
@@ -53,24 +56,26 @@ struct CategoryPickerView: View {
                 .foregroundStyle(AppColors.textSecondary)
         } else {
             ForEach(picker.filteredCategories) { category in
-                optionRow(category.name) {
+                optionRow(category.name, isSelected: picker.selection == .category(category.id)) {
                     picker.select(category)
                     isExpanded = false
                 }
             }
         }
-        optionRow(CategoryPickerModel.otherTitle) {
+        optionRow(CategoryPickerModel.otherTitle, isSelected: picker.selection == .other) {
             picker.selectOther()
             isExpanded = false
         }
     }
 
-    private func optionRow(_ title: String, action: @escaping () -> Void) -> some View {
+    private func optionRow(_ title: String, isSelected: Bool, action: @escaping () -> Void) -> some View {
         Button(action: action) {
             Text(title)
                 .frame(maxWidth: .infinity, alignment: .leading)
         }
         .buttonStyle(.plain)
         .padding(.vertical, 4)
+        // VoiceOver says which option is the current choice.
+        .accessibilityAddTraits(isSelected ? .isSelected : [])
     }
 }
