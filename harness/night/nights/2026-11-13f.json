@@ -1,0 +1,67 @@
+{
+  "night_id": "2026-11-13f",
+  "base_ref": "night/2026-11-13e/integration",
+  "worker_deadline": "05:30",
+  "total_deadline": "06:15",
+  "merge_order": [
+    1,
+    2,
+    3
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F18",
+      "slug": "f18-completed-share-text",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "requires": [
+        "F17"
+      ],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThisTests/ListDetail/ShareText/",
+        "BabeGetThisTests/ListDetail/ListCompleted/",
+        "docs/night/2026-11-13f-f18-completed-share-text.md"
+      ],
+      "brief": "harness/night/briefs/F18.md"
+    },
+    {
+      "n": 2,
+      "id": "F31",
+      "slug": "f31-leave-empty-list",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-2",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Repositories/ShoppingList/",
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThisTests/Repositories/ShoppingList/",
+        "BabeGetThisTests/ListDetail/LeaveEmpty/",
+        "docs/night/2026-11-13f-f31-leave-empty-list.md"
+      ],
+      "brief": "harness/night/briefs/F31.md"
+    },
+    {
+      "n": 3,
+      "id": "F16",
+      "slug": "f16-category-picker",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-3",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThis/Core/Repositories/Category/",
+        "BabeGetThisTests/ListDetail/CategoryPicker/",
+        "docs/night/2026-11-13f-f16-category-picker.md"
+      ],
+      "brief": "harness/night/briefs/F16.md"
+    }
+  ]
+}

@@ -7,8 +7,29 @@ struct ListDetailPlaceholderView: View {
     @Environment(AppContainer.self) private var container
 
     var body: some View {
-        ListDetailScreen(list: list, source: container.itemRepository)
+        ListDetailScreen(list: list, source: container.itemRepository,
+                         authState: { [authState = container.authState] in authState.authState },
+                         makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
+                         leaveCleaner: container.listRepository)
     }
+}
+
+/// UIKit share sheet for "Share as text".
+private struct ActivityShareSheet: UIViewControllerRepresentable {
+    let text: String
+    /// Runs when the controller finishes (an activity completed or the sheet was closed).
+    /// UIKit dismisses it itself, so SwiftUI's binding has to be cleared here.
+    let onFinish: @MainActor () -> Void
+
+    func makeUIViewController(context: Context) -> UIActivityViewController {
+        let controller = UIActivityViewController(activityItems: [text], applicationActivities: nil)
+        controller.completionWithItemsHandler = { _, _, _, _ in
+            Task { @MainActor in onFinish() }
+        }
+        return controller
+    }
+
+    func updateUIViewController(_ controller: UIActivityViewController, context: Context) {}
 }
 
 /// List detail screen: progress, active items grouped by shop then category, completed items,
@@ -17,14 +38,26 @@ struct ListDetailPlaceholderView: View {
 private struct ListDetailScreen: View {
     let list: ShoppingListSummary
     @State private var model: ListDetailViewModel
+    @Environment(AppContainer.self) private var container
     @State private var showingAdd = false
     @State private var editingItem: ShoppingItem?
     @State private var undoTask: Task<Void, Never>?
     @State private var errorTask: Task<Void, Never>?
+    @State private var chrome: ListDetailChromeModel
+    @State private var leaveGuard: ListLeaveGuard
+    private let makeVoiceViewModel: () -> VoiceCaptureViewModel
 
-    init(list: ShoppingListSummary, source: any ListDetailItemsSource) {
+    init(list: ShoppingListSummary, source: any ListDetailItemsSource,
+         authState: @escaping () -> AuthState,
+         makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
+         leaveCleaner: any ListLeaveCleaning) {
         self.list = list
-        _model = State(initialValue: ListDetailViewModel(listId: list.id, source: source))
+        self.makeVoiceViewModel = makeVoiceViewModel
+        let viewModel = ListDetailViewModel(listId: list.id, source: source)
+        _model = State(initialValue: viewModel)
+        _chrome = State(initialValue: ListDetailChromeModel(
+            listName: list.name, authState: authState, items: { viewModel.items }))
+        _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
     var body: some View {
@@ -40,17 +73,78 @@ private struct ListDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.background)
         .overlay(alignment: .bottomTrailing) {
-            // The empty state has its own "Add first item" button (Android hides the FAB too).
-            if model.hasLoaded && !model.isEmpty {
+            VStack(alignment: .trailing, spacing: AppMetrics.fabSpacing) {
                 Button {
-                    showingAdd = true
+                    chrome.voiceFabTapped()
                 } label: {
-                    Label("Add", systemImage: "plus")
+                    // Android: a filled primary circle with an on-primary icon, the headline quick-add.
+                    Image(systemName: "mic.fill")
+                        .font(.title3)
+                        .foregroundStyle(AppColors.onPrimary)
+                        .frame(width: AppMetrics.smallFABSize, height: AppMetrics.smallFABSize)
+                        .background(AppColors.primary, in: Circle())
+                        .shadow(color: AppColors.shadow.opacity(0.12),
+                                radius: AppMetrics.fabShadowRadius, y: AppMetrics.fabShadowY)
                 }
-                .buttonStyle(TonalFABStyle())
-                .padding(AppMetrics.screenPadding)
-                .accessibilityIdentifier("add-item-button")
+                .accessibilityLabel("Add by voice")
+                .accessibilityIdentifier("voice-fab")
+                // The empty state has its own "Add first item" button (Android hides the FAB too).
+                if model.hasLoaded && !model.isEmpty {
+                    Button {
+                        showingAdd = true
+                    } label: {
+                        Label("Add", systemImage: "plus")
+                    }
+                    .buttonStyle(TonalFABStyle())
+                    .accessibilityIdentifier("add-item-button")
+                }
             }
+            .padding(AppMetrics.screenPadding)
+        }
+        .overlay {
+            if let prompt = chrome.authPrompt {
+                AuthPromptDialog(content: prompt,
+                                 onLogin: { chrome.promptSignIn() },
+                                 onRegister: { chrome.promptCreateAccount() },
+                                 onDismiss: { chrome.dismissAuthPrompt() })
+            }
+        }
+        .toolbar {
+            ToolbarItemGroup(placement: .topBarTrailing) {
+                ForEach(ListDetailChromeModel.topBarActions) { action in
+                    Button(action.title, systemImage: action.systemImage) { chrome.perform(action) }
+                        .labelStyle(.iconOnly)
+                        .accessibilityIdentifier("detail.\(action.rawValue)")
+                }
+            }
+        }
+        .sheet(item: $chrome.authRoute) { route in
+            AuthSheet(initialRoute: route, onDone: { chrome.authRoute = nil })
+        }
+        .sheet(isPresented: $chrome.isVoicePresented) {
+            VoiceCaptureSheet(
+                viewModel: makeVoiceViewModel(),
+                // TODO(F41): add the transcribed items to this list.
+                persist: { _ in .failure(.unknown("Adding items from voice isn't available yet.")) },
+                onDismiss: { chrome.isVoicePresented = false },
+                onSwitchToType: {
+                    chrome.isVoicePresented = false
+                    showingAdd = true
+                })
+        }
+        .sheet(isPresented: $chrome.isShareLivePresented) {
+            // Placeholder: the share dialog is F34.
+            Text("Share list live")
+                .font(.title3.bold())
+                .padding()
+                .presentationDetents([.medium])
+        }
+        .sheet(isPresented: Binding(
+            get: { chrome.sharedText != nil },
+            set: { if !$0 { chrome.sharedText = nil } }
+        )) {
+            ActivityShareSheet(text: chrome.sharedText ?? "", onFinish: { chrome.shareSheetFinished() })
+                .presentationDetents([.medium, .large])
         }
         .overlay(alignment: .bottom) {
             VStack(spacing: 8) {
@@ -62,8 +156,9 @@ private struct ListDetailScreen: View {
                     UndoSnackbar(message: message) {
                         undoTask?.cancel()
                         SystemHapticPlayer().play(.light)
-                        // Not tied to the screen: an undo tapped just before leaving still runs.
-                        Task { await model.undoDelete() }
+                        // Not tied to the screen: an undo tapped just before leaving still runs,
+                        // and the leave teardown waits for it.
+                        leaveGuard.trackUndo { await model.undoDelete() }
                     }
                     .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
@@ -76,12 +171,15 @@ private struct ListDetailScreen: View {
         .navigationTitle(list.name)
         .navigationBarTitleDisplayMode(.inline)
         .sheet(isPresented: $showingAdd) {
-            AddItemSheet { await model.add($0) }
+            AddItemSheet(categorySource: container.categoryPickerSource) { await model.add($0, picker: $1) }
         }
         .sheet(item: $editingItem) { item in
-            AddItemSheet(editing: item) { await model.edit(item.id, with: $0) }
+            AddItemSheet(editing: item, categorySource: container.categoryPickerSource) {
+                await model.edit(item.id, with: $0, picker: $1)
+            }
         }
         .task { await model.observeItems() }
+        .leaveEmptyListGuard(leaveGuard, model: model)
         .onChange(of: model.errorMessage) { _, message in
             guard message != nil else { return }
             errorTask?.cancel()

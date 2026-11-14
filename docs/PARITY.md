@@ -84,6 +84,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 
 - **HOME-01** [done] (K/feature/shoppinglist/ui/components/GreetingSection.kt) Greeting text: before 12 "Good morning", before 17 "Good afternoon", else "Good evening", plus ", FirstName" when a name exists; summary "N list(s) · M item(s) to get" / "nothing to pick up yet" (in-memory `Greeting`).
 - **HOME-02** [done] (K/feature/shoppinglist/ui/ShoppingListScreen.kt) Active/Completed tabs, empty state "No lists yet" with "Create your first list", and FAB only when lists exist (in-memory `ListsViewModel`).
+  - iOS deviation: nothing shows until the first lists value arrives (`hasLoadedLists`), so "No lists yet" can't flash on launch; Android starts from an empty list and shows it until the query answers.
 - **HOME-03** [todo] (K/feature/shoppinglist/data/local/dao/ShoppingListDao.kt) Lists come from the local DB for the current data owner (guest: `accountId IS NULL AND shareCode IS NULL`; account or expired session: `accountId = owner`). Tombstones are hidden, order is `createdAt DESC`, and the list updates live.
 - **HOME-04** [done] (K/feature/shoppinglist/model/ShoppingList.kt) A list is completed when itemCount > 0 and completed == itemCount. Empty lists are Active (`ShoppingListSummary.isCompleted`).
 - **HOME-05** [todo] (K/core/util/DateGrouping.kt) Lists within a tab are grouped into Today / Yesterday / Last 7 Days / This Month / Older. The header is a 6pt primary dot plus a bold label. Port DateGroupingTest (13).
@@ -136,6 +137,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - "None" first, then categories A→Z, filtered case-insensitively.
   - When nothing matches: "No categories match "x"".
   - "Other" opens a "New category name" field; the category is created and the item saved with it.
+  - The categories are every category, live (`CategoryRepository.allCategories()`, Android `getAllCategories`), so custom ones are offered and an edited item's custom category is preselected.
+  - iOS deviation: "Other" with a name that already exists (trimmed, ignoring case) reuses that category, and a created category stays selected so a retried save doesn't create it again; Android always inserts a new row.
 - **DET-09** [done] (K/feature/shoppingitems/ui/components/FirstItemPrompt.kt) First-item prompt on an empty list, instead of the item list and with no progress card: circle mark, "List created!", "Add your first item to get started", "Add first item" (`FirstItemPromptView`).
 - **DET-10** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) FABs: a small mic "Add by voice" (always shown; shows the sign-in prompt unless Authenticated) above the extended "+ Add". Medium haptic. The "+ Add" FAB, hidden on an empty list, is already built.
 - **DET-11** [todo] (K/feature/shoppingitems/ui/ShoppingItemsScreen.kt) Top-bar actions: "Share live", "Share as text". (Android's lock toggle is out of v1 with PIN lock.)
@@ -170,6 +173,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Shared lists are never deleted. Guest lists: atomic delete.
   - Account lists not yet on the server: soft delete.
   - Account lists on the server: require a live session and a successful `catchUp(listId)` first, then soft delete (counting live items only) and kick.
+  - iOS wiring: `AppContainer` has no SyncEngine yet, so it passes no `catchUp` and a list on the server is never auto-deleted. F30 (which wires the SyncEngine) must pass `catchUp: { try await engine.catchUp(listId: $0) }`.
 - **DATA-07** [todo] (K/feature/shoppingitems/data/repository/ShoppingItemRepository.kt) ShoppingItemRepository: add, update, delete, restore and toggle picked up.
   - Account lists mark the row pending and kick.
   - Delete is soft or hard depending on the list's owner; restore keeps the original id.

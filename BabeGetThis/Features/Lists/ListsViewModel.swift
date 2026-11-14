@@ -48,6 +48,9 @@ final class ListsViewModel {
 
     /// Repository order: `createdAt` newest first.
     private(set) var lists: [ShoppingListSummary]
+    /// False until the repository's first value arrives. Until then `lists` is only the
+    /// initial empty array, so the screen shows neither the empty state nor the tabs.
+    private(set) var hasLoadedLists: Bool
     var selectedTab: Tab = .active
     /// A failed write's message, for the screen to show once.
     var errorMessage: String?
@@ -61,24 +64,65 @@ final class ListsViewModel {
     @ObservationIgnored private var domainLists: [ShoppingList] = []
     /// Cached because the CASCADE wipes a guest list's items with the list row.
     @ObservationIgnored private var pendingDelete: (list: ShoppingList, items: [ShoppingItemRecord])?
-    @ObservationIgnored private let repository: ShoppingListRepository?
+    @ObservationIgnored private let repository: (any ListsRepositoryProviding)?
     @ObservationIgnored private let authState: AuthStateManager?
+    @ObservationIgnored private let shareJoiner: (any ListJoining)?
+    @ObservationIgnored private let ownership: (any ListOwnershipStore)?
+
+    /// How many guest lists just moved into the account; the screen says so once, then
+    /// `dismissAdoptionNotice()` (Android `adoptionNotice`).
+    private(set) var adoptionNotice = 0
 
     init(lists: [ShoppingListSummary] = []) {
         self.lists = lists
+        self.hasLoadedLists = true
         self.repository = nil
         self.authState = nil
+        self.shareJoiner = nil
+        self.ownership = nil
     }
 
-    init(repository: ShoppingListRepository, authState: AuthStateManager) {
+    init(
+        repository: any ListsRepositoryProviding,
+        authState: AuthStateManager,
+        shareJoiner: (any ListJoining)? = nil,
+        ownership: (any ListOwnershipStore)? = nil
+    ) {
         self.lists = []
+        self.hasLoadedLists = false
         self.repository = repository
         self.authState = authState
+        self.shareJoiner = shareJoiner
+        self.ownership = ownership
+        self.adoptionNotice = ownership?.adoptionNotice ?? 0
     }
+
+    /// A lost session keeps the account's lists on screen (Android decision 008); the screen
+    /// asks the user to sign in again so they sync.
+    var isSessionExpired: Bool {
+        if case .sessionExpired = authState?.authState { true } else { false }
+    }
+
+    func dismissAdoptionNotice() {
+        ownership?.setAdoptionNotice(0)
+        adoptionNotice = 0
+    }
+
+    /// Follows the ownership store's notice until cancelled (the screen's `.task`), so a
+    /// claim made after this view model was built, e.g. by signing in from the auth sheet
+    /// on top of the lists, still shows (Android reads the store's StateFlow).
+    func observeAdoptionNotice() async {
+        guard let ownership else { return }
+        for await count in ownership.adoptionNoticeUpdates() { adoptionNotice = count }
+    }
+
+    /// Shows a message through the same one-shot channel as failures (Android `showSnackBar`).
+    func showSnackBar(_ message: String) { errorMessage = message }
 
     var activeLists: [ShoppingListSummary] { lists.filter { !$0.isCompleted } }
     var completedLists: [ShoppingListSummary] { lists.filter(\.isCompleted) }
-    var hasNoLists: Bool { lists.isEmpty }
+    /// "No lists yet" only once the lists have loaded, so it doesn't flash on launch.
+    var hasNoLists: Bool { hasLoadedLists && lists.isEmpty }
     var isActiveTab: Bool { selectedTab == .active }
     var activeItemsToGet: Int { activeLists.reduce(0) { $0 + $1.itemsToGet } }
 
@@ -117,9 +161,12 @@ final class ListsViewModel {
             for try await fresh in repository.allLists() {
                 domainLists = fresh
                 lists = fresh.map(ShoppingListSummary.init)
+                hasLoadedLists = true
             }
         } catch is CancellationError {
         } catch {
+            // Nothing more will arrive: show the empty state rather than a blank screen.
+            hasLoadedLists = true
             errorMessage = AppError.database().message
         }
     }
@@ -252,12 +299,18 @@ final class ListsViewModel {
         guard let repository, let pending = pendingDelete else { return }
         let result: Result<Void, AppError>
         do {
-            result = try await repository.restoreListWithItems(list: pending.list, items: pending.items)
+            // An unstructured Task, so cancelling the caller (tapping Undo, then leaving the
+            // screen) can't abort the restore half way: Android runs it on applicationScope.
+            result = try await Task {
+                try await repository.restoreListWithItems(list: pending.list, items: pending.items)
+            }.value
         } catch {
             return // Cancelled.
         }
         switch result {
-        case .success: pendingDelete = nil
+        case .success:
+            // Only what was restored: a list deleted while this restore ran keeps its Undo.
+            if pendingDelete?.list.id == pending.list.id { pendingDelete = nil }
         case .failure(let error): errorMessage = error.message
         }
     }
@@ -270,6 +323,78 @@ final class ListsViewModel {
     }
 
     func cancelRenaming() { renamingList = nil }
+
+    // MARK: - Voice
+
+    /// The voice flow's persist step, in the voice sheet's `Persist` shape: names the list from
+    /// the spoken items, creates it with them and opens it. Failure is returned, not shown: the
+    /// voice sheet renders it inline, so a second error surface would double up. The error keeps
+    /// the repository's message; a cancelled write is a failure too (the sheet ignores results
+    /// that arrive after its own cancel).
+    func createListWithVoice(_ drafts: [ItemDraft]) async -> Result<String, VoiceError> {
+        guard let repository else { return .failure(.unknown()) }
+        let name = autoNameVoiceList(drafts)
+        let result: Result<String, AppError>
+        do {
+            result = try await repository.createListWithItems(name: name, drafts: drafts)
+        } catch {
+            return .failure(.unknown())
+        }
+        switch result {
+        case .success(let id):
+            openListRequest = ShoppingListSummary(id: id, name: name, totalItems: 0, pickedUpItems: 0, createdAt: .now)
+            return .success(id)
+        case .failure(let error):
+            return .failure(.unknown(error.message))
+        }
+    }
+
+    // MARK: - Join a shared list by code
+
+    private(set) var isJoinDialogPresented = false
+    private(set) var isJoinAuthPromptPresented = false
+    private(set) var isJoining = false
+    /// Why the last join failed, shown inline in the dialog.
+    private(set) var joinError: String?
+
+    /// Joining needs a live session; a guest or a lost session gets the sign-in prompt.
+    func startJoining() {
+        if authState?.liveSessionUserId != nil {
+            joinError = nil
+            isJoinDialogPresented = true
+        } else {
+            isJoinAuthPromptPresented = true
+        }
+    }
+
+    func dismissJoinDialog() { isJoinDialogPresented = false }
+
+    static let joinUnavailableMessage = "Joining a list isn't available yet."
+
+    func dismissJoinAuthPrompt() { isJoinAuthPromptPresented = false }
+
+    /// On success the replica lands in the database and the list appears through the live
+    /// query, so nothing else happens here. On failure the dialog stays open with the error.
+    func joinList(code: String) async {
+        guard let shareJoiner else {
+            // Never silent: the dialog says why nothing happened.
+            joinError = Self.joinUnavailableMessage
+            return
+        }
+        isJoining = true
+        joinError = nil
+        defer { isJoining = false }
+        let result: Result<String, AppError>
+        do {
+            result = try await shareJoiner.join(code: code)
+        } catch {
+            return // Cancelled.
+        }
+        switch result {
+        case .success: isJoinDialogPresented = false
+        case .failure(let error): joinError = error.message
+        }
+    }
 
     /// Renames through the repository (which trims and validates). The dialog closes on
     /// success and stays open, with the error shown, on failure.

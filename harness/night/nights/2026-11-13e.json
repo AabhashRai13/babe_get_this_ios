@@ -1,0 +1,81 @@
+{
+  "night_id": "2026-11-13e",
+  "base_ref": "harness/waves-13e-13f",
+  "worker_deadline": "01:15",
+  "total_deadline": "02:00",
+  "require_ac": false,
+  "merge_order": [
+    4,
+    3,
+    1,
+    2
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F13",
+      "slug": "f13-lists-vm-tests",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-1",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Lists/",
+        "BabeGetThisTests/Lists/",
+        "BabeGetThisTests/ListsViewModelTests.swift",
+        "docs/night/2026-11-13e-f13-lists-vm-tests.md"
+      ],
+      "brief": "harness/night/briefs/F13.md"
+    },
+    {
+      "n": 2,
+      "id": "F17",
+      "slug": "f17-detail-chrome",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-2",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/ListDetail/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/ListDetail/",
+        "docs/night/2026-11-13e-f17-detail-chrome.md"
+      ],
+      "brief": "harness/night/briefs/F17.md"
+    },
+    {
+      "n": 3,
+      "id": "F28",
+      "slug": "f28-account-catch-up",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-3",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Sync/Engine/",
+        "BabeGetThisTests/Sync/Engine/",
+        "docs/night/2026-11-13e-f28-account-catch-up.md"
+      ],
+      "brief": "harness/night/briefs/F28.md"
+    },
+    {
+      "n": 4,
+      "id": "F33",
+      "slug": "f33-share-repository",
+      "model": "opus",
+      "timeout_min": 150,
+      "budget_usd": 20,
+      "sim": "bgt-night-4",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Sync/Share/",
+        "BabeGetThisTests/Sync/Share/",
+        "docs/night/2026-11-13e-f33-share-repository.md"
+      ],
+      "brief": "harness/night/briefs/F33.md"
+    }
+  ]
+}

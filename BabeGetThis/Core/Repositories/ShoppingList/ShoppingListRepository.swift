@@ -2,7 +2,7 @@ import Foundation
 import GRDB
 
 /// Port of Android `ShoppingListRepository`: create, create-with-items, rename and
-/// add-items, routed to whoever owns the device's lists. Delete and undo come later.
+/// add-items, delete, delete-if-empty and undo, routed to whoever owns the device's lists.
 ///
 /// Streams don't need Result wrapping; GRDB errors end the stream. Writes go
 /// through `safeCall` and come back as `Result<T, AppError>`.
@@ -13,6 +13,11 @@ struct ShoppingListRepository: Sendable {
     private let authStateManager: AuthStateManager
     private let syncKicker: any SyncKicking
     private let safeCall: SafeCall
+    private let catchUp: ListCatchUp?
+
+    /// Asks the server for one list's changes (Android `syncEngine.catchUp`). nil while no
+    /// sync engine is wired: then a list already on the server is never auto-deleted.
+    typealias ListCatchUp = @Sendable (_ listId: String) async throws -> Result<Void, AppError>
 
     init(
         listDao: ShoppingListDao,
@@ -20,7 +25,8 @@ struct ShoppingListRepository: Sendable {
         categoryDao: CategoryDao,
         authStateManager: AuthStateManager,
         syncKicker: any SyncKicking,
-        safeCall: SafeCall
+        safeCall: SafeCall,
+        catchUp: ListCatchUp? = nil
     ) {
         self.listDao = listDao
         self.itemDao = itemDao
@@ -28,6 +34,7 @@ struct ShoppingListRepository: Sendable {
         self.authStateManager = authStateManager
         self.syncKicker = syncKicker
         self.safeCall = safeCall
+        self.catchUp = catchUp
     }
 
     // MARK: - Reads
@@ -209,6 +216,35 @@ struct ShoppingListRepository: Sendable {
             }
             return items
         }
+    }
+
+    /// Deletes a list ONLY if it has no items; used when the user leaves an empty list.
+    /// The check-and-delete is one atomic statement in the DAO, so a list that has items,
+    /// or gains one mid-flight, is never deleted by mistake. Returns whether it went.
+    func deleteListIfEmpty(listId: String) async throws -> Result<Bool, AppError> {
+        try await safeCall {
+            guard let raw = try await listDao.listRaw(id: listId) else { return false }
+            // Never auto-delete a shared list: "empty" on this phone says nothing about
+            // what the partner is doing with it right now.
+            if raw.shareCode != nil { return false }
+            if raw.accountId == nil { return try await listDao.deleteListIfEmpty(id: listId) > 0 }
+            // An unshared account list is only this user's, so it can go, as a tombstone so
+            // the account's other phones lose it too. One that never reached the server has
+            // no other phones to tell, and the push drops its tombstone instead of uploading it.
+            if !raw.onServer { return try await softDeleteIfEmpty(listId) }
+            // On the server, so the account's other phones may have added to it while this
+            // one wasn't looking, and the deletion would reach them with no undo. Ask the
+            // server first; with no session or no signal the list stays.
+            guard authStateManager.liveSessionUserId != nil, let catchUp else { return false }
+            if case .failure = try await catchUp(listId) { return false }
+            return try await softDeleteIfEmpty(listId)
+        }
+    }
+
+    private func softDeleteIfEmpty(_ listId: String) async throws -> Bool {
+        let deleted = try await listDao.softDeleteListIfEmpty(id: listId, now: Self.nowMillis()) > 0
+        if deleted { syncKicker.pushSoon() }
+        return deleted
     }
 
     /// Undo for a delete: puts the list back with its items so derived fields such as

@@ -14,7 +14,10 @@ struct ListsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            if viewModel.hasNoLists {
+            if !viewModel.hasLoadedLists {
+                // Only the background until the first value: no empty state flashing on launch.
+                Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else if viewModel.hasNoLists {
                 ScrollView {
                     EmptyListsView { viewModel.startCreating() }
                         .padding(.top, 48)
@@ -53,7 +56,7 @@ struct ListsView: View {
         }
         .overlay(alignment: .bottomTrailing) {
             // Android: the FAB shows on the Active tab only, and not over the empty state.
-            if viewModel.isActiveTab && !viewModel.hasNoLists {
+            if viewModel.hasLoadedLists && viewModel.isActiveTab && !viewModel.hasNoLists {
                 Button { viewModel.startCreating() } label: {
                     Label("Create list", systemImage: "plus")
                 }
@@ -63,6 +66,7 @@ struct ListsView: View {
             }
         }
         .task { await viewModel.observeLists() }
+        .task { await viewModel.observeAdoptionNotice() }
         .overlay(alignment: .bottom) {
             if let message = viewModel.undoMessage {
                 Snackbar(message: message, actionTitle: "Undo") {
@@ -125,8 +129,7 @@ struct ListsView: View {
             if let makeVoiceViewModel {
                 VoiceCaptureSheet(
                     viewModel: makeVoiceViewModel(),
-                    // Creating the list from the spoken items is F41.
-                    persist: { _ in .failure(.unknown("Creating a list from voice isn't available yet.")) },
+                    persist: { await viewModel.createListWithVoice($0) },
                     onDismiss: { viewModel.isVoicePresented = false },
                     onSwitchToType: {
                         viewModel.isVoicePresented = false
