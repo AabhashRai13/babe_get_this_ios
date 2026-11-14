@@ -161,8 +161,7 @@ final class AppContainer {
 
     func makeLoginViewModel() -> LoginViewModel {
         let googleTokens = GoogleIdTokenRequester(
-            clientID: GoogleIdTokenRequester.clientID(infoDictionary: Bundle.main.infoDictionary),
-            networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
+            infoDictionary: Bundle.main.infoDictionary, networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
         return LoginViewModel(authRepository: authRepository, googleAuth: authRepository,
                               googleTokens: googleTokens, appleAuth: authRepository)
     }

@@ -40,8 +40,8 @@ enum IdTokenProvider: Sendable, Equatable {
 
 /// Supabase's id-token sign-in, a separate seam so the email-only fakes stay as they are.
 protocol AuthIdTokenRemote: Sendable {
-    /// `rawNonce` nil: the token carries no nonce, so Supabase must not check one.
-    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String?) async throws -> AuthRemoteSession
+    /// `rawNonce` is the value whose SHA-256 the provider signed into the token; always sent.
+    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String) async throws -> AuthRemoteSession
 }
 
 /// `AuthRemote` over supabase-swift.
@@ -63,7 +63,7 @@ final class SupabaseAuthRemote: AuthRemote, AuthIdTokenRemote {
         Self.session(try await client.auth.signIn(email: email, password: password))
     }
 
-    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String?) async throws -> AuthRemoteSession {
+    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String) async throws -> AuthRemoteSession {
         // The RAW nonce: Supabase hashes it and compares it with the one signed into the token.
         let credentials = OpenIDConnectCredentials(
             provider: provider == .google ? .google : .apple, idToken: idToken, nonce: rawNonce)

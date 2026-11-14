@@ -45,7 +45,7 @@ final class SupabaseAuthRepository: AuthRepository, LoginGoogleAuthenticating, L
         do {
             result = try await runCatchingAuth {
                 let session = try await idTokenRemote.signInWithIdToken(
-                    provider: provider, idToken: idToken, rawNonce: rawNonce.isEmpty ? nil : rawNonce)
+                    provider: provider, idToken: idToken, rawNonce: rawNonce)
                 return persist(session, fallbackName: fallbackName, fallbackEmail: "")
             }
         } catch {
