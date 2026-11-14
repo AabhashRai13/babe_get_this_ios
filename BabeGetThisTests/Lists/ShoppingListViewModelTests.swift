@@ -374,6 +374,29 @@ final class ShoppingListViewModelTests: XCTestCase {
         XCTAssertEqual(repository.snapshot().restores.count, 1)
     }
 
+    // Delete A, Undo, then delete B while A's restore is still running: A's restore
+    // finishing must not throw away B's pending copy, so B's Undo still works.
+    func testAListDeletedWhileAnotherIsBeingRestoredKeepsItsUndo() async throws {
+        let gate = RestoreGate()
+        let vm = viewModel()
+        try await show([list("a", name: "A"), list("b", name: "B")], in: vm)
+        await vm.deleteList(id: "a")
+        repository.configure { $0.restoreGate = gate }
+
+        let undoA = Task { await vm.undoDelete() }
+        try await waitUntil { gate.isWaiting }
+        await vm.deleteList(id: "b")
+        XCTAssertEqual(vm.undoMessage, "B deleted")
+        repository.configure { $0.restoreGate = nil }
+        gate.release()
+        await undoA.value
+
+        XCTAssertEqual(vm.undoMessage, "B deleted")
+        await vm.undoDelete()
+
+        XCTAssertEqual(repository.snapshot().restores.map(\.list.id), ["a", "b"])
+    }
+
     // MARK: - 2.12 voice
 
     func testCreateListWithVoiceDerivesTheNameFromTheDrafts() async throws {
@@ -554,6 +577,8 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
         var createdWithItems: [CreatedWithItems] = []
         /// False: a new stream yields nothing until `emit`, like a query still loading.
         var emitsInitialValue = true
+        /// When set, a restore waits on it before it is recorded.
+        var restoreGate: RestoreGate?
     }
 
     private let lock = NSLock()
@@ -608,10 +633,40 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
     func restoreListWithItems(list: ShoppingList, items: [ShoppingItemRecord]) async throws -> Result<Void, AppError> {
         // Like the real repository's safeCall: a cancelled caller aborts the write.
         try Task.checkCancellation()
+        if let gate = snapshot().restoreGate { await gate.wait() }
         return lock.withLock {
             state.restores.append(Restore(list: list, items: items))
             return state.restoreResult
         }
+    }
+}
+
+/// Holds a restore until the test releases it.
+private final class RestoreGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var waiter: CheckedContinuation<Void, Never>?
+    private var released = false
+
+    var isWaiting: Bool { lock.withLock { waiter != nil } }
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            let resumeNow = lock.withLock {
+                if released { return true }
+                waiter = continuation
+                return false
+            }
+            if resumeNow { continuation.resume() }
+        }
+    }
+
+    func release() {
+        let waiting = lock.withLock {
+            released = true
+            defer { waiter = nil }
+            return waiter
+        }
+        waiting?.resume()
     }
 }
 

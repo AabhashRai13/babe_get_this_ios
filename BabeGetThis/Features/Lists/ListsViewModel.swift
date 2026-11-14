@@ -308,7 +308,9 @@ final class ListsViewModel {
             return // Cancelled.
         }
         switch result {
-        case .success: pendingDelete = nil
+        case .success:
+            // Only what was restored: a list deleted while this restore ran keeps its Undo.
+            if pendingDelete?.list.id == pending.list.id { pendingDelete = nil }
         case .failure(let error): errorMessage = error.message
         }
     }
