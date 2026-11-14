@@ -326,17 +326,27 @@ final class ListsViewModel {
 
     // MARK: - Voice
 
-    /// The voice flow's persist step: names the list from the spoken items, creates it with
-    /// them and opens it. Failure is returned, not shown: the voice sheet renders it inline,
-    /// so a second error surface would double up.
-    func createListWithVoice(_ drafts: [ItemDraft]) async throws -> Result<String, AppError> {
+    /// The voice flow's persist step, in the voice sheet's `Persist` shape: names the list from
+    /// the spoken items, creates it with them and opens it. Failure is returned, not shown: the
+    /// voice sheet renders it inline, so a second error surface would double up. The error keeps
+    /// the repository's message; a cancelled write is a failure too (the sheet ignores results
+    /// that arrive after its own cancel).
+    func createListWithVoice(_ drafts: [ItemDraft]) async -> Result<String, VoiceError> {
         guard let repository else { return .failure(.unknown()) }
         let name = autoNameVoiceList(drafts)
-        let result = try await repository.createListWithItems(name: name, drafts: drafts)
-        if case .success(let id) = result {
-            openListRequest = ShoppingListSummary(id: id, name: name, totalItems: 0, pickedUpItems: 0, createdAt: .now)
+        let result: Result<String, AppError>
+        do {
+            result = try await repository.createListWithItems(name: name, drafts: drafts)
+        } catch {
+            return .failure(.unknown())
         }
-        return result
+        switch result {
+        case .success(let id):
+            openListRequest = ShoppingListSummary(id: id, name: name, totalItems: 0, pickedUpItems: 0, createdAt: .now)
+            return .success(id)
+        case .failure(let error):
+            return .failure(.unknown(error.message))
+        }
     }
 
     // MARK: - Join a shared list by code

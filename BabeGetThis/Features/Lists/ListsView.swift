@@ -129,8 +129,7 @@ struct ListsView: View {
             if let makeVoiceViewModel {
                 VoiceCaptureSheet(
                     viewModel: makeVoiceViewModel(),
-                    // Creating the list from the spoken items is F41.
-                    persist: { _ in .failure(.unknown("Creating a list from voice isn't available yet.")) },
+                    persist: { await viewModel.createListWithVoice($0) },
                     onDismiss: { viewModel.isVoicePresented = false },
                     onSwitchToType: {
                         viewModel.isVoicePresented = false

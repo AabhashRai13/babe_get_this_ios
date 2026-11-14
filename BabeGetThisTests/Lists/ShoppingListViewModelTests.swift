@@ -403,7 +403,7 @@ final class ShoppingListViewModelTests: XCTestCase {
         let vm = viewModel()
         let drafts = [TestData.draft(name: "Milk"), TestData.draft(name: "Eggs")]
 
-        _ = try await vm.createListWithVoice(drafts)
+        _ = await vm.createListWithVoice(drafts)
 
         let created = repository.snapshot().createdWithItems
         XCTAssertEqual(created.count, 1)
@@ -415,7 +415,7 @@ final class ShoppingListViewModelTests: XCTestCase {
         repository.configure { $0.createWithItemsResult = .success("new-id") }
         let vm = viewModel()
 
-        _ = try await vm.createListWithVoice([TestData.draft(name: "Milk")])
+        _ = await vm.createListWithVoice([TestData.draft(name: "Milk")])
 
         XCTAssertEqual(vm.openListRequest?.id, "new-id")
         XCTAssertEqual(vm.openListRequest?.name, "Milk")
@@ -425,7 +425,7 @@ final class ShoppingListViewModelTests: XCTestCase {
         repository.configure { $0.createWithItemsResult = .success("new-id") }
         let vm = viewModel()
 
-        let result = try await vm.createListWithVoice([TestData.draft(name: "Milk")])
+        let result = await vm.createListWithVoice([TestData.draft(name: "Milk")])
 
         XCTAssertEqual(result, .success("new-id"))
     }
@@ -436,9 +436,33 @@ final class ShoppingListViewModelTests: XCTestCase {
         repository.configure { $0.createWithItemsResult = .failure(.database()) }
         let vm = viewModel()
 
-        let result = try await vm.createListWithVoice([TestData.draft(name: "Milk")])
+        let result = await vm.createListWithVoice([TestData.draft(name: "Milk")])
 
-        XCTAssertEqual(result, .failure(.database()))
+        XCTAssertEqual(result, .failure(.unknown(AppError.database().message)), "the repository's message, as a VoiceError")
+        XCTAssertNil(vm.openListRequest)
+        XCTAssertNil(vm.errorMessage)
+    }
+
+    // The voice sheet takes it as its persist hook directly (ListsView passes it), so the
+    // code under test is the code the sheet runs.
+    func testCreateListWithVoiceIsTheVoiceSheetsPersistHook() async throws {
+        repository.configure { $0.createWithItemsResult = .success("new-id") }
+        let vm = viewModel()
+        let persist: VoiceCaptureViewModel.Persist = { await vm.createListWithVoice($0) }
+
+        let result = await persist([TestData.draft(name: "Milk")])
+
+        XCTAssertEqual(result, .success("new-id"))
+        XCTAssertEqual(repository.snapshot().createdWithItems.map(\.name), ["Milk"])
+    }
+
+    func testACancelledVoiceCreateIsAFailureAndOpensNothing() async throws {
+        repository.configure { $0.createWithItemsThrows = true }
+        let vm = viewModel()
+
+        let result = await vm.createListWithVoice([TestData.draft(name: "Milk")])
+
+        XCTAssertEqual(result, .failure(.unknown()))
         XCTAssertNil(vm.openListRequest)
         XCTAssertNil(vm.errorMessage)
     }
@@ -579,6 +603,8 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
         var emitsInitialValue = true
         /// When set, a restore waits on it before it is recorded.
         var restoreGate: RestoreGate?
+        /// createListWithItems throws CancellationError (the caller was cancelled).
+        var createWithItemsThrows = false
     }
 
     private let lock = NSLock()
@@ -613,7 +639,8 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
     }
 
     func createListWithItems(name: String, drafts: [ItemDraft]) async throws -> Result<String, AppError> {
-        lock.withLock {
+        if snapshot().createWithItemsThrows { throw CancellationError() }
+        return lock.withLock {
             state.createdWithItems.append(CreatedWithItems(name: name, drafts: drafts))
             return state.createWithItemsResult
         }
