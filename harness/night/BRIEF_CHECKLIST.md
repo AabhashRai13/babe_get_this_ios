@@ -1,7 +1,7 @@
 # Writing briefs: checklist
 
 Check each new `harness/night/briefs/<task>.md` and its `nights/<id>.json` entry against this list before a run.
-It comes from the review of runs 2026-11-13e and 2026-11-13f (PR #7). Briefs from earlier runs are records and stay as they were.
+It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7) and 2026-11-14a and 2026-11-14b (PR #9). Briefs from earlier runs are records and stay as they were.
 
 ## Waves and ownership
 - `integrate.py`'s scope check passes any file under a task's owned prefix. It can't stop two workers in one wave from editing the same lines.
@@ -12,16 +12,22 @@ It comes from the review of runs 2026-11-13e and 2026-11-13f (PR #7). Briefs fro
   - In the owning task's brief, list the symbols that are frozen for this wave.
   - Move the shared type to a folder neither task owns.
   - Chain the tasks.
+- When tasks in one wave share a directory, each owns the specific files it creates or edits, not the directory.
+  An owned directory prefix lets the scope check accept edits to the other task's files in it.
+- Cross-check the briefs of a wave against each other: what each says the others will change in a shared file must match what those briefs allow.
+- A case that depends on an API another task adds in the same wave is ported by the task that adds the API, or the two tasks are chained.
+  Don't leave a fallback port that tests something else in its place.
 - A merge resolved by hand re-runs that task's acceptance commands on the merged result, not only the full suite.
 
 ## Dependencies
 - A task's `requires` in the night config matches its `depends_on` in `harness/features.json`.
   When a brief builds on another task's work, add that task to both.
+- In a chained wave, the `worker_deadline` leaves at least the longest task `timeout_min` after the previous wave's `total_deadline`.
 
 ## Port from and acceptance
 - "Port from" covers every behaviour the brief asks for. List the Android source files and the Android test cases by name or line range.
   For example, `ShoppingItemsViewModelTest.kt`: the 5 `leavingDeletesList` cases and the 3 `onCleared` cases.
-- Each behaviour has an acceptance command in `features.json`. Usually that is `-only-testing:BabeGetThisTests/<Class>` with an `executed <` threshold.
+- Each behaviour in the brief, copy variants included (for example singular and plural strings), has an acceptance command in `features.json`. Usually that is `-only-testing:BabeGetThisTests/<Class>` with an `executed <` threshold.
   UI-side behaviour (dialogs, teardown) needs its own test class too, not only the repository's.
 
 ## Facts the brief must state, not paraphrase
