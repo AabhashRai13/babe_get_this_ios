@@ -124,8 +124,9 @@ private struct ListDetailScreen: View {
         .sheet(isPresented: $chrome.isVoicePresented) {
             VoiceCaptureSheet(
                 viewModel: makeVoiceViewModel(),
-                // TODO(F41): add the transcribed items to this list.
-                persist: { _ in .failure(.unknown("Adding items from voice isn't available yet.")) },
+                persist: { [listId = list.id, repository = container.listRepository] in
+                    await saveVoiceDrafts($0, intoList: listId, using: repository)
+                },
                 onDismiss: { chrome.isVoicePresented = false },
                 onSwitchToType: {
                     chrome.isVoicePresented = false
