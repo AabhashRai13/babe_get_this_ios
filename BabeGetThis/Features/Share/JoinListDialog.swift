@@ -3,7 +3,11 @@ import SwiftUI
 /// Modal "Join a shared list" dialog (Android `JoinListDialog`). A custom card like
 /// `CreateListDialog`, because an alert's text field can't normalise the code or show the error.
 struct JoinListDialog: View {
-    @State private var model = JoinListViewModel()
+    /// The code, owned by `ListsViewModel` so reopening starts empty.
+    let model: JoinListViewModel
+    /// What the field shows. Every edit is normalised and written back here, so the field never
+    /// holds a seventh character, a space or a lowercase letter.
+    @State private var text = ""
     @FocusState private var isFocused: Bool
     /// Why the last join failed, shown under the field.
     let error: String?
@@ -26,10 +30,7 @@ struct JoinListDialog: View {
                     Text(JoinListCopy.fieldLabel)
                         .font(.caption)
                         .foregroundStyle(error == nil ? AppColors.textSecondary : AppColors.error)
-                    TextField(JoinListCopy.fieldLabel, text: Binding(
-                        get: { model.code },
-                        set: { model.updateCode($0) }
-                    ), prompt: Text(JoinListCopy.placeholder))
+                    TextField(JoinListCopy.fieldLabel, text: $text, prompt: Text(JoinListCopy.placeholder))
                         .textFieldStyle(.roundedBorder)
                         .textInputAutocapitalization(.characters)
                         .autocorrectionDisabled()
@@ -38,6 +39,10 @@ struct JoinListDialog: View {
                         .onSubmit(join)
                         .accessibilityLabel(JoinListCopy.fieldLabel)
                         .accessibilityIdentifier("join.codeField")
+                        .onChange(of: text) { _, new in
+                            model.updateCode(new)
+                            if text != model.code { text = model.code }
+                        }
                     if let error {
                         Text(error)
                             .font(.caption)
@@ -61,7 +66,10 @@ struct JoinListDialog: View {
             .padding(AppMetrics.screenPadding)
             .accessibilityAddTraits(.isModal)
         }
-        .onAppear { isFocused = true }
+        .onAppear {
+            text = model.code
+            isFocused = true
+        }
     }
 
     private func join() {
@@ -71,5 +79,5 @@ struct JoinListDialog: View {
 }
 
 #Preview {
-    JoinListDialog(error: nil, isJoining: false, onDismiss: {}, onJoin: { _ in })
+    JoinListDialog(model: JoinListViewModel(), error: nil, isJoining: false, onDismiss: {}, onJoin: { _ in })
 }

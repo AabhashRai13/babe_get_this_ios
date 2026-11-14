@@ -356,11 +356,15 @@ final class ListsViewModel {
     private(set) var isJoining = false
     /// Why the last join failed, shown inline in the dialog.
     private(set) var joinError: String?
+    /// The dialog's code field. Cleared each time the dialog opens (SHARE-04).
+    let joinField = JoinListViewModel()
 
     /// Joining needs a live session; a guest or a lost session gets the sign-in prompt.
+    /// Opening the dialog starts it with an empty code and no error.
     func startJoining() {
         if authState?.liveSessionUserId != nil {
             joinError = nil
+            joinField.reset()
             isJoinDialogPresented = true
         } else {
             isJoinAuthPromptPresented = true

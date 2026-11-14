@@ -48,6 +48,23 @@ final class JoinListViewModelTests: XCTestCase {
         XCTAssertTrue(vm.isJoinEnabled(isJoining: false))
     }
 
+    // The field writes this back, so it can never hold a seventh character.
+    func testNormaliseDropsASeventhCharacter() {
+        XCTAssertEqual(JoinListViewModel.normalise("ABC2345"), "ABC234")
+    }
+
+    // A typed space never stays in the field, wherever it lands.
+    func testNormaliseDropsSpaces() {
+        XCTAssertEqual(JoinListViewModel.normalise("ABC "), "ABC")
+        XCTAssertEqual(JoinListViewModel.normalise("ABC 2"), "ABC2")
+        XCTAssertEqual(JoinListViewModel.normalise(" AB C2 34 5"), "ABC234")
+    }
+
+    func testNormaliseUppercases() {
+        XCTAssertEqual(JoinListViewModel.normalise("abc234"), "ABC234")
+        XCTAssertEqual(JoinListViewModel.normalise("aBc2"), "ABC2")
+    }
+
     // Android trims before it caps, so a pasted code with a leading space still fits.
     func testTrimmingHappensBeforeTheCap() {
         let vm = JoinListViewModel()
@@ -86,15 +103,17 @@ final class JoinListViewModelTests: XCTestCase {
         let vm = ListsViewModel(repository: EmptyListsRepository(), authState: authStateFor("user-1"),
                                 shareJoiner: FailingJoiner())
         vm.startJoining()
-        await vm.joinList(code: "XXXXXX")
+        vm.joinField.updateCode("XXXXXX")
+        await vm.joinList(code: vm.joinField.code)
         XCTAssertEqual(vm.joinError, "That code didn't match any list.")
+        XCTAssertEqual(vm.joinField.code, "XXXXXX")
         vm.dismissJoinDialog()
 
         vm.startJoining()
 
+        XCTAssertTrue(vm.isJoinDialogPresented)
         XCTAssertNil(vm.joinError)
-        // The dialog builds a fresh field model each time it opens.
-        XCTAssertEqual(JoinListViewModel().code, "")
+        XCTAssertEqual(vm.joinField.code, "")
     }
 }
 

@@ -117,7 +117,7 @@ struct ListsView: View {
         .overlay {
             // Joining a shared list (SHARE-04): the code dialog when signed in, else the prompt.
             if viewModel.isJoinDialogPresented {
-                JoinListDialog(error: viewModel.joinError, isJoining: viewModel.isJoining,
+                JoinListDialog(model: viewModel.joinField, error: viewModel.joinError, isJoining: viewModel.isJoining,
                                onDismiss: { viewModel.dismissJoinDialog() },
                                onJoin: { code in Task { await viewModel.joinList(code: code) } })
             } else if viewModel.isJoinAuthPromptPresented {
