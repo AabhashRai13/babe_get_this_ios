@@ -31,6 +31,10 @@ final class StartSession {
     @ObservationIgnored private var signOutSubscription: AuthStateSubscription?
     /// Bumped whenever the persisted Welcome flag changes, so views re-resolve.
     private var welcomeRevision = 0
+    /// Auth opened over Welcome ended in a sign-in. Android `leaveAuth` then navigates to the
+    /// lists and pops Welcome itself, without waiting on the auth state; so does this. Not
+    /// persisted (Android records nothing for "Sign in" either) and cleared by a sign-out.
+    private var signedInFromWelcome = false
 
     /// `forcedScreen` pins the screen for screenshots and previews (`-sampleData`).
     init(authState: AuthStateManager, welcome: WelcomeRepository, forcedScreen: StartScreen? = nil) {
@@ -39,13 +43,31 @@ final class StartSession {
         self.forcedScreen = forcedScreen
         signOutSubscription = authState.observeSignOuts { [weak self, welcome] in
             welcome.reset()
-            Task { @MainActor in self?.welcomeRevision += 1 }
+            // Synchronous on the main thread, so the lists never show for a frame after sign-out.
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.didSignOut() }
+            } else {
+                Task { @MainActor in self?.didSignOut() }
+            }
         }
+    }
+
+    private func didSignOut() {
+        signedInFromWelcome = false
+        welcomeRevision += 1
     }
 
     var screen: StartScreen {
         _ = welcomeRevision
-        return forcedScreen ?? StartScreen.resolve(authState: authState.authState, welcome: welcome)
+        if let forcedScreen { return forcedScreen }
+        let resolved = StartScreen.resolve(authState: authState.authState, welcome: welcome)
+        return resolved == .welcome && signedInFromWelcome ? .lists : resolved
+    }
+
+    /// Leaving auth opened over Welcome (NAV-03, Android `closeAuth` / `leaveAuth`). Close comes
+    /// back to Welcome with nothing recorded; a sign-in lands on the lists and drops Welcome.
+    func leaveAuth(_ exit: AuthFlow.Exit) {
+        if exit == .lists { signedInFromWelcome = true }
     }
 
     /// Re-resolve after the Welcome choice was recorded.

@@ -2,8 +2,9 @@ import SwiftUI
 
 /// Login, Register and Forgot password, presented as one sheet over the lists, a list or
 /// Welcome. `AuthFlow` decides the back stack (NAV-03): Login and Register swap in place,
-/// Forgot password pushes onto Login. Leaving reports where it lands: Close goes back to what
-/// is below, any successful sign-in goes to the lists.
+/// Forgot password pushes onto Login. Leaving reports where it lands: Close goes back to the
+/// lists (or Welcome), any successful sign-in goes to the lists. The caller closes the sheet
+/// and, over a list's screen or Welcome, routes there too.
 struct AuthSheet: View {
     @Environment(AppContainer.self) private var container
     @State private var flow: AuthFlow
@@ -14,11 +15,11 @@ struct AuthSheet: View {
         self.onExit = onExit
     }
 
-    /// Over the lists or a list (the auth prompt's "Sign in" / "Create account", AUTH-10):
-    /// every way out just closes the sheet.
-    init(initialRoute: ListsViewModel.AuthRoute, onDone: @escaping @MainActor @Sendable () -> Void) {
-        self.init(flow: AuthFlow(start: initialRoute == .login ? .login : .register, below: .lists),
-                  onExit: { _ in onDone() })
+    /// Over the lists or a list's screen (the auth prompt's "Sign in" / "Create account",
+    /// AUTH-10, and the top bar's "Sign in").
+    init(initialRoute: ListsViewModel.AuthRoute, below: AuthFlow.Below = .lists,
+         onExit: @escaping @MainActor @Sendable (AuthFlow.Exit) -> Void) {
+        self.init(flow: AuthFlow(start: initialRoute == .login ? .login : .register, below: below), onExit: onExit)
     }
 
     var body: some View {
@@ -44,6 +45,19 @@ struct AuthSheet: View {
                 ForgotPasswordScreen(container: container, onSuccess: succeed)
             }
         }
+    }
+}
+
+/// Set by `RootView` on the lists' navigation stack: what leaving auth opened from a list's
+/// screen does to that stack (NAV-03: Close and success both pop to the lists).
+private struct LeaveAuthFromListKey: EnvironmentKey {
+    static let defaultValue: @MainActor @Sendable (AuthFlow.Exit) -> Void = { _ in }
+}
+
+extension EnvironmentValues {
+    var leaveAuthFromList: @MainActor @Sendable (AuthFlow.Exit) -> Void {
+        get { self[LeaveAuthFromListKey.self] }
+        set { self[LeaveAuthFromListKey.self] = newValue }
     }
 }
 

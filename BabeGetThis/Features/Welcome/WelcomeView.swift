@@ -47,7 +47,7 @@ struct WelcomeView: View {
         .sheet(isPresented: $showSignIn) {
             AuthSheet(flow: AuthFlow(start: .login, below: .welcome)) { exit in
                 showSignIn = false
-                if exit == .lists { container.session.refresh() }
+                container.session.leaveAuth(exit)
             }
         }
     }

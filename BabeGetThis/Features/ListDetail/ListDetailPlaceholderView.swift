@@ -56,6 +56,7 @@ private struct ListDetailScreen: View {
     @State private var errorTask: Task<Void, Never>?
     @State private var chrome: ListDetailChromeModel
     @State private var leaveGuard: ListLeaveGuard
+    @Environment(\.leaveAuthFromList) private var leaveAuthFromList
     private let makeVoiceViewModel: () -> VoiceCaptureViewModel
 
     init(list: ShoppingListSummary, source: any ListDetailItemsSource,
@@ -134,7 +135,11 @@ private struct ListDetailScreen: View {
             }
         }
         .sheet(item: $chrome.authRoute) { route in
-            AuthSheet(initialRoute: route, onDone: { chrome.authRoute = nil })
+            // NAV-03: Close and success both pop this screen to the lists, like Android.
+            AuthSheet(initialRoute: route, below: .list) { exit in
+                chrome.authRoute = nil
+                leaveAuthFromList(exit)
+            }
         }
         .sheet(isPresented: $chrome.isVoicePresented) {
             VoiceCaptureSheet(

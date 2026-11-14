@@ -137,7 +137,7 @@ struct ListsView: View {
             }
         }
         .sheet(item: $viewModel.authRoute) { route in
-            AuthSheet(initialRoute: route, onDone: { viewModel.authRoute = nil })
+            AuthSheet(initialRoute: route) { _ in viewModel.authRoute = nil }
         }
         .onChange(of: viewModel.openListRequest) { _, request in
             guard let request else { return }
