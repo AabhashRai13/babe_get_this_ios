@@ -6,8 +6,10 @@ import XCTest
 @MainActor
 final class ShareLiveViewModelTests: XCTestCase {
     private func viewModel(auth: AuthState, sharer: FakeListSharer,
-                           copied: CopiedText = CopiedText()) -> ShareLiveViewModel {
+                           copied: CopiedText = CopiedText(),
+                           errors: CopiedText = CopiedText()) -> ShareLiveViewModel {
         ShareLiveViewModel(listId: "L1", authState: { auth }, sharer: sharer,
+                           reportError: { errors.values.append($0) },
                            copyToClipboard: { copied.values.append($0) })
     }
 
@@ -31,19 +33,24 @@ final class ShareLiveViewModelTests: XCTestCase {
         await vm.shareLive()
 
         XCTAssertEqual(vm.shareCode, "ABC234")
+        XCTAssertTrue(vm.isCodeDialogPresented)
         XCTAssertEqual(sharer.listIds, ["L1"])
 
         vm.dismissShareCode()
         XCTAssertNil(vm.shareCode)
+        XCTAssertFalse(vm.isCodeDialogPresented)
     }
 
+    // Android: the error goes to the screen's snackbar and `shareCodeDialog` stays null.
     func testShareLiveSurfacesFailuresAsASnackbar() async {
         let sharer = FakeListSharer(result: .failure(.network()))
-        let vm = viewModel(auth: .authenticated(userId: "user-1"), sharer: sharer)
+        let errors = CopiedText()
+        let vm = viewModel(auth: .authenticated(userId: "user-1"), sharer: sharer, errors: errors)
 
         await vm.shareLive()
 
-        XCTAssertEqual(vm.errorMessage, AppError.network().message)
+        XCTAssertEqual(errors.values, [AppError.network().message])
+        XCTAssertFalse(vm.isCodeDialogPresented, "no dialog is shown")
         XCTAssertNil(vm.shareCode)
     }
 

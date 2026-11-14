@@ -10,7 +10,18 @@ struct ListDetailPlaceholderView: View {
         ListDetailScreen(list: list, source: container.itemRepository,
                          authState: { [authState = container.authState] in authState.authState },
                          makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
-                         leaveCleaner: container.listRepository)
+                         leaveCleaner: container.listRepository,
+                         sharer: DeferredListSharer { [container] in container.shareRepository })
+    }
+}
+
+/// A `ListSharing` that finds the share repository on the main actor when a share starts, so
+/// opening a list builds no Supabase client.
+private struct DeferredListSharer: ListSharing {
+    let resolve: @MainActor @Sendable () -> any ListSharing
+
+    func share(listId: String) async throws -> Result<String, AppError> {
+        try await resolve().share(listId: listId)
     }
 }
 
@@ -50,13 +61,17 @@ private struct ListDetailScreen: View {
     init(list: ShoppingListSummary, source: any ListDetailItemsSource,
          authState: @escaping () -> AuthState,
          makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
-         leaveCleaner: any ListLeaveCleaning) {
+         leaveCleaner: any ListLeaveCleaning,
+         sharer: any ListSharing) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
         let viewModel = ListDetailViewModel(listId: list.id, source: source)
         _model = State(initialValue: viewModel)
+        let shareLive = ShareLiveViewModel(listId: list.id, authState: authState, sharer: sharer,
+                                           reportError: { viewModel.errorMessage = $0 })
         _chrome = State(initialValue: ListDetailChromeModel(
-            listName: list.name, authState: authState, items: { viewModel.items }))
+            listName: list.name, authState: authState, items: { viewModel.items },
+            shareLive: shareLive))
         _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
@@ -134,14 +149,10 @@ private struct ListDetailScreen: View {
                 })
         }
         .sheet(isPresented: $chrome.isShareLivePresented) {
-            ShareLiveSheet(
-                viewModel: ShareLiveViewModel(
-                    listId: list.id,
-                    authState: { [authState = container.authState] in authState.authState },
-                    sharer: container.shareRepository),
-                onDone: { chrome.isShareLivePresented = false },
-                onNeedsSignIn: { chrome.shareLiveNeedsSignIn() })
-                .presentationDetents([.medium])
+            if let shareLive = chrome.shareLive {
+                ShareLiveSheet(viewModel: shareLive, onDone: { chrome.isShareLivePresented = false })
+                    .presentationDetents([.medium])
+            }
         }
         .sheet(isPresented: Binding(
             get: { chrome.sharedText != nil },

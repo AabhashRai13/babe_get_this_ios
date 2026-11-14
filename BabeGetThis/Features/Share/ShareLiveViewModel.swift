@@ -20,6 +20,8 @@ enum ShareLiveCopy {
 /// The share-live flow of the list detail screen (Android `ShoppingItemsViewModel.onShareLiveClick`
 /// and its `shareCodeDialog` / `showShareAuthPrompt` state). The code is static per list, so
 /// sharing again shows the same one. Only the code is shown: never who changed what (SHARE-06).
+/// As on Android, the dialog exists only once there is a code; a failure goes to the detail
+/// screen's snackbar through `reportError`.
 @MainActor
 @Observable
 final class ShareLiveViewModel {
@@ -28,22 +30,28 @@ final class ShareLiveViewModel {
     private(set) var shareCode: String?
     /// Live sharing needs an account; this asks a guest to sign in.
     private(set) var showsAuthPrompt = false
-    /// A failed share's message, for a snackbar.
-    var errorMessage: String?
     /// A share is on its way to the server.
     private(set) var isSharing = false
 
+    /// The code dialog is up (Android `shareCodeDialog.value != null`).
+    var isCodeDialogPresented: Bool { shareCode != nil }
+
     @ObservationIgnored private let authState: () -> AuthState
     @ObservationIgnored private let sharer: any ListSharing
+    @ObservationIgnored private let reportError: @MainActor (String) -> Void
     @ObservationIgnored private let copyToClipboard: @MainActor (String) -> Void
 
+    /// `reportError` shows a failed share's message on the detail screen's snackbar
+    /// (Android `_errorMessage.emit`).
     init(listId: String,
          authState: @escaping () -> AuthState,
          sharer: any ListSharing,
+         reportError: @escaping @MainActor (String) -> Void,
          copyToClipboard: @escaping @MainActor (String) -> Void = { UIPasteboard.general.string = $0 }) {
         self.listId = listId
         self.authState = authState
         self.sharer = sharer
+        self.reportError = reportError
         self.copyToClipboard = copyToClipboard
     }
 
@@ -68,7 +76,7 @@ final class ShareLiveViewModel {
         }
         switch result {
         case .success(let code): shareCode = code
-        case .failure(let error): errorMessage = error.message
+        case .failure(let error): reportError(error.message)
         }
     }
 

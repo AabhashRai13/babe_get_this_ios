@@ -43,8 +43,16 @@ final class ListDetailChromeModel {
     var authRoute: AuthRoute?
     /// The voice capture sheet is up (signed-in accounts only).
     var isVoicePresented = false
-    /// The Share live sheet is up (signed-in accounts only).
-    var isShareLivePresented = false
+    /// The share-live flow; nil where the screen has none (tests of the other chrome).
+    @ObservationIgnored let shareLive: ShareLiveViewModel?
+    /// The running share, so a second tap doesn't start another.
+    @ObservationIgnored private(set) var shareTask: Task<Void, Never>?
+    /// The Share live sheet is up: only once the share has produced a code, as Android's dialog.
+    /// Closing it drops the code.
+    var isShareLivePresented: Bool {
+        get { shareLive?.isCodeDialogPresented ?? false }
+        set { if !newValue { shareLive?.dismissShareCode() } }
+    }
     /// Text handed to the system share sheet; nil when it isn't showing.
     var sharedText: String?
     /// The list's items as they are now. Read when "Share as text" is tapped, never captured
@@ -56,11 +64,13 @@ final class ListDetailChromeModel {
     init(listName: String,
          authState: @escaping () -> AuthState,
          haptics: any HapticPlaying = SystemHapticPlayer(),
-         items: @escaping @MainActor () -> [ShoppingItem] = { [] }) {
+         items: @escaping @MainActor () -> [ShoppingItem] = { [] },
+         shareLive: ShareLiveViewModel? = nil) {
         self.listName = listName
         self.authState = authState
         self.haptics = haptics
         self.items = items
+        self.shareLive = shareLive
     }
 
     private var isAuthenticated: Bool {
@@ -86,18 +96,23 @@ final class ListDetailChromeModel {
         }
     }
 
+    /// Signed in: share, and the sheet opens when the code arrives. A guest, or a session lost
+    /// before the share reached the server, gets the share sign-in prompt instead.
     private func shareLiveTapped() {
-        if isAuthenticated {
-            isShareLivePresented = true
-        } else {
+        guard isAuthenticated else {
             authPrompt = .share
+            return
         }
-    }
-
-    /// The session was lost while the Share live sheet opened: close it and show the prompt.
-    func shareLiveNeedsSignIn() {
-        isShareLivePresented = false
-        authPrompt = .share
+        guard let shareLive, shareTask == nil else { return }
+        shareTask = Task { [weak self] in
+            await shareLive.shareLive()
+            guard let self else { return }
+            if shareLive.showsAuthPrompt {
+                shareLive.dismissAuthPrompt()
+                authPrompt = .share
+            }
+            shareTask = nil
+        }
     }
 
     private func shareAsTextTapped() {
