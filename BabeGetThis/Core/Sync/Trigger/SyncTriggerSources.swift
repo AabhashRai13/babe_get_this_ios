@@ -58,12 +58,35 @@ protocol NetworkAvailabilitySource: AnyObject, Sendable {
     func start(onAvailable: @escaping @Sendable () -> Void)
 }
 
-/// `NWPathMonitor` behind `NetworkAvailabilitySource`: fires on each move to a satisfied path.
+/// When a network path update should kick (Android `onAvailable`, which fires for each new
+/// default network): on a move to a satisfied path, and on a handover where the path stays
+/// satisfied but its primary interface changes (Wi-Fi to cellular and back). Kicks are
+/// idempotent (TRIG-01), so an extra one is harmless.
+struct NetworkPathKickRule: Equatable {
+    private var wasSatisfied = false
+    private var lastInterface: String?
+
+    init() {}
+
+    /// Records the update and says whether it kicks. `primaryInterface` identifies the path's
+    /// first interface (`NWPath.availableInterfaces.first`), nil when it has none.
+    mutating func update(satisfied: Bool, primaryInterface: String?) -> Bool {
+        defer {
+            wasSatisfied = satisfied
+            lastInterface = satisfied ? primaryInterface : nil
+        }
+        guard satisfied else { return false }
+        return !wasSatisfied || primaryInterface != lastInterface
+    }
+}
+
+/// `NWPathMonitor` behind `NetworkAvailabilitySource`: fires on each move to a satisfied path
+/// and on each change of the satisfied path's primary interface (`NetworkPathKickRule`).
 /// Its own monitor, so `NetworkMonitor`'s synchronous reads stay as they are.
 final class SystemNetworkAvailability: NetworkAvailabilitySource, @unchecked Sendable {
     private let monitor = NWPathMonitor()
     private let lock = NSLock()
-    private var wasSatisfied = false
+    private var rule = NetworkPathKickRule()
 
     init() {}
 
@@ -75,11 +98,9 @@ final class SystemNetworkAvailability: NetworkAvailabilitySource, @unchecked Sen
         monitor.pathUpdateHandler = { [weak self] path in
             guard let self else { return }
             let satisfied = path.status == .satisfied
-            let becameAvailable = lock.withLock {
-                defer { wasSatisfied = satisfied }
-                return satisfied && !wasSatisfied
-            }
-            if becameAvailable { onAvailable() }
+            let interface = path.availableInterfaces.first.map { "\($0.type):\($0.name)" }
+            let kicks = lock.withLock { rule.update(satisfied: satisfied, primaryInterface: interface) }
+            if kicks { onAvailable() }
         }
         monitor.start(queue: DispatchQueue(label: "com.babegetthis.ios.sync-trigger-network"))
     }
