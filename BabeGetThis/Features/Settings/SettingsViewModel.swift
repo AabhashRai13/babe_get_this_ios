@@ -48,17 +48,14 @@ final class SettingsViewModel {
 
     var showsRateRow: Bool { rateURL != nil }
 
-    init(
-        consent: TelemetryConsentStore = UserDefaultsTelemetryConsentStore(),
-        versionName: String = SettingsViewModel.bundleString("CFBundleShortVersionString"),
-        build: String = SettingsViewModel.bundleString("CFBundleVersion"),
-        appStoreID: String = SettingsViewModel.bundleString("BGTAppStoreID")
-    ) {
+    /// `infoDictionary` is the app's Info.plist, injectable for tests.
+    init(consent: TelemetryConsentStore = UserDefaultsTelemetryConsentStore(), infoDictionary info: [String: Any] = Bundle.main.infoDictionary ?? [:]) {
+        func string(_ key: String) -> String { info[key] as? String ?? "" }
         self.consent = consent
         analyticsEnabled = consent.analyticsEnabled
         crashReportingEnabled = consent.crashReportingEnabled
-        versionFooter = Self.versionFooter(name: versionName, build: build)
-        rateURL = Self.rateURL(appStoreID: appStoreID)
+        versionFooter = Self.versionFooter(name: string("CFBundleShortVersionString"), build: string("CFBundleVersion"))
+        rateURL = Self.rateURL(appStoreID: string("BGTAppStoreID"))
     }
 
     func setAnalyticsEnabled(_ enabled: Bool) {
@@ -80,9 +77,5 @@ final class SettingsViewModel {
         // An unexpanded "$(BGT_APP_STORE_ID)" counts as empty.
         guard !id.isEmpty, id.allSatisfy(\.isNumber) else { return nil }
         return URL(string: "https://apps.apple.com/app/id\(id)?action=write-review")
-    }
-
-    nonisolated static func bundleString(_ key: String) -> String {
-        Bundle.main.object(forInfoDictionaryKey: key) as? String ?? ""
     }
 }

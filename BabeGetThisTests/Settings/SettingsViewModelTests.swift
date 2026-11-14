@@ -25,9 +25,11 @@ final class SettingsViewModelTests: XCTestCase {
     ) -> SettingsViewModel {
         SettingsViewModel(
             consent: UserDefaultsTelemetryConsentStore(defaults: defaults),
-            versionName: versionName,
-            build: build,
-            appStoreID: appStoreID
+            infoDictionary: [
+                "CFBundleShortVersionString": versionName,
+                "CFBundleVersion": build,
+                "BGTAppStoreID": appStoreID,
+            ]
         )
     }
 
@@ -42,10 +44,22 @@ final class SettingsViewModelTests: XCTestCase {
     }
 
     func testVersionFooterReadsBundleKeys() {
-        XCTAssertEqual(
-            SettingsViewModel.versionFooter(name: "2.0", build: "7"),
-            "Version 2.0 (7)"
+        // The name and the build come from their own keys, not each other's.
+        let viewModel = SettingsViewModel(
+            consent: UserDefaultsTelemetryConsentStore(defaults: defaults),
+            infoDictionary: ["CFBundleShortVersionString": "2.0", "CFBundleVersion": "7", "CFBundleName": "x"]
         )
+        XCTAssertEqual(viewModel.versionFooter, "Version 2.0 (7)")
+    }
+
+    func testVersionFooterDefaultsToTheAppsInfoPlist() throws {
+        let info = try XCTUnwrap(Bundle.main.infoDictionary)
+        let name = try XCTUnwrap(info["CFBundleShortVersionString"] as? String)
+        let build = try XCTUnwrap(info["CFBundleVersion"] as? String)
+
+        let viewModel = SettingsViewModel(consent: UserDefaultsTelemetryConsentStore(defaults: defaults))
+
+        XCTAssertEqual(viewModel.versionFooter, "Version \(name) (\(build))")
     }
 
     func testBothConsentTogglesAreOnByDefault() {
