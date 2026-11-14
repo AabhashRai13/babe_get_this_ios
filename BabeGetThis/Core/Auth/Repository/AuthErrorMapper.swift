@@ -8,6 +8,10 @@ enum AuthErrorMapper {
     /// One wording for every Google failure, whether Supabase rejected the token or the
     /// account sheet failed.
     static let googleSignInFailed = "Google sign-in failed. Please try again."
+    /// iOS only (AUTH-06): the same wording for Apple.
+    static let appleSignInFailed = "Apple sign-in failed. Please try again."
+    /// iOS only: the build has no Google client id yet.
+    static let googleSignInNotConfigured = "Google sign-in isn't set up in this build yet."
     static let genericFailure = "Authentication failed. Please try again."
 
     /// More causes than any real wrapper produces; stops a cycle the identity check can't see.

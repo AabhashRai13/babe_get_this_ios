@@ -1,9 +1,11 @@
+import AuthenticationServices
 import SwiftUI
 
-/// Email / Google sign-in (Android `LoginScreen`). Navigation is wired by the caller through
-/// the closures; the screen itself never navigates.
+/// Email / Google / Apple sign-in (Android `LoginScreen`). Navigation is wired by the caller
+/// through the closures; the screen itself never navigates.
 struct LoginView: View {
     @Bindable var viewModel: LoginViewModel
+    @Environment(\.colorScheme) private var colorScheme
     var onNavigateToRegister: () -> Void = {}
     var onNavigateToForgotPassword: () -> Void = {}
     var onClose: () -> Void = {}
@@ -23,6 +25,7 @@ struct LoginView: View {
                     forgotPassword
                     signInButton.padding(.top, 12)
                     googleButton.padding(.top, 12)
+                    appleButton.padding(.top, 12)
                 }
                 .padding(.horizontal, AppMetrics.welcomePadding)
             }
@@ -158,6 +161,19 @@ struct LoginView: View {
             }
         }
         .buttonStyle(OutlinedButtonStyle())
+        .disabled(viewModel.isLoading)
+    }
+
+    /// AUTH-06: next to Google at the same size, black in light mode and white in dark.
+    private var appleButton: some View {
+        SignInWithAppleButton(.signIn) { request in
+            AppleIdTokenSignIn.configure(request, nonceHash: viewModel.prepareAppleSignIn())
+        } onCompletion: { result in
+            viewModel.completeAppleSignIn(AppleAuthorizationOutcome(result))
+        }
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+        .frame(maxWidth: .infinity, minHeight: AppMetrics.buttonHeight, maxHeight: AppMetrics.buttonHeight)
+        .clipShape(RoundedRectangle(cornerRadius: AppMetrics.buttonRadius, style: .continuous))
         .disabled(viewModel.isLoading)
     }
 
