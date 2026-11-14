@@ -48,30 +48,36 @@ struct SettingsView: View {
             .accessibilityAddTraits(.isHeader)
     }
 
+    private var analyticsBinding: Binding<Bool> {
+        Binding(get: { viewModel.analyticsEnabled }, set: { viewModel.setAnalyticsEnabled($0) })
+    }
+
+    private var crashReportingBinding: Binding<Bool> {
+        Binding(get: { viewModel.crashReportingEnabled }, set: { viewModel.setCrashReportingEnabled($0) })
+    }
+
     @ViewBuilder private var privacyRows: some View {
-        SettingsRow(
-            title: SettingsStrings.analyticsTitle,
-            subtitle: SettingsStrings.analyticsSubtitle,
-            icon: "chart.bar",
-            onTap: { viewModel.setAnalyticsEnabled(!viewModel.analyticsEnabled) }
-        ) {
-            Toggle(SettingsStrings.analyticsTitle, isOn: Binding(
-                get: { viewModel.analyticsEnabled },
-                set: { viewModel.setAnalyticsEnabled($0) }
-            ))
-            .labelsHidden()
+        toggleRow(title: SettingsStrings.analyticsTitle, subtitle: SettingsStrings.analyticsSubtitle,
+                  icon: "chart.bar", isOn: analyticsBinding)
+        toggleRow(title: SettingsStrings.crashTitle, subtitle: SettingsStrings.crashSubtitle,
+                  icon: "ant", isOn: crashReportingBinding)
+    }
+
+    /// A row with a switch. Tapping the label flips it too. VoiceOver reads the row as one switch
+    /// with the title as its label, the subtitle, and the on/off value, instead of a silent label
+    /// button next to a switch that has no subtitle.
+    private func toggleRow(title: String, subtitle: String, icon: String, isOn: Binding<Bool>) -> some View {
+        SettingsRow(title: title, subtitle: subtitle, icon: icon, onTap: { isOn.wrappedValue.toggle() }) {
+            Toggle(title, isOn: isOn)
+                .labelsHidden()
+                // Android's M3 Switch tracks in colorScheme.primary; iOS would show system green.
+                .tint(AppColors.primary)
         }
-        SettingsRow(
-            title: SettingsStrings.crashTitle,
-            subtitle: SettingsStrings.crashSubtitle,
-            icon: "ant",
-            onTap: { viewModel.setCrashReportingEnabled(!viewModel.crashReportingEnabled) }
-        ) {
-            Toggle(SettingsStrings.crashTitle, isOn: Binding(
-                get: { viewModel.crashReportingEnabled },
-                set: { viewModel.setCrashReportingEnabled($0) }
-            ))
-            .labelsHidden()
+        .accessibilityRepresentation {
+            Toggle(isOn: isOn) {
+                Text(title)
+                Text(subtitle)
+            }
         }
     }
 
