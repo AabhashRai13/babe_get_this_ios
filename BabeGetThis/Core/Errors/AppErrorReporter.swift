@@ -7,7 +7,8 @@ protocol AppErrorReporter: Sendable {
     func report(_ error: any Error, mapped: AppError)
 }
 
-/// Reports nothing. Used until crash reporting is wired in, and by tests that only check mapping.
+/// Reports nothing. For tests that only check mapping; the app reports through
+/// `AppContainer.errorReporter`.
 struct SilentAppErrorReporter: AppErrorReporter {
     func report(_ error: any Error, mapped: AppError) {}
 }

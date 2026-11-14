@@ -50,9 +50,13 @@ final class AppContainer {
             dataShape: DatabaseTelemetryDataShape(items: database.items, lists: database.lists),
             flavor: config.environment.rawValue)
         // Every repository failure is offered to crash reporting, which keeps only Unknown and
-        // Database errors (ERR-03).
-        let safeCall = SafeCall(reporter: ErrorReporter(crashReporter: telemetry.crashReporter))
+        // Database errors (ERR-03). Everything the container builds reports through this one
+        // reporter; nothing outside tests uses `SilentAppErrorReporter`.
+        let errorReporter = ErrorReporter(crashReporter: telemetry.crashReporter)
+        self.errorReporter = errorReporter
+        let safeCall = SafeCall(reporter: errorReporter)
         self.safeCall = safeCall
+        self.categoryRepository = CategoryRepository(dao: database.categories, safeCall: safeCall)
         let containerRef = WeakContainerRef()
         // The trigger reaches the engine only once `start()` has turned sync on, so building the
         // container (tests, `-sampleData`) opens no Supabase client and never touches the network.
@@ -108,6 +112,12 @@ final class AppContainer {
     @ObservationIgnored let telemetryContext: TelemetryContext
     /// Keeps analytics and crash identity following the signed-in user.
     @ObservationIgnored private var telemetryIdentity: AuthStateSubscription?
+
+    /// Hands every mapped error to `crashReporter` (ERR-03), for the view models that report
+    /// failures of their own (sign-in).
+    @ObservationIgnored let errorReporter: any AppErrorReporter
+    /// Categories for the add/edit item sheet, on the reporting `safeCall`.
+    @ObservationIgnored let categoryRepository: CategoryRepository
 
     @ObservationIgnored private let safeCall: SafeCall
     /// What the trigger kicks; nil until `start()`, so unstarted containers never sync.
@@ -209,7 +219,7 @@ final class AppContainer {
         let googleTokens = GoogleIdTokenRequester(
             infoDictionary: Bundle.main.infoDictionary, networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
         return LoginViewModel(authRepository: authRepository, googleAuth: authRepository,
-                              googleTokens: googleTokens, appleAuth: authRepository)
+                              googleTokens: googleTokens, appleAuth: authRepository, reporter: errorReporter)
     }
 
     func makeRegisterViewModel() -> RegisterViewModel {

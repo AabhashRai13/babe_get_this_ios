@@ -163,7 +163,8 @@ final class IdTokenSignInTests: XCTestCase {
     // is what GoTrue compares with that claim. A nonce left out on either side fails the sign-in.
     func testHashedNonceReachesTheSheetAndTheRawNonceReachesSupabase() async throws {
         let vm = LoginViewModel(authRepository: LoginTestAuthRepository(), googleAuth: repository,
-                                googleTokens: requester(), appleAuth: IdTokenFakeAppleAuth())
+                                googleTokens: requester(), appleAuth: IdTokenFakeAppleAuth(),
+                                reporter: SilentAppErrorReporter())
 
         vm.signInWithGoogle()
         await vm.inFlight?.value
