@@ -2,15 +2,57 @@ import Foundation
 
 /// Port of Android's `SupabaseAuthRepository`: email sign-up/in, password reset, profile
 /// name, sign-out and account deletion, persisting the session through `AuthStateManager`.
-final class SupabaseAuthRepository: AuthRepository {
+final class SupabaseAuthRepository: AuthRepository, LoginGoogleAuthenticating, LoginAppleAuthenticating {
     private let remote: any AuthRemote
+    private let idTokenRemote: (any AuthIdTokenRemote)?
     private let authStateManager: AuthStateManager
     private let networkMonitor: NetworkMonitor
 
-    init(remote: any AuthRemote, authStateManager: AuthStateManager, networkMonitor: NetworkMonitor) {
+    /// `idTokenRemote` defaults to `remote` when it can sign in with an id token.
+    init(remote: any AuthRemote, authStateManager: AuthStateManager, networkMonitor: NetworkMonitor,
+         idTokenRemote: (any AuthIdTokenRemote)? = nil) {
         self.remote = remote
+        self.idTokenRemote = idTokenRemote ?? (remote as? any AuthIdTokenRemote)
         self.authStateManager = authStateManager
         self.networkMonitor = networkMonitor
+    }
+
+    /// AUTH-05 (Android `signInWithGoogle`). Google puts the email and name in user_metadata,
+    /// so there is nothing to fall back on.
+    func signInWithGoogle(idToken: String, rawNonce: String) async -> Result<AuthUser, AppError> {
+        await signInWithIdToken(.google, idToken: idToken, rawNonce: rawNonce, fallbackName: "",
+                                failureMessage: AuthErrorMapper.googleSignInFailed)
+    }
+
+    /// AUTH-06. Apple gives the full name only on the first authorisation and Supabase doesn't
+    /// keep it, so a non-empty one is stored as `user_metadata.name` right after signing in.
+    func signInWithApple(idToken: String, rawNonce: String, fullName: String?) async -> Result<AuthUser, AppError> {
+        let name = fullName?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let result = await signInWithIdToken(.apple, idToken: idToken, rawNonce: rawNonce, fallbackName: name,
+                                             failureMessage: AuthErrorMapper.appleSignInFailed)
+        guard case .success = result, !name.isEmpty else { return result }
+        // The user is signed in either way; a failed name update keeps the sign-in.
+        if case .success(let renamed)? = try? await updateUserName(name) { return .success(renamed) }
+        return result
+    }
+
+    /// Both providers' failures read as "<provider> sign-in failed"; offline and timeouts keep
+    /// their own messages.
+    private func signInWithIdToken(_ provider: IdTokenProvider, idToken: String, rawNonce: String,
+                                   fallbackName: String, failureMessage: String) async -> Result<AuthUser, AppError> {
+        guard let idTokenRemote else { return .failure(.auth(failureMessage)) }
+        let result: Result<AuthUser, AppError>
+        do {
+            result = try await runCatchingAuth {
+                let session = try await idTokenRemote.signInWithIdToken(
+                    provider: provider, idToken: idToken, rawNonce: rawNonce.isEmpty ? nil : rawNonce)
+                return persist(session, fallbackName: fallbackName, fallbackEmail: "")
+            }
+        } catch {
+            return .failure(.auth(failureMessage))
+        }
+        if case .failure(.auth(_)) = result { return .failure(.auth(failureMessage)) }
+        return result
     }
 
     func register(email: String, password: String, name: String) async throws(CancellationError) -> Result<AuthRegisterResult, AppError> {

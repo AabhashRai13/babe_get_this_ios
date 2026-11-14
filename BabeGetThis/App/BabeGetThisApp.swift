@@ -1,3 +1,4 @@
+import GoogleSignIn
 import SwiftUI
 
 @main
@@ -9,6 +10,8 @@ struct BabeGetThisApp: App {
         WindowGroup {
             RootView()
                 .environment(container)
+                // The Google sheet returns through the app's reversed-client-id URL (AUTH-05).
+                .onOpenURL { _ = GIDSignIn.sharedInstance.handle($0) }
         }
         // Coming back to the foreground kicks a push + catch-up (TRIG-02).
         .onChange(of: scenePhase, initial: true) { _, phase in

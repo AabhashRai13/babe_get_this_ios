@@ -1,6 +1,7 @@
 import Foundation
 
-/// What the Google sheet hands back (Android `GoogleSignInToken`).
+/// What the Google sheet hands back (Android `GoogleSignInToken`). `rawNonce` is empty when the
+/// sheet could not put a nonce into the token; Supabase then gets no nonce at all.
 struct GoogleSignInToken: Equatable, Sendable {
     let idToken: String
     let rawNonce: String
@@ -15,6 +16,8 @@ enum GoogleSheetFailure: Error, Equatable, Sendable {
     case noAccount
     /// Sheet failure or unparseable credential (OAuth client misconfigured, ...): a defect to report.
     case failed(String)
+    /// iOS only: this build has no Google client id, so the SDK is never called (it would crash).
+    case notConfigured
 }
 
 /// Opens the Google sheet. Returns nil when the user closes it, which is not an error.

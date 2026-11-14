@@ -100,14 +100,3 @@ private struct ForgotPasswordScreen: View {
         ForgotPasswordView(viewModel: viewModel)
     }
 }
-
-/// Google sign-in until F23 wires the real sheet: the button fails with the usual message.
-struct GoogleSignInNotWired: LoginGoogleTokenRequester, LoginGoogleAuthenticating {
-    func request() async throws -> GoogleSignInToken? {
-        throw GoogleSheetFailure.failed("Google sign-in is not wired yet (F23)")
-    }
-
-    func signInWithGoogle(idToken: String, rawNonce: String) async -> Result<AuthUser, AppError> {
-        .failure(.unknown(AuthErrorMapper.googleSignInFailed))
-    }
-}
