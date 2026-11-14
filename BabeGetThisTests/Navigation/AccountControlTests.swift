@@ -34,10 +34,15 @@ final class AccountControlTests: XCTestCase {
         XCTAssertEqual(vm.accountControl, .avatar(initial: "A"))
     }
 
-    func testWithoutANameTheInitialComesFromTheEmail() {
-        let vm = lists(userId: "u1", token: "t", email: "zoe@b.c")
+    // Android `AccountAction`: `userName?.trim()?.firstOrNull()`, else a person glyph. Never
+    // the email.
+    func testWithoutANameTheAvatarShowsAPersonGlyphNotTheEmail() {
+        let noName = lists(userId: "u1", token: "t", email: "zoe@b.c")
+        let blankName = lists(userId: "u1", token: "t", name: "   ", email: "zoe@b.c")
 
-        XCTAssertEqual(vm.accountControl, .avatar(initial: "Z"))
+        XCTAssertEqual(noName.accountControl, .avatar(initial: nil))
+        XCTAssertEqual(blankName.accountControl, .avatar(initial: nil))
+        XCTAssertEqual(ListsViewModel.initial(name: "  ann "), "A")
     }
 
     func testAnExpiredSessionKeepsTheAvatar() {

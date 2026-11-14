@@ -14,7 +14,7 @@ struct ProfileSheet: View {
                 .fill(AppColors.primaryContainer)
                 .frame(width: 64, height: 64)
                 .overlay {
-                    if let initial = ListsViewModel.initial(name: name, email: email) {
+                    if let initial = ListsViewModel.initial(name: name) {
                         Text(initial)
                             .font(.title.bold())
                             .foregroundStyle(AppColors.onPrimaryContainer)

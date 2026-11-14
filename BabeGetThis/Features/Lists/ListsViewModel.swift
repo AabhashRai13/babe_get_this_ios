@@ -305,17 +305,13 @@ final class ListsViewModel {
 
     var accountControl: AccountControl {
         guard hasAccount else { return .signIn }
-        return .avatar(initial: Self.initial(name: authState?.userName, email: authState?.userEmail))
+        return .avatar(initial: Self.initial(name: authState?.userName))
     }
 
-    /// The first letter of the name, else of the email, upper-cased; nil when neither is known.
-    static func initial(name: String?, email: String?) -> String? {
-        for candidate in [name, email] {
-            if let first = candidate?.trimmingCharacters(in: .whitespacesAndNewlines).first {
-                return String(first).uppercased()
-            }
-        }
-        return nil
+    /// The first letter of the name, upper-cased; nil (a person glyph) when there is no name.
+    /// Never the email: Android `AccountAction` uses `userName?.trim()?.firstOrNull()` only.
+    static func initial(name: String?) -> String? {
+        name?.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0).uppercased() }
     }
 
     var profileName: String? { authState?.userName }
