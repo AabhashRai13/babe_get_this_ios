@@ -84,6 +84,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 
 - **HOME-01** [done] (K/feature/shoppinglist/ui/components/GreetingSection.kt) Greeting text: before 12 "Good morning", before 17 "Good afternoon", else "Good evening", plus ", FirstName" when a name exists; summary "N list(s) · M item(s) to get" / "nothing to pick up yet" (in-memory `Greeting`).
 - **HOME-02** [done] (K/feature/shoppinglist/ui/ShoppingListScreen.kt) Active/Completed tabs, empty state "No lists yet" with "Create your first list", and FAB only when lists exist (in-memory `ListsViewModel`).
+  - iOS deviation: nothing shows until the first lists value arrives (`hasLoadedLists`), so "No lists yet" can't flash on launch; Android starts from an empty list and shows it until the query answers.
 - **HOME-03** [todo] (K/feature/shoppinglist/data/local/dao/ShoppingListDao.kt) Lists come from the local DB for the current data owner (guest: `accountId IS NULL AND shareCode IS NULL`; account or expired session: `accountId = owner`). Tombstones are hidden, order is `createdAt DESC`, and the list updates live.
 - **HOME-04** [done] (K/feature/shoppinglist/model/ShoppingList.kt) A list is completed when itemCount > 0 and completed == itemCount. Empty lists are Active (`ShoppingListSummary.isCompleted`).
 - **HOME-05** [todo] (K/core/util/DateGrouping.kt) Lists within a tab are grouped into Today / Yesterday / Last 7 Days / This Month / Older. The header is a 6pt primary dot plus a bold label. Port DateGroupingTest (13).

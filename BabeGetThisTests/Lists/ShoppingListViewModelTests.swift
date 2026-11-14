@@ -109,11 +109,42 @@ final class ShoppingListViewModelTests: XCTestCase {
 
     func testHasNoListsReflectsBothTabsBeingEmpty() async throws {
         let vm = viewModel()
+        try await waitUntil { vm.hasLoadedLists }
         XCTAssertTrue(vm.hasNoLists)
 
         try await show([list("a")], in: vm)
 
         XCTAssertFalse(vm.hasNoLists)
+    }
+
+    // iOS deviation (PARITY HOME-02): Android starts from an empty list and shows the
+    // empty state until the first query result; here nothing shows until it arrives.
+    func testTheEmptyStateWaitsForTheFirstValueThenShowsWhenThereAreNoLists() async throws {
+        repository.configure { $0.emitsInitialValue = false }
+        let vm = viewModel()
+        try await Task.sleep(for: .milliseconds(50))
+
+        XCTAssertFalse(vm.hasLoadedLists)
+        XCTAssertFalse(vm.hasNoLists, "no empty state while loading")
+
+        repository.emit([])
+        try await waitUntil { vm.hasLoadedLists }
+
+        XCTAssertTrue(vm.hasNoLists)
+    }
+
+    func testLoadingGoesStraightToTheListsWithoutAnEmptyState() async throws {
+        repository.configure { $0.emitsInitialValue = false }
+        let vm = viewModel()
+        try await Task.sleep(for: .milliseconds(50))
+        XCTAssertFalse(vm.hasLoadedLists)
+        XCTAssertFalse(vm.hasNoLists)
+
+        try await show([list("a")], in: vm)
+
+        XCTAssertTrue(vm.hasLoadedLists)
+        XCTAssertFalse(vm.hasNoLists)
+        XCTAssertEqual(vm.activeLists.map(\.id), ["a"])
     }
 
     func testGroupingPreservesTimePeriodOrder() async throws {
@@ -495,11 +526,14 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
         var renames: [Rename] = []
         var restores: [Restore] = []
         var createdWithItems: [CreatedWithItems] = []
+        /// False: a new stream yields nothing until `emit`, like a query still loading.
+        var emitsInitialValue = true
     }
 
     private let lock = NSLock()
     private var state = State()
     private var continuation: AsyncThrowingStream<[ShoppingList], any Error>.Continuation?
+    private var emitted = false
 
     func configure(_ change: (inout State) -> Void) { lock.withLock { change(&state) } }
     func snapshot() -> State { lock.withLock { state } }
@@ -509,6 +543,7 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
     func emit(_ lists: [ShoppingList]) {
         lock.withLock {
             state.lists = lists
+            emitted = true
             continuation?.yield(lists)
         }
     }
@@ -517,7 +552,7 @@ private final class FakeListsRepository: ListsRepositoryProviding, @unchecked Se
         AsyncThrowingStream { continuation in
             lock.withLock {
                 self.continuation = continuation
-                continuation.yield(state.lists)
+                if state.emitsInitialValue || emitted { continuation.yield(state.lists) }
             }
         }
     }

@@ -48,6 +48,9 @@ final class ListsViewModel {
 
     /// Repository order: `createdAt` newest first.
     private(set) var lists: [ShoppingListSummary]
+    /// False until the repository's first value arrives. Until then `lists` is only the
+    /// initial empty array, so the screen shows neither the empty state nor the tabs.
+    private(set) var hasLoadedLists: Bool
     var selectedTab: Tab = .active
     /// A failed write's message, for the screen to show once.
     var errorMessage: String?
@@ -72,6 +75,7 @@ final class ListsViewModel {
 
     init(lists: [ShoppingListSummary] = []) {
         self.lists = lists
+        self.hasLoadedLists = true
         self.repository = nil
         self.authState = nil
         self.shareJoiner = nil
@@ -85,6 +89,7 @@ final class ListsViewModel {
         ownership: (any ListOwnershipStore)? = nil
     ) {
         self.lists = []
+        self.hasLoadedLists = false
         self.repository = repository
         self.authState = authState
         self.shareJoiner = shareJoiner
@@ -114,7 +119,8 @@ final class ListsViewModel {
 
     var activeLists: [ShoppingListSummary] { lists.filter { !$0.isCompleted } }
     var completedLists: [ShoppingListSummary] { lists.filter(\.isCompleted) }
-    var hasNoLists: Bool { lists.isEmpty }
+    /// "No lists yet" only once the lists have loaded, so it doesn't flash on launch.
+    var hasNoLists: Bool { hasLoadedLists && lists.isEmpty }
     var isActiveTab: Bool { selectedTab == .active }
     var activeItemsToGet: Int { activeLists.reduce(0) { $0 + $1.itemsToGet } }
 
@@ -153,9 +159,12 @@ final class ListsViewModel {
             for try await fresh in repository.allLists() {
                 domainLists = fresh
                 lists = fresh.map(ShoppingListSummary.init)
+                hasLoadedLists = true
             }
         } catch is CancellationError {
         } catch {
+            // Nothing more will arrive: show the empty state rather than a blank screen.
+            hasLoadedLists = true
             errorMessage = AppError.database().message
         }
     }
