@@ -236,12 +236,13 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         defer { observation.cancel() }
         await listDetailEventually { vm.items.count == 1 }
 
+        // Android sets a new value for every editable field and checks each one is written.
         var draft = ItemDraft(editing: try XCTUnwrap(vm.items.first))
         draft.name = "  Oat milk  "
         draft.quantity = "3"
-        draft.shop = "   "
-        draft.note = "barista"
-        draft.categoryId = nil
+        draft.shop = "new shop"
+        draft.note = "new note"
+        draft.categoryId = "cat-bakery-bread"
         let saved = await vm.edit("i1", with: draft)
         XCTAssertTrue(saved)
 
@@ -252,8 +253,33 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         XCTAssertEqual(row?.isPickedUp, true)
         XCTAssertEqual(row?.name, "Oat milk")
         XCTAssertEqual(row?.quantity, "3")
+        XCTAssertEqual(row?.shop, "new shop")
+        XCTAssertEqual(row?.note, "new note")
+        XCTAssertEqual(row?.categoryId, "cat-bakery-bread")
+    }
+
+    // iOS: a blank shop and no category are stored as nil, not as "" or a stale value.
+    func testEditStoresABlankShopAndNoCategoryAsNil() async throws {
+        let db = try AppDatabase.inMemory()
+        try await db.lists.insertList(TestData.listEntity(id: "list-1"))
+        try await db.items.insertItem(TestData.itemEntity(
+            id: "i1", name: "Milk", categoryId: "cat-dairy-eggs", shop: "Aldi"))
+        let repository = ShoppingItemRepository(
+            itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
+            syncKicker: CountingSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+        let vm = ListDetailViewModel(listId: "list-1", source: repository, haptics: RecordingHapticPlayer())
+        let observation = Task { await vm.observeItems() }
+        defer { observation.cancel() }
+        await listDetailEventually { vm.items.count == 1 }
+
+        var draft = ItemDraft(editing: try XCTUnwrap(vm.items.first))
+        draft.shop = "   "
+        draft.categoryId = nil
+        let saved = await vm.edit("i1", with: draft)
+        XCTAssertTrue(saved)
+
+        let row = try await db.items.itemRaw(id: "i1")
         XCTAssertNil(row?.shop)
-        XCTAssertEqual(row?.note, "barista")
         XCTAssertNil(row?.categoryId)
     }
 
