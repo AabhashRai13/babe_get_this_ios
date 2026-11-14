@@ -3,8 +3,10 @@ import XCTest
 
 /// Port of Android `AuthScreensTest` (27 cases, AUTH-11). Android renders each screen over its
 /// real view model with a mocked repository. Here the same real view models run over
-/// `ScreensAuthRepository`; what the screens render (labels, which fields, what scrolls) comes
-/// from the `*ScreenCopy` the views are built from, and the routes go through `AuthFlow`.
+/// `ScreensAuthRepository`. There is no UI test target, so the rendering cases check the lists
+/// the views are built from (`LoginScreenCopy.fields` / `scrollingContent` / `pinnedFooter`,
+/// `RegisterScreenCopy.fields`, `ForgotPasswordScreenCopy.fields(codeSent:)`), and the route
+/// cases tap through the `*ScreenTaps` the views send every tap to.
 @MainActor
 final class AuthScreensTests: XCTestCase {
     private var repository: ScreensAuthRepository!
@@ -29,16 +31,39 @@ final class AuthScreensTests: XCTestCase {
         await viewModel.inFlight?.value
     }
 
-    func testLoginShowsItsFieldsAndPrimaryAction() {
-        XCTAssertEqual(LoginScreenCopy.fields, ["Email", "Password"])
-        XCTAssertEqual(LoginScreenCopy.signIn, "Sign in")
-        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(LoginScreenCopy.signIn))
+    private func taps(_ viewModel: LoginViewModel, routes: ScreensRouteLog = ScreensRouteLog()) -> LoginScreenTaps {
+        LoginScreenTaps(viewModel: viewModel, onRegister: { routes.record("register") },
+                        onForgotPassword: { routes.record("forgotPassword") })
     }
 
-    // Rendering only: tapping it opens the real Google sheet, checked on a device.
-    func testLoginOffersGoogleSignIn() {
-        XCTAssertEqual(LoginScreenCopy.continueWithGoogle, "Continue with Google")
-        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains("Continue with Google"))
+    func testLoginShowsItsFieldsAndPrimaryAction() async {
+        let viewModel = login()
+        XCTAssertEqual(LoginScreenCopy.fields.map(\.label), ["Email", "Password"])
+        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(.form), "the fields are in the form card")
+        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(.signIn))
+        XCTAssertEqual(LoginScreenElement.signIn.label, "Sign in")
+
+        // The primary action follows the form and signs in with what was typed.
+        XCTAssertFalse(viewModel.isEmailSignInEnabled)
+        viewModel.onEmailChange("a@b.c")
+        viewModel.onPasswordChange("secret123")
+        XCTAssertTrue(viewModel.isEmailSignInEnabled)
+        taps(viewModel).tap(.signIn)
+        await viewModel.inFlight?.value
+        XCTAssertEqual(repository.loginCalls.map(\.email), ["a@b.c"])
+    }
+
+    func testLoginOffersGoogleSignIn() async {
+        let sheet = ScreensCountingGoogleSheet()
+        let viewModel = LoginViewModel(authRepository: repository, googleAuth: repository, googleTokens: sheet)
+        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(.google))
+        XCTAssertEqual(LoginScreenElement.google.label, "Continue with Google")
+
+        taps(viewModel).tap(.google)
+        await viewModel.inFlight?.value
+
+        XCTAssertEqual(sheet.requests, 1, "the button opens the Google sheet")
+        XCTAssertTrue(repository.loginCalls.isEmpty)
     }
 
     func testSignInIsDisabledUntilBothFieldsAreFilled() {
@@ -117,25 +142,34 @@ final class AuthScreensTests: XCTestCase {
         XCTAssertEqual(viewModel.errorMessage, AppError.network().message)
     }
 
+    // Each route button calls its own callback, and only that one. AuthSheet's callbacks then
+    // move the flow.
     func testLoginOffersTheRegisterAndForgotPasswordRoutes() {
-        XCTAssertEqual(LoginScreenCopy.signUp, "Sign up")
-        XCTAssertEqual(LoginScreenCopy.forgotPassword, "Forgot password?")
+        let routes = ScreensRouteLog()
+        let screen = taps(login(), routes: routes)
+        XCTAssertEqual(LoginScreenElement.signUp.label, "Sign up")
+        XCTAssertEqual(LoginScreenElement.forgotPassword.label, "Forgot password?")
 
-        var toRegister = AuthFlow(start: .login, below: .lists)
-        toRegister.showRegister()
-        XCTAssertEqual(toRegister.current, .register)
+        screen.tap(.signUp)
+        XCTAssertEqual(routes.taken, ["register"])
+        screen.tap(.forgotPassword)
+        XCTAssertEqual(routes.taken, ["register", "forgotPassword"])
 
-        var toForgot = AuthFlow(start: .login, below: .lists)
-        toForgot.showForgotPassword()
-        XCTAssertEqual(toForgot.current, .forgotPassword)
+        var flow = AuthFlow(start: .login, below: .lists)
+        LoginScreenTaps(viewModel: login(), onRegister: { flow.showRegister() }, onForgotPassword: {}).tap(.signUp)
+        XCTAssertEqual(flow.current, .register)
+        XCTAssertTrue(repository.loginCalls.isEmpty, "a route never signs in")
     }
 
     // On a small phone the form alone fills the screen, so a "Sign up" at the end of the
-    // scroll started out of view. New users have to find it.
+    // scroll started out of view. New users have to find it. LoginView builds its ScrollView
+    // from `scrollingContent` and the footer under it from `pinnedFooter`.
     func testTheSignUpRouteStaysOutsideTheScrollingForm() {
-        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(LoginScreenCopy.email))
-        XCTAssertFalse(LoginScreenCopy.scrollingContent.contains(LoginScreenCopy.signUp))
-        XCTAssertTrue(LoginScreenCopy.pinnedFooter.contains(LoginScreenCopy.signUp))
+        XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(.form), "Email scrolls")
+        XCTAssertTrue(LoginScreenCopy.fields.contains(.email))
+        XCTAssertFalse(LoginScreenCopy.scrollingContent.contains(.signUp))
+        XCTAssertFalse(LoginScreenCopy.scrollingContent.contains(.noAccount))
+        XCTAssertEqual(LoginScreenCopy.pinnedFooter, [.noAccount, .signUp])
     }
 
     // MARK: - RegisterScreen
@@ -159,8 +193,16 @@ final class AuthScreensTests: XCTestCase {
         await viewModel.inFlight?.value
     }
 
+    // RegisterView builds its form card from `RegisterScreenCopy.fields`; each field feeds the
+    // view model input of the same name.
     func testRegisterShowsEveryField() {
-        XCTAssertEqual(RegisterScreenCopy.fields, ["Your name", "Email", "Password", "Confirm password"])
+        let viewModel = register()
+        XCTAssertEqual(RegisterScreenCopy.fields.map(\.label), ["Your name", "Email", "Password", "Confirm password"])
+
+        fillRegisterForm(viewModel)
+
+        XCTAssertEqual([viewModel.name, viewModel.email, viewModel.password, viewModel.confirmPassword],
+                       ["Aabhash", "a@b.c", "secret123", "secret123"])
     }
 
     func testCreateAccountIsDisabledUntilTheFormIsComplete() {
@@ -227,11 +269,15 @@ final class AuthScreensTests: XCTestCase {
 
     func testRegisterOffersTheSignInRoute() {
         XCTAssertEqual(RegisterScreenCopy.signIn, "Sign in")
-
         var flow = AuthFlow(start: .register, below: .lists)
-        flow.showLogin()
+        let viewModel = register()
+        fillRegisterForm(viewModel)
+
+        RegisterScreenTaps(viewModel: viewModel, onLogin: { flow.showLogin() }).tap(.signIn)
 
         XCTAssertEqual(flow.current, .login)
+        XCTAssertNil(viewModel.inFlight, "the route doesn't submit the form")
+        XCTAssertTrue(repository.registerCalls.isEmpty)
     }
 
     // MARK: - ForgotPasswordScreen
@@ -247,11 +293,13 @@ final class AuthScreensTests: XCTestCase {
         await viewModel.inFlight?.value
     }
 
+    // ForgotPasswordView shows `fields(codeSent:)` for the view model's step, then its action.
     func testForgotPasswordAsksForAnEmailFirst() {
         let viewModel = forgot()
 
-        XCTAssertEqual(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent), ["Email"])
-        XCTAssertEqual(ForgotPasswordScreenCopy.sendCode, "Send code")
+        XCTAssertFalse(viewModel.codeSent)
+        XCTAssertEqual(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent).map(\.label), ["Email"])
+        XCTAssertEqual(ForgotPasswordScreenCopy.primaryAction(codeSent: viewModel.codeSent), "Send code")
     }
 
     func testSendCodeIsDisabledUntilTheEmailIsValid() {
@@ -279,7 +327,8 @@ final class AuthScreensTests: XCTestCase {
 
         await sendCode(viewModel)
 
-        XCTAssertEqual(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent), ["8-digit code", "New password"])
+        XCTAssertEqual(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent).map(\.label), ["8-digit code", "New password"])
+        XCTAssertEqual(ForgotPasswordScreenCopy.primaryAction(codeSent: viewModel.codeSent), "Reset password")
     }
 
     func testAFailedSendShowsTheErrorAndStaysOnTheEmailStep() async {
@@ -289,7 +338,7 @@ final class AuthScreensTests: XCTestCase {
 
         await sendCode(viewModel)
 
-        XCTAssertFalse(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent).contains("8-digit code"))
+        XCTAssertEqual(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent), [.email])
         XCTAssertEqual(viewModel.errorMessage, AppError.network().message)
     }
 

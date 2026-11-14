@@ -19,13 +19,7 @@ struct LoginView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    BrandMark().padding(.top, 24)
-                    header
-                    formCard.padding(.top, 16)
-                    forgotPassword
-                    signInButton.padding(.top, 12)
-                    googleButton.padding(.top, 12)
-                    appleButton.padding(.top, 12)
+                    ForEach(LoginScreenCopy.scrollingContent, id: \.self) { element($0) }
                 }
                 .padding(.horizontal, AppMetrics.welcomePadding)
             }
@@ -49,14 +43,9 @@ struct LoginView: View {
             }
             .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
 
-            // Pinned below the scroll (LoginScreenCopy.pinnedFooter), never scrolled out of view.
+            // Pinned below the scroll, never scrolled out of view.
             HStack(spacing: 4) {
-                Text(LoginScreenCopy.noAccount)
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.textSecondary)
-                Button(LoginScreenCopy.signUp, action: onNavigateToRegister)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppColors.primary)
+                ForEach(LoginScreenCopy.pinnedFooter, id: \.self) { element($0) }
             }
             .padding(.vertical, 8)
         }
@@ -69,6 +58,32 @@ struct LoginView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
+    }
+
+    private var taps: LoginScreenTaps {
+        LoginScreenTaps(viewModel: viewModel, onRegister: onNavigateToRegister,
+                        onForgotPassword: onNavigateToForgotPassword)
+    }
+
+    @ViewBuilder
+    private func element(_ element: LoginScreenElement) -> some View {
+        switch element {
+        case .brand: BrandMark().padding(.top, 24)
+        case .header: header
+        case .form: formCard.padding(.top, 16)
+        case .forgotPassword: forgotPassword
+        case .signIn: signInButton.padding(.top, 12)
+        case .google: googleButton.padding(.top, 12)
+        case .apple: appleButton.padding(.top, 12)
+        case .noAccount:
+            Text(LoginScreenCopy.noAccount)
+                .font(.subheadline)
+                .foregroundStyle(AppColors.textSecondary)
+        case .signUp:
+            Button(LoginScreenCopy.signUp) { taps.tap(.signUp) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppColors.primary)
+        }
     }
 
     private var header: some View {
@@ -90,10 +105,21 @@ struct LoginView: View {
 
     private var formCard: some View {
         VStack(alignment: .leading, spacing: 14) {
+            ForEach(LoginScreenCopy.fields, id: \.self) { field($0) }
+        }
+        .padding(20)
+        .background(AppColors.surfaceContainerLow,
+                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func field(_ field: LoginScreenField) -> some View {
+        switch field {
+        case .email:
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "envelope").foregroundStyle(AppColors.primary)
-                    TextField(LoginScreenCopy.email, text: emailBinding)
+                    TextField(field.label, text: emailBinding)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -107,13 +133,14 @@ struct LoginView: View {
                     Text(error).font(.caption).foregroundStyle(AppColors.error)
                 }
             }
+        case .password:
             HStack {
                 Image(systemName: "lock").foregroundStyle(AppColors.primary)
                 Group {
                     if passwordVisible {
-                        TextField(LoginScreenCopy.password, text: passwordBinding)
+                        TextField(field.label, text: passwordBinding)
                     } else {
-                        SecureField(LoginScreenCopy.password, text: passwordBinding)
+                        SecureField(field.label, text: passwordBinding)
                     }
                 }
                 .textContentType(.password)
@@ -128,15 +155,12 @@ struct LoginView: View {
             }
             .modifier(LoginFieldChrome(isError: false))
         }
-        .padding(20)
-        .background(AppColors.surfaceContainerLow,
-                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
     }
 
     private var forgotPassword: some View {
         HStack {
             Spacer()
-            Button(LoginScreenCopy.forgotPassword, action: onNavigateToForgotPassword)
+            Button(LoginScreenCopy.forgotPassword) { taps.tap(.forgotPassword) }
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppColors.primary)
         }
@@ -146,7 +170,7 @@ struct LoginView: View {
     // Each button shows the spinner only for its own path; all three stay disabled while any
     // sign-in runs.
     private var signInButton: some View {
-        Button { viewModel.login() } label: {
+        Button { taps.tap(.signIn) } label: {
             if viewModel.showsSpinner(for: .email) {
                 ProgressView().tint(AppColors.onPrimary)
             } else {
@@ -158,7 +182,7 @@ struct LoginView: View {
     }
 
     private var googleButton: some View {
-        Button { viewModel.signInWithGoogle() } label: {
+        Button { taps.tap(.google) } label: {
             if viewModel.showsSpinner(for: .google) {
                 ProgressView()
             } else {

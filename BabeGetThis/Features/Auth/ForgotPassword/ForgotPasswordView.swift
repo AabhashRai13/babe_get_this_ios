@@ -23,11 +23,7 @@ struct ForgotPasswordView: View {
                     .font(.subheadline)
                     .foregroundStyle(AppColors.textSecondary)
 
-                if viewModel.codeSent {
-                    resetStep
-                } else {
-                    emailStep
-                }
+                currentStep
             }
             .padding(.horizontal, AppMetrics.welcomePadding)
         }
@@ -66,10 +62,20 @@ struct ForgotPasswordView: View {
         }
     }
 
-    private var emailStep: some View {
+    /// The step's fields (`ForgotPasswordScreenCopy.fields(codeSent:)`), then its primary action.
+    private var currentStep: some View {
         VStack(alignment: .leading, spacing: 16) {
+            ForEach(ForgotPasswordScreenCopy.fields(codeSent: viewModel.codeSent), id: \.self) { stepField($0) }
+            primaryButton
+        }
+    }
+
+    @ViewBuilder
+    private func stepField(_ stepField: ForgotPasswordField) -> some View {
+        switch stepField {
+        case .email:
             fieldBox(icon: "envelope", error: viewModel.emailError) {
-                TextField(ForgotPasswordScreenCopy.email, text: Binding(get: { viewModel.email }, set: { viewModel.onEmailChange($0) }))
+                TextField(stepField.label, text: Binding(get: { viewModel.email }, set: { viewModel.onEmailChange($0) }))
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -78,33 +84,21 @@ struct ForgotPasswordView: View {
                     .submitLabel(.go)
                     .onSubmit { viewModel.sendCode() }
             }
-            Button { viewModel.sendCode() } label: {
-                if viewModel.isLoading {
-                    ProgressView().tint(AppColors.onPrimary)
-                } else {
-                    Text(ForgotPasswordScreenCopy.sendCode).fontWeight(.semibold)
-                }
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(!viewModel.isEmailValid || viewModel.isLoading)
-        }
-    }
-
-    private var resetStep: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        case .code:
             fieldBox(icon: "number", error: nil) {
-                TextField(ForgotPasswordScreenCopy.code, text: Binding(get: { viewModel.code }, set: { viewModel.onCodeChange($0) }))
+                TextField(stepField.label, text: Binding(get: { viewModel.code }, set: { viewModel.onCodeChange($0) }))
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
                     .focused($focus, equals: .code)
             }
+        case .newPassword:
             fieldBox(icon: "lock", error: viewModel.passwordError, trailing: toggle) {
                 let text = Binding(get: { viewModel.newPassword }, set: { viewModel.onNewPasswordChange($0) })
                 Group {
                     if passwordVisible {
-                        TextField(ForgotPasswordScreenCopy.newPassword, text: text)
+                        TextField(stepField.label, text: text)
                     } else {
-                        SecureField(ForgotPasswordScreenCopy.newPassword, text: text)
+                        SecureField(stepField.label, text: text)
                     }
                 }
                 .textContentType(.newPassword)
@@ -114,16 +108,21 @@ struct ForgotPasswordView: View {
                 .submitLabel(.go)
                 .onSubmit { viewModel.resetPassword() }
             }
-            Button { viewModel.resetPassword() } label: {
-                if viewModel.isLoading {
-                    ProgressView().tint(AppColors.onPrimary)
-                } else {
-                    Text("Reset password").fontWeight(.semibold)
-                }
-            }
-            .buttonStyle(PrimaryButtonStyle())
-            .disabled(!viewModel.isResetFormValid || viewModel.isLoading)
         }
+    }
+
+    /// "Send code" on the email step, "Reset password" once the code is sent.
+    private var primaryButton: some View {
+        let codeSent = viewModel.codeSent
+        return Button { codeSent ? viewModel.resetPassword() : viewModel.sendCode() } label: {
+            if viewModel.isLoading {
+                ProgressView().tint(AppColors.onPrimary)
+            } else {
+                Text(ForgotPasswordScreenCopy.primaryAction(codeSent: codeSent)).fontWeight(.semibold)
+            }
+        }
+        .buttonStyle(PrimaryButtonStyle())
+        .disabled(!(codeSent ? viewModel.isResetFormValid : viewModel.isEmailValid) || viewModel.isLoading)
     }
 
     /// The swap replaces the field and drops focus, so a focused field gets it back.

@@ -51,3 +51,22 @@ final class ScreensAuthRepository: AuthRepository, LoginGoogleAuthenticating, @u
 struct ScreensClosedGoogleSheet: LoginGoogleTokenRequester {
     func request() async throws -> GoogleSignInToken? { nil }
 }
+
+/// The Google sheet, counting how often it was asked; closed without picking an account.
+final class ScreensCountingGoogleSheet: LoginGoogleTokenRequester, @unchecked Sendable {
+    private let lock = NSLock()
+    private var _requests = 0
+    var requests: Int { lock.withLock { _requests } }
+
+    func request() async throws -> GoogleSignInToken? {
+        lock.withLock { _requests += 1 }
+        return nil
+    }
+}
+
+/// The routes a screen's buttons asked for, in order.
+@MainActor
+final class ScreensRouteLog {
+    private(set) var taken: [String] = []
+    func record(_ route: String) { taken.append(route) }
+}
