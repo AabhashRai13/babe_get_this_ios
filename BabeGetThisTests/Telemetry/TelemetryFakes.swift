@@ -91,3 +91,9 @@ final class FakeOnline: @unchecked Sendable {
         set { lock.withLock { _online = newValue } }
     }
 }
+
+/// A consent store that never touches UserDefaults. Both switches start on, like the real one.
+final class InMemoryTelemetryConsentStore: TelemetryConsentStore, @unchecked Sendable {
+    var analyticsEnabled = true
+    var crashReportingEnabled = true
+}

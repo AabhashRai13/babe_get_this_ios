@@ -5,7 +5,13 @@ struct SettingsView: View {
     static let title = SettingsStrings.title            // settings
 
     @Environment(\.openURL) private var openURL
-    @State private var viewModel = SettingsViewModel()
+    @State private var viewModel: SettingsViewModel
+
+    /// `consent` is the container's `TelemetryConsent` in the app, so a toggle reaches Analytics
+    /// and Crashlytics at once, not at the next launch (TEL-02).
+    init(consent: any TelemetryConsentStore) {
+        _viewModel = State(initialValue: SettingsViewModel(consent: consent))
+    }
 
     var body: some View {
         ScrollView {
@@ -88,5 +94,5 @@ struct SettingsView: View {
 }
 
 #Preview {
-    NavigationStack { SettingsView() }
+    NavigationStack { SettingsView(consent: UserDefaultsTelemetryConsentStore()) }
 }

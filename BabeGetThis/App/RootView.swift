@@ -15,7 +15,7 @@ struct RootView: View {
                 NavigationStack { WelcomeView() }
             case .lists:
                 NavigationStack(path: $navigation.path) {
-                    ListsView(viewModel: container.lists,
+                    ListsView(viewModel: container.lists, telemetryConsent: container.telemetryConsent,
                               makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
                               onOpenList: { navigation.open($0) })
                 }

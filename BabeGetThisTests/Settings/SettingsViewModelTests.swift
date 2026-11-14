@@ -91,6 +91,46 @@ final class SettingsViewModelTests: XCTestCase {
         XCTAssertTrue(makeViewModel().analyticsEnabled)
     }
 
+    func testTogglingOffThroughTheContainersConsentStopsCollectionAtOnce() throws {
+        // TEL-02: Settings runs on the container's TelemetryConsent, which applies each change at
+        // the vendor in the same call (Android SettingsViewModel → TelemetryConsent).
+        let analytics = RecordingAnalytics()
+        let crashReporter = RecordingCrashReporter()
+        let container = AppContainer(
+            config: .preview, authState: AuthStateManager(tokenStore: InMemoryTokenStore()),
+            database: try AppDatabase.inMemory(), ownership: FakeListOwnershipStore(),
+            telemetry: TelemetryVendors(analytics: analytics, crashReporter: crashReporter),
+            telemetryConsentStore: UserDefaultsTelemetryConsentStore(defaults: defaults))
+        let viewModel = SettingsViewModel(consent: container.telemetryConsent, infoDictionary: [:])
+
+        viewModel.setAnalyticsEnabled(false)
+        XCTAssertEqual([false], analytics.collection)
+        XCTAssertEqual([], crashReporter.collection, "the switches are independent")
+
+        viewModel.setCrashReportingEnabled(false)
+        XCTAssertEqual([false], crashReporter.collection)
+        XCTAssertFalse(defaults.bool(forKey: "analytics_enabled"))
+        XCTAssertFalse(defaults.bool(forKey: "crash_reporting_enabled"))
+    }
+
+    func testTogglingBackOnResumesCollectionAtOnce() {
+        let analytics = RecordingAnalytics()
+        let crashReporter = RecordingCrashReporter()
+        let consent = TelemetryConsent(store: UserDefaultsTelemetryConsentStore(defaults: defaults),
+                                       analytics: analytics, crashReporter: crashReporter)
+        let viewModel = SettingsViewModel(consent: consent, infoDictionary: [:])
+
+        viewModel.setAnalyticsEnabled(false)
+        viewModel.setAnalyticsEnabled(true)
+        viewModel.setCrashReportingEnabled(false)
+        viewModel.setCrashReportingEnabled(true)
+
+        XCTAssertEqual([false, true], analytics.collection)
+        XCTAssertEqual([false, true], crashReporter.collection)
+        XCTAssertTrue(viewModel.analyticsEnabled)
+        XCTAssertTrue(viewModel.crashReportingEnabled)
+    }
+
     func testRateRowOpensAppStoreReviewPage() {
         let viewModel = makeViewModel(appStoreID: "123456789")
         XCTAssertTrue(viewModel.showsRateRow)

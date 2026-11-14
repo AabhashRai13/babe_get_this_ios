@@ -48,8 +48,10 @@ final class SettingsViewModel {
 
     var showsRateRow: Bool { rateURL != nil }
 
-    /// `infoDictionary` is the app's Info.plist, injectable for tests.
-    init(consent: TelemetryConsentStore = UserDefaultsTelemetryConsentStore(), infoDictionary info: [String: Any] = Bundle.main.infoDictionary ?? [:]) {
+    /// `consent` is the container's `TelemetryConsent` in the app (it applies each change at the
+    /// vendor); there is deliberately no default, so a screen can't fall back to a store that only
+    /// writes UserDefaults. `infoDictionary` is the app's Info.plist, injectable for tests.
+    init(consent: TelemetryConsentStore, infoDictionary info: [String: Any] = Bundle.main.infoDictionary ?? [:]) {
         func string(_ key: String) -> String { info[key] as? String ?? "" }
         self.consent = consent
         analyticsEnabled = consent.analyticsEnabled
