@@ -173,6 +173,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Shared lists are never deleted. Guest lists: atomic delete.
   - Account lists not yet on the server: soft delete.
   - Account lists on the server: require a live session and a successful `catchUp(listId)` first, then soft delete (counting live items only) and kick.
+  - iOS wiring: `AppContainer` has no SyncEngine yet, so it passes no `catchUp` and a list on the server is never auto-deleted. F30 (which wires the SyncEngine) must pass `catchUp: { try await engine.catchUp(listId: $0) }`.
 - **DATA-07** [todo] (K/feature/shoppingitems/data/repository/ShoppingItemRepository.kt) ShoppingItemRepository: add, update, delete, restore and toggle picked up.
   - Account lists mark the row pending and kick.
   - Delete is soft or hard depending on the list's owner; restore keeps the original id.

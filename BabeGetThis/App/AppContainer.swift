@@ -33,6 +33,9 @@ final class AppContainer {
         self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
         self.database = database
         let safeCall = SafeCall(reporter: SilentAppErrorReporter())
+        // No catchUp yet: there is no SyncEngine here. F30 wires it and must pass
+        // `catchUp: { try await engine.catchUp(listId: $0) }`, or leaving an empty list that is
+        // on the server never deletes it (DATA-06).
         let listRepository = ShoppingListRepository(
             listDao: database.lists, itemDao: database.items, categoryDao: database.categories,
             authStateManager: authState, syncKicker: NoOpSyncKicker(), safeCall: safeCall)
