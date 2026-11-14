@@ -183,6 +183,14 @@ private struct ListDetailScreen: View {
             }
         }
         .task { await model.observeItems() }
+        // Live sync while open (RT-03); SwiftUI cancels it, closing any channel, when the screen goes.
+        .task(id: list.id) {
+            await ListRealtimeLifecycle(
+                listId: list.id, shareState: container.listRepository,
+                catchUp: { [container] in container.syncEngine },
+                changes: { [container] in SharedListRemoteChanges(remote: container.sharedListRemote) }
+            ).run()
+        }
         .leaveEmptyListGuard(leaveGuard, model: model)
         .onChange(of: model.errorMessage) { _, message in
             guard message != nil else { return }
