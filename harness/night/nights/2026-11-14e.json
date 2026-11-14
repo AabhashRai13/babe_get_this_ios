@@ -1,0 +1,47 @@
+{
+  "night_id": "2026-11-14e",
+  "base_ref": "scaffold/firebase",
+  "worker_deadline": "01:30",
+  "total_deadline": "02:15",
+  "merge_order": [
+    2,
+    1
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F37",
+      "slug": "f37-profile-sheet",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Profile/",
+        "BabeGetThis/App/AppContainer.swift",
+        "BabeGetThis/App/RootView.swift",
+        "BabeGetThis/App/StartScreen.swift",
+        "BabeGetThisTests/Profile/",
+        "docs/night/2026-11-14e-f37-profile-sheet.md"
+      ],
+      "brief": "harness/night/briefs/F37.md"
+    },
+    {
+      "n": 2,
+      "id": "F42",
+      "slug": "f42-settings-screen",
+      "model": "sonnet",
+      "timeout_min": 150,
+      "budget_usd": 15,
+      "sim": "bgt-night-2",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Features/Settings/",
+        "BabeGetThisTests/Settings/",
+        "docs/night/2026-11-14e-f42-settings-screen.md"
+      ],
+      "brief": "harness/night/briefs/F42.md"
+    }
+  ]
+}
