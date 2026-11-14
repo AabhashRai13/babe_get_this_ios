@@ -77,7 +77,9 @@ final class ListDetailChromeModel {
         }
     }
 
+    /// Both top-bar actions play a Light haptic first (Android `haptic(Haptic.Light)`).
     func perform(_ action: ListDetailTopBarAction) {
+        haptics.play(.light)
         switch action {
         case .shareLive: shareLiveTapped()
         case .shareAsText: shareAsTextTapped()

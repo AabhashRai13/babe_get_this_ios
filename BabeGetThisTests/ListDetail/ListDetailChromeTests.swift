@@ -47,6 +47,19 @@ final class ListDetailChromeTests: XCTestCase {
         XCTAssertEqual(ListDetailChromeModel.topBarActions.map(\.title), ["Share live", "Share as text"])
     }
 
+    // Android ShoppingItemsScreen: both top-bar IconButtons call haptic(Haptic.Light) first,
+    // signed in or not.
+    func testEachTopBarActionPlaysALightHaptic() {
+        for state in [AuthState.unauthenticated, .authenticated(userId: "u1")] {
+            for action in ListDetailChromeModel.topBarActions {
+                let haptics = RecordingHaptics()
+                let model = makeModel(state, haptics: haptics)
+                model.perform(action)
+                XCTAssertEqual(haptics.played, [.light], "\(action) \(state)")
+            }
+        }
+    }
+
     func testSignedOutShareLivePromptsWithShareCopyNotVoiceCopy() {
         let model = makeModel(.unauthenticated)
         model.perform(.shareLive)
