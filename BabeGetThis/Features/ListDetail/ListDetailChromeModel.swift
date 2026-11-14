@@ -43,7 +43,7 @@ final class ListDetailChromeModel {
     var authRoute: AuthRoute?
     /// The voice capture sheet is up (signed-in accounts only).
     var isVoicePresented = false
-    /// The Share live placeholder is up (the share dialog is F34).
+    /// The Share live sheet is up (signed-in accounts only).
     var isShareLivePresented = false
     /// Text handed to the system share sheet; nil when it isn't showing.
     var sharedText: String?
@@ -92,6 +92,12 @@ final class ListDetailChromeModel {
         } else {
             authPrompt = .share
         }
+    }
+
+    /// The session was lost while the Share live sheet opened: close it and show the prompt.
+    func shareLiveNeedsSignIn() {
+        isShareLivePresented = false
+        authPrompt = .share
     }
 
     private func shareAsTextTapped() {
