@@ -468,6 +468,18 @@ final class ShoppingListViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isJoining)
     }
 
+    // Until a joiner is wired, Join must say so rather than do nothing.
+    func testJoinWithoutAJoinerShowsAnErrorInsteadOfDoingNothing() async throws {
+        let vm = viewModel(auth: authStateFor("user-1"))
+        vm.startJoining()
+
+        await vm.joinList(code: "ABC234")
+
+        XCTAssertTrue(vm.isJoinDialogPresented)
+        XCTAssertEqual(vm.joinError, ListsViewModel.joinUnavailableMessage)
+        XCTAssertFalse(vm.isJoining)
+    }
+
     func testReopeningTheJoinDialogClearsAStaleError() async throws {
         let joiner = FakeListJoiner(result: .failure(.notFound("nope")))
         let vm = viewModel(auth: authStateFor("user-1"), joiner: joiner)

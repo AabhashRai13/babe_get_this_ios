@@ -19,6 +19,8 @@ protocol ListJoining: Sendable {
     func join(code: String) async throws -> Result<String, AppError>
 }
 
+extension ShareRepository: ListJoining {}
+
 /// Names a voice-created list from its first item (Android `autoNameVoiceList`): nobody
 /// wants to name a grocery list. "Milk" for one item, "Milk + 2 more" for several.
 func autoNameVoiceList(_ drafts: [ItemDraft]) -> String {

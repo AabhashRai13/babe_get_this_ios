@@ -357,12 +357,18 @@ final class ListsViewModel {
 
     func dismissJoinDialog() { isJoinDialogPresented = false }
 
+    static let joinUnavailableMessage = "Joining a list isn't available yet."
+
     func dismissJoinAuthPrompt() { isJoinAuthPromptPresented = false }
 
     /// On success the replica lands in the database and the list appears through the live
     /// query, so nothing else happens here. On failure the dialog stays open with the error.
     func joinList(code: String) async {
-        guard let shareJoiner else { return }
+        guard let shareJoiner else {
+            // Never silent: the dialog says why nothing happened.
+            joinError = Self.joinUnavailableMessage
+            return
+        }
         isJoining = true
         joinError = nil
         defer { isJoining = false }

@@ -236,6 +236,21 @@ final class ShareRepositoryTests: XCTestCase {
         XCTAssertEqual(item?.name, "Milk")
     }
 
+    // The lists screen's join seam: ShareRepository is what the app passes as its ListJoining.
+    func testShareRepositoryServesAsTheListsScreensJoiner() async throws {
+        remote.inner.joinResult = "list-9"
+        remote.inner.listRows = [
+            ListRow(id: "list-9", name: "Their list", shareCode: "ABC234", updatedAt: "2026-08-01T10:00:00Z"),
+        ]
+        let joiner: any ListJoining = repository
+
+        let listId = try data(await joiner.join(code: "ABC234"))
+
+        XCTAssertEqual(listId, "list-9")
+        let list = try await listDao.listRaw(id: "list-9")
+        XCTAssertNotNil(list)
+    }
+
     func testReJoinRefreshesTheReplicaInsteadOfNoOpingFromACurrentSyncPoint() async throws {
         // Already a member with an already-current high-water mark — the exact
         // state where plain catchUp fetches nothing (BUG 2 from device testing).
