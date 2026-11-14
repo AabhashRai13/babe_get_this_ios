@@ -1,0 +1,37 @@
+{
+  "night_id": "2026-11-14d",
+  "base_ref": "night/2026-11-14c/integration",
+  "worker_deadline": "19:30",
+  "total_deadline": "20:15",
+  "require_ac": false,
+  "merge_order": [
+    1
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F24",
+      "slug": "f24-auth-navigation",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [
+        "F23"
+      ],
+      "owned": [
+        "BabeGetThis/App/",
+        "BabeGetThis/Features/Auth/",
+        "BabeGetThis/Features/Welcome/",
+        "BabeGetThis/Features/Lists/ListsView.swift",
+        "BabeGetThis/Features/Lists/ListsViewModel.swift",
+        "BabeGetThis/Features/Settings/",
+        "BabeGetThis/Features/Profile/",
+        "BabeGetThisTests/Auth/Screens/",
+        "BabeGetThisTests/Navigation/",
+        "docs/night/2026-11-14d-f24-auth-navigation.md"
+      ],
+      "brief": "harness/night/briefs/F24.md"
+    }
+  ]
+}
