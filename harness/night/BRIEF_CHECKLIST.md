@@ -1,7 +1,7 @@
 # Writing briefs: checklist
 
 Check each new `harness/night/briefs/<task>.md` and its `nights/<id>.json` entry against this list before a run.
-It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7), 2026-11-14a and 2026-11-14b (PR #9), and 2026-11-14c and 2026-11-14d (PR #11). Briefs from earlier runs are records and stay as they were.
+It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7), 2026-11-14a and 2026-11-14b (PR #9), 2026-11-14c and 2026-11-14d (PR #11), and 2026-11-14e and 2026-11-14f (PR #13). Briefs from earlier runs are records and stay as they were.
 
 ## Waves and ownership
 - `integrate.py`'s scope check passes any file under a task's owned prefix. It can't stop two workers in one wave from editing the same lines.
@@ -21,6 +21,13 @@ It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7), 2026-11-1
   NAV-03 from a list's screen needs a hook in `Features/ListDetail/`), name that case and decide it in the brief:
   own the hook point, or record the deviation in the PARITY row.
 - Cross-check the briefs of a wave against each other: what each says the others will change in a shared file must match what those briefs allow.
+- Wiring a frozen interface to its UI is a named task's job, and that task owns both ends: the screen that takes the
+  object and the file that builds the screen. In 2026-11-14e/f F42 froze `TelemetryConsentStore` and was told to keep
+  `SettingsView()`'s initialiser, F44 built `TelemetryConsent` but owned neither `Features/Settings/` nor
+  `ListsView.swift`, and no task connected them: the toggles only took effect at the next launch (fixed in PR #14).
+- A brief that asks for a PARITY note owns `docs/PARITY.md` in the night config, limited to the rows it names; or the
+  note goes into the PR that adds the brief, before the run. F42 was asked to record the SET-02 rate-row deviation
+  without owning the file, so the worker listed it as Blocked and the deviation merged unrecorded.
 - A case that depends on an API another task adds in the same wave is ported by the task that adds the API, or the two tasks are chained.
   Don't leave a fallback port that tests something else in its place.
 - A merge resolved by hand re-runs that task's acceptance commands on the merged result, not only the full suite.
@@ -36,6 +43,14 @@ It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7), 2026-11-1
 - "Port from" lists every Android source a behaviour lives in, down to the block: for F24 that was `WelcomeScreen.kt`,
   `AuthPromptDialog.kt`, `ProfileBottomSheet.kt`, and in `ShoppingListScreen.kt` the `AccountAction`, `SessionExpiredBanner`
   and `LaunchedEffect(hasAccount)` blocks.
+- "Port from" includes the code a ported test exercises and where the feature is wired, not only the feature's own
+  folder. F44 left out `core/error/SafeCall.kt` and `core/error/ErrorReporter.kt` (behind `SafeCallReportingTest`),
+  `core/auth/data/SessionObserver.kt` (`telemetryContext.onUserChanged`, lines 49 and 65), `BabeGetThisApp.kt:77`
+  (`onAppStart()`), `MainActivity.kt:97` (`onScreen`) and `feature/settings/ui/SettingsViewModel.kt:69` (consent applied on a toggle).
+- "Port from" names the data source behind each behaviour and where the screen is hosted. F37 left out
+  `core/auth/data/AuthStateManager.kt` (`dataOwnerId()` line 37, the `userName`/`userEmail` flows lines 67 and 73),
+  `core/auth/data/SupabaseAuthRepository.kt` (`deleteAccount`, line 118, which is what lands deletion on Welcome) and
+  `feature/shoppinglist/ui/ShoppingListScreen.kt` (the `ProfileBottomSheet(` block, line 522, which forwards its toasts).
 - Check every case count and split against the Android test file, by line. BgtNavGraphTest has 4 reminder cases
   (60, 70, 81, 92), the name round-trip (103) and 3 create-list cases (112, 122, 129), not "5 reminder cases".
   For a case that doesn't carry over as is, say what the iOS port must assert instead, or drop it as not applicable.
@@ -49,6 +64,15 @@ It comes from the reviews of runs 2026-11-13e and 2026-11-13f (PR #7), 2026-11-1
   `bundle.unit-test`): the view must be built from the shared field and layout lists the test checks, and its taps
   routed through a type the test drives. A test that compares a constant with a literal can't fail, so it doesn't
   count toward an `executed <` gate; otherwise mark the case "adapted" in the PARITY row and lower the gate.
+- Gate whole classes, never only single methods, and list in the brief what each class must cover. F42 gated
+  `testSectionsArePrivacyThenAbout` (a constant against a literal) and `testVersionFooterFormat` (a string
+  interpolation), so toggles on by default, persistence under Android's keys, the hidden rate row and the privacy URL
+  were gated by nothing. `features.json` now gates `SettingsViewModelTests` as a whole.
+- A sheet's UI behaviour gets its own acceptance class, and live adapters are tested against fakes of the layer below
+  them, not the view model's fakes. F37 gated only `ProfileViewModelTests` on fakes that call back synchronously:
+  Save visibility, the avatar initial or person icon, "Your account has been deleted" outliving the sheet, sign-out and
+  deletion landing on Welcome while SessionExpired stays, and the account switch through the real `AuthStateManager`
+  had no class. Name them in the brief (for example `ProfileSheetTests`, `ProfileNavigationTests`, `ProfileAdapterTests`).
 
 ## Facts the brief must state, not paraphrase
 - Quote parity rows and Android behaviour as written; don't add behaviour. F24's "or of the email if there's no name"
