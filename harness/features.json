@@ -319,7 +319,8 @@
         "DET-15"
       ],
       "depends_on": [
-        "F14"
+        "F14",
+        "F17"
       ],
       "acceptance": [
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ShoppingListShareTextTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 9)'",
