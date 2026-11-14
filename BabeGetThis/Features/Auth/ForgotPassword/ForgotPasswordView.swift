@@ -69,7 +69,7 @@ struct ForgotPasswordView: View {
     private var emailStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             fieldBox(icon: "envelope", error: viewModel.emailError) {
-                TextField("Email", text: Binding(get: { viewModel.email }, set: { viewModel.onEmailChange($0) }))
+                TextField(ForgotPasswordScreenCopy.email, text: Binding(get: { viewModel.email }, set: { viewModel.onEmailChange($0) }))
                     .keyboardType(.emailAddress)
                     .textContentType(.emailAddress)
                     .textInputAutocapitalization(.never)
@@ -82,7 +82,7 @@ struct ForgotPasswordView: View {
                 if viewModel.isLoading {
                     ProgressView().tint(AppColors.onPrimary)
                 } else {
-                    Text("Send code").fontWeight(.semibold)
+                    Text(ForgotPasswordScreenCopy.sendCode).fontWeight(.semibold)
                 }
             }
             .buttonStyle(PrimaryButtonStyle())
@@ -93,7 +93,7 @@ struct ForgotPasswordView: View {
     private var resetStep: some View {
         VStack(alignment: .leading, spacing: 16) {
             fieldBox(icon: "number", error: nil) {
-                TextField("8-digit code", text: Binding(get: { viewModel.code }, set: { viewModel.onCodeChange($0) }))
+                TextField(ForgotPasswordScreenCopy.code, text: Binding(get: { viewModel.code }, set: { viewModel.onCodeChange($0) }))
                     .keyboardType(.numberPad)
                     .textContentType(.oneTimeCode)
                     .focused($focus, equals: .code)
@@ -102,9 +102,9 @@ struct ForgotPasswordView: View {
                 let text = Binding(get: { viewModel.newPassword }, set: { viewModel.onNewPasswordChange($0) })
                 Group {
                     if passwordVisible {
-                        TextField("New password", text: text)
+                        TextField(ForgotPasswordScreenCopy.newPassword, text: text)
                     } else {
-                        SecureField("New password", text: text)
+                        SecureField(ForgotPasswordScreenCopy.newPassword, text: text)
                     }
                 }
                 .textContentType(.newPassword)

@@ -15,6 +15,14 @@ struct ListsView: View {
 
     var body: some View {
         VStack(spacing: 0) {
+            // A lost session keeps the lists on screen and editable; the banner asks for a
+            // fresh sign-in so they sync again. It sits under the top bar and pushes the content down.
+            if viewModel.isSessionExpired {
+                SessionExpiredBanner {
+                    SystemHapticPlayer().play(.light)
+                    viewModel.signInAgain()
+                }
+            }
             if !viewModel.hasLoadedLists {
                 // Only the background until the first value: no empty state flashing on launch.
                 Color.clear.frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -54,9 +62,21 @@ struct ListsView: View {
                     viewModel.startJoining()
                 }
                 .accessibilityIdentifier("lists.join")
-                Button("Settings", systemImage: "gearshape") {}
-                    .disabled(true)
+                // Before the account control, and available in every auth state (NAV-05).
+                Button(SettingsView.title, systemImage: "gearshape") {
+                    SystemHapticPlayer().play(.light)
+                    viewModel.openSettings()
+                }
+                .accessibilityIdentifier("lists.settings")
+                AccountControlButton(control: viewModel.accountControl) {
+                    SystemHapticPlayer().play(.light)
+                    viewModel.tapAccountControl()
+                }
             }
+        }
+        .navigationDestination(isPresented: $viewModel.isSettingsPresented) { SettingsView() }
+        .sheet(isPresented: $viewModel.isProfilePresented) {
+            ProfileSheet(name: viewModel.profileName, email: viewModel.profileEmail)
         }
         .overlay(alignment: .bottomTrailing) {
             // Android: the FAB shows on the Active tab only, and not over the empty state.
@@ -179,6 +199,72 @@ struct ListsView: View {
         .navigationDestination(for: ShoppingListSummary.self) { list in
             ListDetailPlaceholderView(list: list)
         }
+    }
+}
+
+/// The top bar's account control (Android `AccountAction`): an initial avatar while an account
+/// owns the lists, else an outlined "Sign in" pill.
+private struct AccountControlButton: View {
+    let control: ListsViewModel.AccountControl
+    let action: () -> Void
+
+    var body: some View {
+        switch control {
+        case .avatar(let initial):
+            Button(action: action) {
+                Group {
+                    if let initial {
+                        Text(initial)
+                            .font(.headline.bold())
+                    } else {
+                        Image(systemName: "person")
+                            .font(.subheadline)
+                    }
+                }
+                .foregroundStyle(AppColors.onPrimaryContainer)
+                .frame(width: 36, height: 36)
+                .background(AppColors.primaryContainer, in: Circle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel("Account")
+            .accessibilityIdentifier("lists.account")
+        case .signIn:
+            Button(action: action) {
+                Text(ListsViewModel.signInPill)
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(AppColors.primary)
+                    .padding(.horizontal, 14)
+                    .padding(.vertical, 7)
+                    .overlay { Capsule().strokeBorder(AppColors.outline, lineWidth: 1) }
+            }
+            .buttonStyle(.plain)
+            .accessibilityIdentifier("lists.signIn")
+        }
+    }
+}
+
+/// HOME-14: under the top bar while the session is lost.
+private struct SessionExpiredBanner: View {
+    let onSignIn: () -> Void
+
+    var body: some View {
+        HStack(spacing: 8) {
+            Text(ListsViewModel.sessionExpiredMessage)
+                .font(.subheadline)
+                .foregroundStyle(AppColors.onSecondaryContainer)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            Button(ListsViewModel.sessionExpiredAction, action: onSignIn)
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppColors.primary)
+                .accessibilityIdentifier("lists.sessionExpired.signIn")
+        }
+        .padding(.leading, AppMetrics.screenPadding)
+        .padding(.trailing, 8)
+        .padding(.vertical, 8)
+        .frame(maxWidth: .infinity)
+        .background(AppColors.secondaryContainer)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("lists.sessionExpired")
     }
 }
 

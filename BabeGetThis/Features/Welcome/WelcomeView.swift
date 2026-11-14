@@ -42,7 +42,14 @@ struct WelcomeView: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(AppColors.background)
         .toolbar(.hidden, for: .navigationBar)
-        .navigationDestination(isPresented: $showSignIn) { SignInPlaceholderView() }
+        // The same auth flow as the lists use, opened over Welcome (NAV-03): Close comes back
+        // here with nothing persisted, and signing in lands on the lists, dropping Welcome.
+        .sheet(isPresented: $showSignIn) {
+            AuthSheet(flow: AuthFlow(start: .login, below: .welcome)) { exit in
+                showSignIn = false
+                if exit == .lists { container.session.refresh() }
+            }
+        }
     }
 }
 
