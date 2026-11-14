@@ -154,14 +154,19 @@ struct ListsView: View {
                     })
             }
         }
-        .alert(AdoptionNoticeCopy.message(count: viewModel.adoptionNotice), isPresented: Binding(
-            get: { viewModel.adoptionNotice > 0 },
+        // Android's dialog has body text only, no title. The count is the one captured for the
+        // notice, so it can't drop to 0 while the alert closes; the notice waits until no
+        // sheet (such as the auth sheet it follows) is up.
+        .alert(Text(verbatim: ""), isPresented: Binding(
+            get: { viewModel.isAdoptionNoticePresented },
             set: { if !$0 { viewModel.dismissAdoptionNotice() } }
-        )) {
+        ), presenting: viewModel.adoptionNoticeShownCount) { _ in
             Button(AdoptionNoticeCopy.ok, role: .cancel) {}
             Button(AdoptionNoticeCopy.privacyPolicy) {
                 openURL(AdoptionNoticeCopy.privacyPolicyURL)
             }
+        } message: { count in
+            Text(AdoptionNoticeCopy.message(count: count))
         }
         .alert("Something went wrong", isPresented: Binding(
             get: { viewModel.errorMessage != nil },

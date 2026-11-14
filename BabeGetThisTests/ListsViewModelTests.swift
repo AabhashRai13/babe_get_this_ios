@@ -386,14 +386,64 @@ final class ListsViewModelTests: XCTestCase {
         // A claim (F29) writes the count; the screen picks it up live.
         store.setAdoptionNotice(2)
         try await waitUntil { vm.adoptionNotice == 2 }
+        XCTAssertTrue(vm.isAdoptionNoticePresented)
 
+        // A second claim while it shows adds to the count (SyncEngine.claimDeviceLists).
+        store.setAdoptionNotice(store.adoptionNotice + 1)
+        try await waitUntil { vm.adoptionNotice == 3 }
+        XCTAssertEqual(vm.adoptionNoticeShownCount, 3)
+
+        // One dismiss clears the combined total.
         vm.dismissAdoptionNotice()
 
         XCTAssertEqual(vm.adoptionNotice, 0)
+        XCTAssertFalse(vm.isAdoptionNoticePresented)
         XCTAssertEqual(store.adoptionNotice, 0, "the pending count is cleared in the store")
         // A new screen over the same store doesn't show it again.
         let again = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
         XCTAssertEqual(again.adoptionNotice, 0)
+    }
+
+    // The closing alert keeps the count it showed: dismissing never makes it read "Your 0 lists".
+    func testDismissingKeepsTheShownCount() async throws {
+        let store = FakeListOwnershipStore()
+        let auth = authStateFor("u1")
+        store.setAdoptionNotice(2)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        XCTAssertEqual(vm.adoptionNoticeShownCount, 2)
+
+        vm.dismissAdoptionNotice()
+
+        XCTAssertFalse(vm.isAdoptionNoticePresented)
+        XCTAssertEqual(vm.adoptionNoticeShownCount, 2)
+    }
+
+    // A claim lands right after signing in, while the auth sheet is still up on this screen:
+    // the notice waits until the sheet has gone.
+    func testTheNoticeWaitsUntilNoSheetIsUp() async throws {
+        let store = FakeListOwnershipStore()
+        let auth = authStateFor("u1")
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let following = Task { await vm.observeAdoptionNotice() }
+        defer { following.cancel() }
+        vm.authRoute = .login
+
+        store.setAdoptionNotice(1)
+        try await waitUntil { vm.adoptionNotice == 1 }
+        XCTAssertFalse(vm.isAdoptionNoticePresented, "held while the auth sheet is up")
+
+        vm.authRoute = nil
+        XCTAssertTrue(vm.isAdoptionNoticePresented)
+
+        // The other sheets on this screen hold it too.
+        vm.startCreating()
+        XCTAssertFalse(vm.isAdoptionNoticePresented)
+        vm.dismissChooser()
+        vm.isVoicePresented = true
+        XCTAssertFalse(vm.isAdoptionNoticePresented)
+        vm.isVoicePresented = false
+        XCTAssertTrue(vm.isAdoptionNoticePresented)
+        XCTAssertEqual(vm.adoptionNotice, 1, "holding it never clears it")
     }
 
     // MARK: - List card (HOME-17)

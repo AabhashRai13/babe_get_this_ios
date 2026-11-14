@@ -70,8 +70,22 @@ final class ListsViewModel {
     @ObservationIgnored private let ownership: (any ListOwnershipStore)?
 
     /// How many guest lists just moved into the account; the screen says so once, then
-    /// `dismissAdoptionNotice()` (Android `adoptionNotice`).
-    private(set) var adoptionNotice = 0
+    /// `dismissAdoptionNotice()` (Android `adoptionNotice`). A second claim while the notice
+    /// is up adds to it, and one dismiss clears the total.
+    private(set) var adoptionNotice = 0 {
+        didSet { if adoptionNotice > 0 { adoptionNoticeShownCount = adoptionNotice } }
+    }
+    /// The count the notice shows: the latest pending count, kept after a dismiss so the
+    /// closing alert never reads "Your 0 lists". nil until there has been a notice.
+    private(set) var adoptionNoticeShownCount: Int?
+
+    /// A sheet is up on the lists screen. An alert presented from the same view while one is
+    /// up can be swallowed, so the adoption notice waits for it to go.
+    var isSheetPresented: Bool { authRoute != nil || isChooserPresented || isVoicePresented }
+
+    /// The notice shows once there is a count and no sheet is up: a claim lands right after
+    /// signing in, often while the auth sheet is still on screen.
+    var isAdoptionNoticePresented: Bool { adoptionNotice > 0 && !isSheetPresented }
 
     init(lists: [ShoppingListSummary] = []) {
         self.lists = lists
@@ -94,7 +108,9 @@ final class ListsViewModel {
         self.authState = authState
         self.shareJoiner = shareJoiner
         self.ownership = ownership
-        self.adoptionNotice = ownership?.adoptionNotice ?? 0
+        let pending = ownership?.adoptionNotice ?? 0
+        self.adoptionNotice = pending
+        if pending > 0 { self.adoptionNoticeShownCount = pending }
     }
 
     /// A lost session keeps the account's lists on screen (Android decision 008); the screen
