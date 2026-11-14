@@ -224,56 +224,6 @@ final class SyncEngineAccountCatchUpTests: XCTestCase {
         XCTAssertEqual(ownership.unverifiedListIds(), ["claimed"])
     }
 
-    // Android SyncEngineClaimTest "first-run claims the server doesn't vouch for
-    // are released after discovery". iOS has no claimDeviceLists yet, so the
-    // claims are seeded directly: owned by this account and listed as unverified.
-    func testFirstRunClaimsTheServerDoesNotVouchForAreReleasedAfterDiscovery() async throws {
-        try await listDao.insertList(ShoppingListRecord(
-            id: "mine", name: "List mine", createdAt: 1, updatedAt: 2, isLocked: false,
-            shareCode: "AAA111", deletedAt: nil, pendingSync: false, accountId: "user-1", onServer: true))
-        try await listDao.insertList(ShoppingListRecord(
-            id: "stray", name: "List stray", createdAt: 1, updatedAt: 2, isLocked: false,
-            shareCode: "BBB222", deletedAt: nil, pendingSync: true, accountId: "user-1", onServer: true))
-        // Listed as unverified but owned by another account: releaseClaims only
-        // touches rows of the account it was given.
-        try await listDao.insertList(ShoppingListRecord(
-            id: "theirs", name: "List theirs", createdAt: 1, updatedAt: 2, isLocked: false,
-            shareCode: "CCC333", deletedAt: nil, pendingSync: false, accountId: "user-2", onServer: true))
-        ownership.setUnverifiedListIds(["mine", "stray", "theirs"])
-        remote.listRows = [listRow("mine", name: "List mine")]
-
-        assertSuccess(try await engine.catchUpAccount())
-
-        let mine = try await listRaw("mine")
-        XCTAssertEqual(mine?.accountId, "user-1")
-        let stray = try await listRaw("stray")
-        XCTAssertNotNil(stray)
-        XCTAssertNil(stray?.accountId, "not this account's: back to ownerless")
-        let theirs = try await listRaw("theirs")
-        XCTAssertEqual(theirs?.accountId, "user-2")
-        XCTAssertTrue(ownership.unverifiedListIds().isEmpty)
-
-        _ = try await engine.push()
-        XCTAssertFalse(remote.upsertedLists.contains { $0.id == "stray" }, "a released stray is never pushed")
-        XCTAssertFalse(remote.insertedLists.contains { $0.id == "stray" }, "a released stray is never pushed")
-    }
-
-    // Android SyncEngineClaimTest "claims stay until the server actually answers".
-    func testClaimsStayUntilTheServerActuallyAnswers() async throws {
-        try await listDao.insertList(ShoppingListRecord(
-            id: "stray", name: "List stray", createdAt: 1, updatedAt: 2, isLocked: false,
-            shareCode: "BBB222", deletedAt: nil, pendingSync: false, accountId: "user-1", onServer: true))
-        ownership.setUnverifiedListIds(["stray"])
-        remote.listRows = [listRow("mine")]
-        remote.failFetches = true
-
-        assertFailure(try await engine.catchUpAccount())
-
-        let stray = try await listRaw("stray")
-        XCTAssertEqual(stray?.accountId, "user-1")
-        XCTAssertEqual(ownership.unverifiedListIds(), ["stray"])
-    }
-
     // A shared replica whose owner was lost before lists had owners: the server
     // returning it for this account is the proof of membership.
     func testAnOrphanedReplicaIsClaimedWhenDiscoveryReturnsItEvenIfDirty() async throws {

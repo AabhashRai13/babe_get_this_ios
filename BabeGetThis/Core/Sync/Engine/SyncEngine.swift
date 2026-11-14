@@ -134,6 +134,95 @@ actor SyncEngine {
         }
     }
 
+    // MARK: - Claim on sign-in (ACCT-02, ACCT-03, ACCT-04)
+
+    // Give the device's lists to the account that just signed in (or whose
+    // session expired: the owner is still known). Local only, so it works
+    // offline: an already-signed-in user opening the update in a store must see
+    // their lists at once (docs/technical-decisions/008). Returns how many guest
+    // lists moved in, and adds them to the notice the lists screen shows.
+    func claimDeviceLists(userId: String) async throws -> Result<Int, AppError> {
+        try await safeCall {
+            try await serially { try await claimDeviceListsLocked(userId: userId) }
+        }
+    }
+
+    private func claimDeviceListsLocked(userId: String) async throws -> Int {
+        for id in try await listDao.otherAccountListIds(userId: userId) {
+            syncPoints.remove(listId: id)
+        }
+        // The first claim after the update also takes the existing shared
+        // replicas: they predate owners, and they belong to whoever is signed
+        // in right now. Later, an ownerless replica can only be a stray from
+        // a lost session, and waits for the server to vouch for it (apply()).
+        let firstClaim = !ownership.isAccountListsMigrated()
+        // Taken on trust, so remembered: one left by a different account
+        // would fail RLS on every push and stall the whole queue. The first
+        // discovery keeps the ones the server returns (catchUpAccount).
+        if firstClaim {
+            ownership.setUnverifiedListIds(Set(try await listDao.ownerlessSharedListIds()))
+        }
+        let claimed = try await listDao.claimDeviceLists(userId: userId, includeOwnerlessShared: firstClaim)
+        finishFirstRun()
+        if claimed > 0 { ownership.setAdoptionNotice(ownership.adoptionNotice + claimed) }
+        return claimed
+    }
+
+    // What a sign-in state means for this device's lists. Returns true when
+    // there is a live session to sync with: the caller kicks a sync. A lost
+    // session claims but never evicts (ACCT-07): its lists stay on screen and
+    // editable, and sync waits for a fresh sign-in.
+    func onAuthState(_ state: AuthState) async -> Bool {
+        switch state {
+        case .authenticated(let userId):
+            _ = try? await claimDeviceLists(userId: userId)
+            return true
+        case .sessionExpired(let userId):
+            _ = try? await claimDeviceLists(userId: userId)
+            return false
+        case .unauthenticated:
+            // A signed-out first launch after the update: nothing to claim, and
+            // any shared replica left on the device is a stray, never to be
+            // taken wholesale at a later sign-in.
+            await serially { finishFirstRun() }
+            return false
+        case .loading:
+            return false
+        }
+    }
+
+    // Once per install, after the ownership update. (Android also records the
+    // locks set before it; list lock is out of iOS v1, ACCT-04.)
+    private func finishFirstRun() {
+        if ownership.isAccountListsMigrated() { return }
+        ownership.markAccountListsMigrated()
+    }
+
+    // MARK: - Eviction on explicit sign-out (ACCT-06)
+
+    // Explicit sign-out (and account deletion) ONLY, never session loss:
+    // account lists, shared or not, leave with the account
+    // (docs/technical-decisions/008). Guest lists are the device's and stay.
+    // Best-effort final push first, so queued edits aren't lost; when it can't
+    // run (offline), the profile screen has already warned and the user chose.
+    //
+    // `andThen` runs inside the same gate, for the sign-out itself: a sync
+    // kick waiting on the gate would otherwise run between the eviction and
+    // the sign-out, with the session still live, and discovery would land the
+    // account's lists all over again.
+    func evictAccountLists(andThen: @Sendable () async throws -> Void = {}) async throws -> Result<Void, AppError> {
+        try await safeCall {
+            try await serially {
+                _ = try await safeCall { try await pushLocked() }
+                // Hard local delete, not tombstones: this is eviction, not a
+                // deletion to sync. CASCADE clears the items.
+                try await listDao.deleteAccountLists()
+                syncPoints.clear()
+                try await andThen()
+            }
+        }
+    }
+
     // MARK: - Catch-up
 
     // Fetch everything changed in one list since its sync point and land it in
