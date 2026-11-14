@@ -15,13 +15,16 @@ final class AppContainer {
     let database: AppDatabase
     let listRepository: ShoppingListRepository
     let itemRepository: ShoppingItemRepository
+    /// Device-local ownership facts (adoption notice, locks, unverified claims).
+    let ownership: any ListOwnershipStore
     let lists: ListsViewModel
     /// Lists pushed on launch (from `-openList <id>`), for deterministic screenshots.
     let initialPath: [ShoppingListSummary]
 
     init(config: AppConfig, authState: AuthStateManager = AuthStateManager(tokenStore: KeychainTokenStore()),
          database: AppDatabase, welcome: WelcomeRepository = WelcomeRepository(), forcedScreen: StartScreen? = nil,
-         initialPath: [ShoppingListSummary] = []) {
+         initialPath: [ShoppingListSummary] = [],
+         ownership: any ListOwnershipStore = PrefsListOwnershipStore()) {
         self.config = config
         self.authState = authState
         self.welcome = welcome
@@ -37,7 +40,9 @@ final class AppContainer {
         self.itemRepository = ShoppingItemRepository(
             itemDao: database.items, categoryDao: database.categories, listDao: database.lists,
             syncKicker: NoOpSyncKicker(), safeCall: safeCall)
-        self.lists = ListsViewModel(repository: listRepository, authState: authState)
+        self.ownership = ownership
+        // No share joiner yet: ShareRepository needs the SyncEngine, which F30 wires (Join is F34).
+        self.lists = ListsViewModel(repository: listRepository, authState: authState, ownership: ownership)
         self.initialPath = initialPath
     }
 

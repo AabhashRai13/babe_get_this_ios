@@ -66,6 +66,7 @@ struct ListsView: View {
             }
         }
         .task { await viewModel.observeLists() }
+        .task { await viewModel.observeAdoptionNotice() }
         .overlay(alignment: .bottom) {
             if let message = viewModel.undoMessage {
                 Snackbar(message: message, actionTitle: "Undo") {

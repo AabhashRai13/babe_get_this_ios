@@ -506,6 +506,20 @@ final class ShoppingListViewModelTests: XCTestCase {
         XCTAssertEqual(vm.adoptionNotice, 0)
         XCTAssertEqual(ownership.adoptionNotice, 0)
     }
+
+    // A claim made after the screen was built (signing in from the auth sheet over the
+    // lists) still reaches it, because the screen observes the store.
+    func testALaterAdoptionNoticeReachesTheObservingScreen() async throws {
+        let ownership = FakeListOwnershipStore()
+        let vm = viewModel(ownership: ownership)
+        let adoption = Task { await vm.observeAdoptionNotice() }
+        defer { adoption.cancel() }
+        XCTAssertEqual(vm.adoptionNotice, 0)
+
+        ownership.setAdoptionNotice(3)
+
+        try await waitUntil { vm.adoptionNotice == 3 }
+    }
 }
 
 // MARK: - Fakes

@@ -201,15 +201,29 @@ final class FakeListOwnershipStore: ListOwnershipStore, @unchecked Sendable {
 
     var adoptionNotice: Int { lock.withLock { notice } }
 
+    private var continuations: [UUID: AsyncStream<Int>.Continuation] = [:]
+
+    /// Live like the real store: the current value first, then every change.
     func adoptionNoticeUpdates() -> AsyncStream<Int> {
-        let current = adoptionNotice
-        return AsyncStream { continuation in
-            continuation.yield(current)
-            continuation.finish()
+        AsyncStream { continuation in
+            let id = UUID()
+            lock.withLock {
+                continuations[id] = continuation
+                continuation.yield(notice)
+            }
+            continuation.onTermination = { [weak self] _ in
+                guard let self else { return }
+                self.lock.withLock { _ = self.continuations.removeValue(forKey: id) }
+            }
         }
     }
 
-    func setAdoptionNotice(_ count: Int) { lock.withLock { notice = count } }
+    func setAdoptionNotice(_ count: Int) {
+        lock.withLock {
+            notice = count
+            for continuation in continuations.values { continuation.yield(count) }
+        }
+    }
     func isAccountListsMigrated() -> Bool { migrated }
     func markAccountListsMigrated() { migrated = true }
     func lockedListIds() -> Set<String> { lock.withLock { locks } }

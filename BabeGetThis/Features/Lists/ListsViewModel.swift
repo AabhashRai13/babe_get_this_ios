@@ -108,7 +108,9 @@ final class ListsViewModel {
         adoptionNotice = 0
     }
 
-    /// Follows the ownership store's notice until cancelled.
+    /// Follows the ownership store's notice until cancelled (the screen's `.task`), so a
+    /// claim made after this view model was built, e.g. by signing in from the auth sheet
+    /// on top of the lists, still shows (Android reads the store's StateFlow).
     func observeAdoptionNotice() async {
         guard let ownership else { return }
         for await count in ownership.adoptionNoticeUpdates() { adoptionNotice = count }
