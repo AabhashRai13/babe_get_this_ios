@@ -73,16 +73,18 @@ private struct ListDetailScreen: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background(AppColors.background)
         .overlay(alignment: .bottomTrailing) {
-            VStack(alignment: .trailing, spacing: 12) {
+            VStack(alignment: .trailing, spacing: AppMetrics.fabSpacing) {
                 Button {
                     chrome.voiceFabTapped()
                 } label: {
+                    // Android: a filled primary circle with an on-primary icon, the headline quick-add.
                     Image(systemName: "mic.fill")
                         .font(.title3)
-                        .foregroundStyle(AppColors.primary)
-                        .frame(width: 48, height: 48)
-                        .background(AppColors.surface, in: Circle())
-                        .shadow(radius: 2, y: 1)
+                        .foregroundStyle(AppColors.onPrimary)
+                        .frame(width: AppMetrics.smallFABSize, height: AppMetrics.smallFABSize)
+                        .background(AppColors.primary, in: Circle())
+                        .shadow(color: AppColors.shadow.opacity(0.12),
+                                radius: AppMetrics.fabShadowRadius, y: AppMetrics.fabShadowY)
                 }
                 .accessibilityLabel("Add by voice")
                 .accessibilityIdentifier("voice-fab")
