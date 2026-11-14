@@ -36,8 +36,8 @@ final class FakeListLeaveCleaner: ListLeaveCleaning, @unchecked Sendable {
     }
 }
 
-/// Port of the leave-empty-list cases of Android's ShoppingItemsViewModelTest
-/// (`leavingDeletesList` and `onCleared`), plus the dialog's back / stay / confirm flow.
+/// The leave dialog's back / stay / confirm flow. The `leavingDeletesList` and `onCleared`
+/// ports of Android's ShoppingItemsViewModelTest are in `ShoppingItemsViewModelTests`.
 @MainActor
 final class ListLeaveGuardTests: XCTestCase {
     private var source: FakeListDetailItemsSource!
@@ -74,61 +74,6 @@ final class ListLeaveGuardTests: XCTestCase {
         await Task.yield()
     }
 
-    // MARK: - leavingDeletesList
-
-    func testLeavingAnEmptyListWouldDeleteIt() async {
-        await loaded(items: [])
-
-        await listDetailEventually { self.leaveGuard.leavingDeletesList(self.model) }
-    }
-
-    func testLeavingAListWithItemsKeepsIt() async {
-        await loaded(items: [TestData.storedItem("1")])
-        try? await Task.sleep(for: .milliseconds(50))
-
-        XCTAssertFalse(leaveGuard.leavingDeletesList(model))
-    }
-
-    // Shared lists are never auto-deleted (the partner may still be using them), so
-    // asking would be untrue there. Goes through the transition: an unknown share state
-    // also answers false, so only "unshared → true, then shared → false" proves the code
-    // is read. It also covers a list shared while the screen is open.
-    func testLeavingAnEmptySharedListKeepsIt() async {
-        await loaded(items: [], shareCode: nil)
-        await listDetailEventually("unshared and empty: leaving deletes it") {
-            self.leaveGuard.leavingDeletesList(self.model)
-        }
-
-        cleaner.sendShareCode("ABC123")
-
-        await listDetailEventually("shared now: leaving keeps it") {
-            !self.leaveGuard.leavingDeletesList(self.model)
-        }
-    }
-
-    func testAddingTheFirstItemStopsTheQuestion() async {
-        await loaded(items: [])
-        await listDetailEventually { self.leaveGuard.leavingDeletesList(self.model) }
-
-        source.send([TestData.storedItem("1")])
-
-        await listDetailEventually { !self.leaveGuard.leavingDeletesList(self.model) }
-    }
-
-    // Until the database answers, the list's contents are unknown; assuming "empty"
-    // would ask on a quick back press from a full list.
-    func testNothingIsClaimedBeforeTheItemsHaveLoaded() async {
-        cleaner.sendShareCode(nil)
-        open()
-        try? await Task.sleep(for: .milliseconds(50))
-
-        XCTAssertFalse(leaveGuard.leavingDeletesList(model))
-
-        // The share state was read: once the (empty) items arrive, the answer flips.
-        source.send([])
-        await listDetailEventually { self.leaveGuard.leavingDeletesList(self.model) }
-    }
-
     // MARK: - Back, "Keep editing", "Delete list"
 
     func testBackOnAnEmptyListAsksInsteadOfLeaving() async {
@@ -155,46 +100,6 @@ final class ListLeaveGuardTests: XCTestCase {
         XCTAssertEqual("This list has no items, so it will be deleted when you leave.", ListLeaveGuard.message)
         XCTAssertEqual("Delete list", ListLeaveGuard.confirmTitle)
         XCTAssertEqual("Keep editing", ListLeaveGuard.stayTitle)
-    }
-
-    // MARK: - Teardown (Android onCleared)
-
-    // Leaving a list with nothing in it cleans the list up.
-    func testTeardownDeletesAListLeftEmpty() async {
-        await leaveGuard.tearDown().value
-
-        XCTAssertEqual(["L1"], cleaner.deleteCalls)
-    }
-
-    func testTeardownProceedsImmediatelyWhenNoUndoIsInFlight() async {
-        await leaveGuard.tearDown().value
-
-        XCTAssertEqual(1, cleaner.deleteCalls.count)
-    }
-
-    // The dangerous interleaving: Undo is tapped and the user backs out in the same
-    // breath. The teardown waits for the restore BEFORE asking whether the list is
-    // empty; without that the check races the restore, sees zero items, and deletes
-    // the very list the user just rescued.
-    func testTeardownWaitsForAnInFlightUndoBeforeDecidingTheListIsEmpty() async {
-        await loaded(items: [TestData.storedItem("a")])
-        await model.delete("a")
-        let (gate, release) = AsyncStream<Void>.makeStream()
-
-        leaveGuard.trackUndo { [model] in
-            for await _ in gate { break }
-            await model!.undoDelete()
-        }
-        let teardown = leaveGuard.tearDown()
-        try? await Task.sleep(for: .milliseconds(100))
-
-        XCTAssertTrue(cleaner.deleteCalls.isEmpty, "the restore is still parked, so no emptiness check yet")
-
-        release.yield()
-        await teardown.value
-
-        XCTAssertEqual(1, source.restored.count)
-        XCTAssertEqual(["L1"], cleaner.deleteCalls)
     }
 }
 
