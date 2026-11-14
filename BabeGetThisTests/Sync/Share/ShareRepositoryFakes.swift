@@ -1,4 +1,5 @@
 import Foundation
+import Supabase
 @testable import BabeGetThis
 
 // The share-code knobs of Android's `FakeSharedListRemote` (`testing/SyncFakes.kt`)
@@ -23,6 +24,7 @@ final class ShareTestRemote: SharedListRemote, @unchecked Sendable {
         set { lock.withLock { _shareCodeRowMissing = newValue } }
     }
     /// How many of the next setShareCode calls hit the unique constraint on share_code.
+    /// They throw what supabase-swift throws for it, so the real SafeCall mapping runs.
     var shareCodeClashes: Int {
         get { lock.withLock { _shareCodeClashes } }
         set { lock.withLock { _shareCodeClashes = newValue } }
@@ -34,7 +36,7 @@ final class ShareTestRemote: SharedListRemote, @unchecked Sendable {
             _shareCodeRequests.append((listId, code))
             if _shareCodeClashes > 0 {
                 _shareCodeClashes -= 1
-                throw AppErrorException(.server(code: 409, message: "duplicate share_code"))
+                throw PostgrestError(code: "23505", message: "duplicate key value violates unique constraint")
             }
             if _shareCodeRowMissing { return nil }
             return _serverShareCode ?? code

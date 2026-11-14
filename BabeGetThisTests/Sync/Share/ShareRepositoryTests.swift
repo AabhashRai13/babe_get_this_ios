@@ -201,7 +201,8 @@ final class ShareRepositoryTests: XCTestCase {
         remote.shareCodeClashes = 1
 
         let failed = try await repository.share(listId: "list-1")
-        guard case .failure = failed else { return XCTFail("expected a failure, got \(failed)") }
+        // Android: the 409 RestException goes through onClientError to AuthError("Request failed.").
+        XCTAssertEqual(try failure(failed), .auth("Request failed."))
         let afterClash = try await shareCode("list-1")
         XCTAssertNil(afterClash)
 
