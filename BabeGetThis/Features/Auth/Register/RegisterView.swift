@@ -34,50 +34,17 @@ struct RegisterView: View {
                     .padding(.top, 24)
 
                     VStack(alignment: .leading, spacing: 14) {
-                        field(icon: "person", error: nil) {
-                            TextField(AuthCopy.name, text: binding(\.name, viewModel.onNameChange))
-                                .textContentType(.name)
-                                .focused($focus, equals: .name)
-                                .submitLabel(.next)
-                                .onSubmit { focus = .email }
-                        }
-                        field(icon: "envelope", error: viewModel.emailError) {
-                            TextField("Email", text: binding(\.email, viewModel.onEmailChange))
-                                .keyboardType(.emailAddress)
-                                // .username, not .emailAddress: AutoFill saves the new password
-                                // against this field (it would offer the owner's own address).
-                                .textContentType(.username)
-                                .textInputAutocapitalization(.never)
-                                .autocorrectionDisabled()
-                                .focused($focus, equals: .email)
-                                .submitLabel(.next)
-                                .onSubmit { focus = .password }
-                        }
-                        field(icon: "lock", error: viewModel.passwordError,
-                              trailing: toggle($passwordVisible, field: "password")) {
-                            secure("Password", binding(\.password, viewModel.onPasswordChange), visible: passwordVisible)
-                                .focused($focus, equals: .password)
-                                .submitLabel(.next)
-                                .onSubmit { focus = .confirm }
-                        }
-                        field(icon: "lock", error: viewModel.confirmPasswordError,
-                              trailing: toggle($confirmVisible, field: "confirm password")) {
-                            secure("Confirm password", binding(\.confirmPassword, viewModel.onConfirmPasswordChange),
-                                   visible: confirmVisible)
-                                .focused($focus, equals: .confirm)
-                                .submitLabel(.go)
-                                .onSubmit { viewModel.register() }
-                        }
+                        ForEach(RegisterScreenCopy.fields, id: \.self) { formField($0) }
                     }
                     .padding(20)
                     .background(AppColors.surfaceContainerLow,
                                 in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
 
-                    Button { viewModel.register() } label: {
+                    Button { taps.tap(.createAccount) } label: {
                         if viewModel.isLoading {
                             ProgressView().tint(AppColors.onPrimary)
                         } else {
-                            Text("Create account").fontWeight(.semibold)
+                            Text(RegisterScreenCopy.createAccount).fontWeight(.semibold)
                         }
                     }
                     .buttonStyle(PrimaryButtonStyle())
@@ -87,12 +54,29 @@ struct RegisterView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+            // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
+            // so the form stays usable while the message is up. It hangs off the bottom of the
+            // scroll, so it sits just above the pinned footer and never covers its link.
+            .overlay(alignment: .bottom) {
+                if let message = viewModel.errorMessage {
+                    Snackbar(message: message)
+                        .padding(.bottom, AppMetrics.screenPadding)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task(id: message) {
+                            AccessibilityNotification.Announcement(message).post()
+                            try? await Task.sleep(for: SnackbarDuration.short)
+                            guard !Task.isCancelled else { return }
+                            withAnimation { viewModel.clearError() }
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
 
             HStack(spacing: 4) {
-                Text("Already have an account?")
+                Text(RegisterScreenCopy.haveAccount)
                     .font(.subheadline)
                     .foregroundStyle(AppColors.textSecondary)
-                Button("Sign in", action: onNavigateToLogin)
+                Button(RegisterScreenCopy.signIn) { taps.tap(.signIn) }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(AppColors.primary)
             }
@@ -100,20 +84,54 @@ struct RegisterView: View {
         }
         .background(AppColors.background)
         .navigationBarTitleDisplayMode(.inline)
-        .overlay(alignment: .bottom) {
-            if let message = viewModel.errorMessage {
-                Snackbar(message: message)
-                    .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: message) {
-                        AccessibilityNotification.Announcement(message).post()
-                        try? await Task.sleep(for: SnackbarDuration.short)
-                        guard !Task.isCancelled else { return }
-                        withAnimation { viewModel.clearError() }
-                    }
+    }
+
+    private var taps: RegisterScreenTaps {
+        RegisterScreenTaps(viewModel: viewModel, onLogin: onNavigateToLogin)
+    }
+
+    @ViewBuilder
+    private func formField(_ formField: RegisterScreenField) -> some View {
+        switch formField {
+        case .name:
+            field(icon: "person", error: nil) {
+                TextField(formField.label, text: binding(\.name, viewModel.onNameChange))
+                    .textContentType(.name)
+                    .focused($focus, equals: .name)
+                    .submitLabel(.next)
+                    .onSubmit { focus = .email }
+            }
+        case .email:
+            field(icon: "envelope", error: viewModel.emailError) {
+                TextField(formField.label, text: binding(\.email, viewModel.onEmailChange))
+                    .keyboardType(.emailAddress)
+                    // .username, not .emailAddress: AutoFill saves the new password
+                    // against this field (it would offer the owner's own address).
+                    .textContentType(.username)
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .focused($focus, equals: .email)
+                    .submitLabel(.next)
+                    .onSubmit { focus = .password }
+            }
+        case .password:
+            field(icon: "lock", error: viewModel.passwordError,
+                  trailing: toggle($passwordVisible, field: "password")) {
+                secure(formField.label, binding(\.password, viewModel.onPasswordChange), visible: passwordVisible)
+                    .focused($focus, equals: .password)
+                    .submitLabel(.next)
+                    .onSubmit { focus = .confirm }
+            }
+        case .confirmPassword:
+            field(icon: "lock", error: viewModel.confirmPasswordError,
+                  trailing: toggle($confirmVisible, field: "confirm password")) {
+                secure(formField.label, binding(\.confirmPassword, viewModel.onConfirmPasswordChange),
+                       visible: confirmVisible)
+                    .focused($focus, equals: .confirm)
+                    .submitLabel(.go)
+                    .onSubmit { viewModel.register() }
             }
         }
-        .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
     }
 
     /// Show/Hide for one password field. Swapping SecureField and TextField replaces the

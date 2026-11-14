@@ -1,0 +1,31 @@
+{
+  "night_id": "2026-11-14c",
+  "base_ref": "scaffold/sign-in",
+  "worker_deadline": "15:30",
+  "total_deadline": "16:15",
+  "require_ac": false,
+  "merge_order": [
+    1
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F23",
+      "slug": "f23-google-apple-sign-in",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [],
+      "owned": [
+        "BabeGetThis/Core/Auth/",
+        "BabeGetThis/Features/Auth/",
+        "BabeGetThis/App/AppContainer.swift",
+        "BabeGetThis/App/BabeGetThisApp.swift",
+        "BabeGetThisTests/Auth/IdToken/",
+        "docs/night/2026-11-14c-f23-google-apple-sign-in.md"
+      ],
+      "brief": "harness/night/briefs/F23.md"
+    }
+  ]
+}

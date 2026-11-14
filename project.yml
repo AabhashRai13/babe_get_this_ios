@@ -32,6 +32,10 @@ packages:
   Supabase:
     url: https://github.com/supabase/supabase-swift
     from: "2.0.0"
+  GoogleSignIn:
+    # 9.0+ for signIn(...nonce:), so the id token carries our hashed nonce (AUTH-05).
+    url: https://github.com/google/GoogleSignIn-iOS
+    from: "10.0.0"
 
 targets:
   BabeGetThis:
@@ -43,6 +47,14 @@ targets:
       - package: GRDB
       - package: Supabase
         product: Supabase
+      - package: GoogleSignIn
+        product: GoogleSignIn
+    entitlements:
+      path: BabeGetThis/Resources/BabeGetThis.entitlements
+      properties:
+        # Sign in with Apple (AUTH-06). The capability must also be enabled on the App ID.
+        com.apple.developer.applesignin:
+          - Default
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID)
@@ -69,6 +81,12 @@ targets:
         BGTSupabaseURL: $(BGT_SUPABASE_URL)
         BGTSupabaseAnonKey: $(BGT_SUPABASE_ANON_KEY)
         BGTApiBaseURL: $(BGT_API_BASE_URL)
+        # Google Sign-In (AUTH-05). Empty until the iOS OAuth client exists: see Secrets.example.xcconfig.
+        GIDClientID: $(BGT_GOOGLE_IOS_CLIENT_ID)
+        CFBundleURLTypes:
+          - CFBundleURLName: google-sign-in
+            CFBundleURLSchemes:
+              - $(BGT_GOOGLE_REVERSED_CLIENT_ID)
 
   BabeGetThisTests:
     type: bundle.unit-test

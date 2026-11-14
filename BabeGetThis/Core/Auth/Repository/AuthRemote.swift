@@ -32,8 +32,20 @@ protocol AuthRemote: Sendable {
     func signOut() async throws
 }
 
+/// The id-token providers the app signs in with (AUTH-05, AUTH-06).
+enum IdTokenProvider: Sendable, Equatable {
+    case google
+    case apple
+}
+
+/// Supabase's id-token sign-in, a separate seam so the email-only fakes stay as they are.
+protocol AuthIdTokenRemote: Sendable {
+    /// `rawNonce` is the value whose SHA-256 the provider signed into the token; always sent.
+    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String) async throws -> AuthRemoteSession
+}
+
 /// `AuthRemote` over supabase-swift.
-final class SupabaseAuthRemote: AuthRemote {
+final class SupabaseAuthRemote: AuthRemote, AuthIdTokenRemote {
     private let client: SupabaseClient
 
     init(client: SupabaseClient) {
@@ -49,6 +61,13 @@ final class SupabaseAuthRemote: AuthRemote {
 
     func signIn(email: String, password: String) async throws -> AuthRemoteSession {
         Self.session(try await client.auth.signIn(email: email, password: password))
+    }
+
+    func signInWithIdToken(provider: IdTokenProvider, idToken: String, rawNonce: String) async throws -> AuthRemoteSession {
+        // The RAW nonce: Supabase hashes it and compares it with the one signed into the token.
+        let credentials = OpenIDConnectCredentials(
+            provider: provider == .google ? .google : .apple, idToken: idToken, nonce: rawNonce)
+        return Self.session(try await client.auth.signInWithIdToken(credentials: credentials))
     }
 
     func currentSession() -> AuthRemoteSession? {

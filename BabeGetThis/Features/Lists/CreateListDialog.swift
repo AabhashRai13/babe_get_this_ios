@@ -12,14 +12,19 @@ struct CreateListDialogState: Equatable {
     static let maxNameLength = 40
 
     let currentName: String?
-    /// Bound straight to the text field; `revertIfTooLong(previous:)` then enforces the limit,
-    /// so a rejected value really changes and the field re-syncs to the kept one.
-    var name: String
+    /// What the field shows. The field writes through `edit(_:)`; `enforceLimit()` then puts an
+    /// over-long value back, so a rejected value really changes and the field re-syncs.
+    private(set) var name: String
+    /// The last value within the limit, recorded on every edit as it arrives. A rejected value
+    /// goes back to this, never to the value SwiftUI saw at its previous update: several keys can
+    /// land before one update runs, so that value may itself be over the limit, or miss a key.
+    private var keptName: String
 
     /// Pass `currentName` for rename mode: the field starts with it and the button says Save.
     init(currentName: String? = nil) {
         self.currentName = currentName
         self.name = currentName ?? ""
+        self.keptName = name
     }
 
     var isEditMode: Bool { currentName != nil }
@@ -38,13 +43,21 @@ struct CreateListDialogState: Equatable {
     /// Android `if (it.length <= 40) listName = it`: an over-long value is rejected
     /// wholesale, never clipped.
     mutating func type(_ value: String) {
-        if value.count <= Self.maxNameLength { name = value }
+        edit(value)
+        enforceLimit()
     }
 
-    /// The field's side of `type(_:)`: the field has already taken `name`, so an over-long
-    /// value (typed or pasted) is replaced by the one before it, never clipped.
-    mutating func revertIfTooLong(previous: String) {
-        if name.count > Self.maxNameLength { name = previous }
+    /// The field's binding: the field has already taken the value, so `name` takes it too (a
+    /// later revert is then a real change), and a value within the limit is remembered at once.
+    mutating func edit(_ value: String) {
+        name = value
+        if value.count <= Self.maxNameLength { keptName = value }
+    }
+
+    /// After the field's edits are applied (`onChange`): an over-long value (typed or pasted)
+    /// goes back to the last value within the limit, never clipped.
+    mutating func enforceLimit() {
+        if name.count > Self.maxNameLength { name = keptName }
     }
 
     /// The outcome with the trimmed name, or nil while the name is blank.
@@ -87,14 +100,15 @@ struct CreateListDialog: View {
                     .foregroundStyle(AppColors.textPrimary)
                     .accessibilityAddTraits(.isHeader)
                 VStack(alignment: .leading, spacing: 4) {
-                    TextField(state.fieldLabel, text: $state.name, prompt: Text(state.placeholder))
+                    TextField(state.fieldLabel, text: Binding(get: { state.name }, set: { state.edit($0) }),
+                              prompt: Text(state.placeholder))
                         .textFieldStyle(.roundedBorder)
                         .focused($isFocused)
                         .submitLabel(.done)
                         .onSubmit(confirm)
                         .accessibilityLabel(state.fieldLabel)
                         .accessibilityIdentifier("lists.nameField")
-                        .onChange(of: state.name) { old, _ in state.revertIfTooLong(previous: old) }
+                        .onChange(of: state.name) { state.enforceLimit() }
                     if let counter = state.counterText {
                         Text(counter)
                             .font(.caption)

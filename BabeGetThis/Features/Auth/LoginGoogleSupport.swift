@@ -1,6 +1,7 @@
 import Foundation
 
-/// What the Google sheet hands back (Android `GoogleSignInToken`).
+/// What the Google sheet hands back (Android `GoogleSignInToken`): the id token, and the raw
+/// nonce whose SHA-256 Google signed into it. Supabase always gets the raw nonce.
 struct GoogleSignInToken: Equatable, Sendable {
     let idToken: String
     let rawNonce: String
@@ -15,6 +16,9 @@ enum GoogleSheetFailure: Error, Equatable, Sendable {
     case noAccount
     /// Sheet failure or unparseable credential (OAuth client misconfigured, ...): a defect to report.
     case failed(String)
+    /// iOS only: this build has no Google client id, or not its reversed-client-id URL scheme,
+    /// so the SDK is never called (it would crash).
+    case notConfigured
 }
 
 /// Opens the Google sheet. Returns nil when the user closes it, which is not an error.

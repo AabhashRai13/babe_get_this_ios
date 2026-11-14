@@ -147,9 +147,10 @@ final class AppContainer {
 
     // MARK: - Auth screens
 
-    @ObservationIgnored private var cachedAuthRepository: (any AuthRepository)?
+    @ObservationIgnored private var cachedAuthRepository: SupabaseAuthRepository?
 
-    private var authRepository: any AuthRepository {
+    /// Email, Google and Apple sign-in, all on the one shared `SupabaseClient`.
+    private var authRepository: SupabaseAuthRepository {
         if let cachedAuthRepository { return cachedAuthRepository }
         let repository = SupabaseAuthRepository(
             remote: SupabaseAuthRemote(client: supabaseClient), authStateManager: authState,
@@ -159,9 +160,10 @@ final class AppContainer {
     }
 
     func makeLoginViewModel() -> LoginViewModel {
-        // Google sign-in is F23; until then its button reports that it failed.
-        LoginViewModel(authRepository: authRepository,
-                       googleAuth: GoogleSignInNotWired(), googleTokens: GoogleSignInNotWired())
+        let googleTokens = GoogleIdTokenRequester(
+            infoDictionary: Bundle.main.infoDictionary, networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
+        return LoginViewModel(authRepository: authRepository, googleAuth: authRepository,
+                              googleTokens: googleTokens, appleAuth: authRepository)
     }
 
     func makeRegisterViewModel() -> RegisterViewModel {

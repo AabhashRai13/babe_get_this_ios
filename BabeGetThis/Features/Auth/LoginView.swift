@@ -1,9 +1,11 @@
+import AuthenticationServices
 import SwiftUI
 
-/// Email / Google sign-in (Android `LoginScreen`). Navigation is wired by the caller through
-/// the closures; the screen itself never navigates.
+/// Email / Google / Apple sign-in (Android `LoginScreen`). Navigation is wired by the caller
+/// through the closures; the screen itself never navigates.
 struct LoginView: View {
     @Bindable var viewModel: LoginViewModel
+    @Environment(\.colorScheme) private var colorScheme
     var onNavigateToRegister: () -> Void = {}
     var onNavigateToForgotPassword: () -> Void = {}
     var onClose: () -> Void = {}
@@ -17,25 +19,33 @@ struct LoginView: View {
         VStack(spacing: 0) {
             ScrollView {
                 VStack(spacing: 0) {
-                    BrandMark().padding(.top, 24)
-                    header
-                    formCard.padding(.top, 16)
-                    forgotPassword
-                    signInButton.padding(.top, 12)
-                    googleButton.padding(.top, 12)
+                    ForEach(LoginScreenCopy.scrollingContent, id: \.self) { element($0) }
                 }
                 .padding(.horizontal, AppMetrics.welcomePadding)
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+            // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
+            // so the form stays usable while the message is up. It hangs off the bottom of the
+            // scroll, so it sits just above the pinned footer and never covers its link.
+            .overlay(alignment: .bottom) {
+                if let message = viewModel.errorMessage {
+                    Snackbar(message: message)
+                        .padding(.bottom, AppMetrics.screenPadding)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task(id: message) {
+                            AccessibilityNotification.Announcement(message).post()
+                            try? await Task.sleep(for: SnackbarDuration.short)
+                            guard !Task.isCancelled else { return }
+                            withAnimation { viewModel.clearError() }
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
 
+            // Pinned below the scroll, never scrolled out of view.
             HStack(spacing: 4) {
-                Text("Don't have an account?")
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.textSecondary)
-                Button("Sign up", action: onNavigateToRegister)
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(AppColors.primary)
+                ForEach(LoginScreenCopy.pinnedFooter, id: \.self) { element($0) }
             }
             .padding(.vertical, 8)
         }
@@ -48,22 +58,32 @@ struct LoginView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
-        // so the form stays usable while the message is up.
-        .overlay(alignment: .bottom) {
-            if let message = viewModel.errorMessage {
-                Snackbar(message: message)
-                    .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: message) {
-                        AccessibilityNotification.Announcement(message).post()
-                        try? await Task.sleep(for: SnackbarDuration.short)
-                        guard !Task.isCancelled else { return }
-                        withAnimation { viewModel.clearError() }
-                    }
-            }
+    }
+
+    private var taps: LoginScreenTaps {
+        LoginScreenTaps(viewModel: viewModel, onRegister: onNavigateToRegister,
+                        onForgotPassword: onNavigateToForgotPassword)
+    }
+
+    @ViewBuilder
+    private func element(_ element: LoginScreenElement) -> some View {
+        switch element {
+        case .brand: BrandMark().padding(.top, 24)
+        case .header: header
+        case .form: formCard.padding(.top, 16)
+        case .forgotPassword: forgotPassword
+        case .signIn: signInButton.padding(.top, 12)
+        case .google: googleButton.padding(.top, 12)
+        case .apple: appleButton.padding(.top, 12)
+        case .noAccount:
+            Text(LoginScreenCopy.noAccount)
+                .font(.subheadline)
+                .foregroundStyle(AppColors.textSecondary)
+        case .signUp:
+            Button(LoginScreenCopy.signUp) { taps.tap(.signUp) }
+                .font(.subheadline.weight(.semibold))
+                .foregroundStyle(AppColors.primary)
         }
-        .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
     }
 
     private var header: some View {
@@ -85,10 +105,21 @@ struct LoginView: View {
 
     private var formCard: some View {
         VStack(alignment: .leading, spacing: 14) {
+            ForEach(LoginScreenCopy.fields, id: \.self) { field($0) }
+        }
+        .padding(20)
+        .background(AppColors.surfaceContainerLow,
+                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
+    }
+
+    @ViewBuilder
+    private func field(_ field: LoginScreenField) -> some View {
+        switch field {
+        case .email:
             VStack(alignment: .leading, spacing: 4) {
                 HStack {
                     Image(systemName: "envelope").foregroundStyle(AppColors.primary)
-                    TextField("Email", text: emailBinding)
+                    TextField(field.label, text: emailBinding)
                         .keyboardType(.emailAddress)
                         .textContentType(.emailAddress)
                         .textInputAutocapitalization(.never)
@@ -102,13 +133,14 @@ struct LoginView: View {
                     Text(error).font(.caption).foregroundStyle(AppColors.error)
                 }
             }
+        case .password:
             HStack {
                 Image(systemName: "lock").foregroundStyle(AppColors.primary)
                 Group {
                     if passwordVisible {
-                        TextField("Password", text: passwordBinding)
+                        TextField(field.label, text: passwordBinding)
                     } else {
-                        SecureField("Password", text: passwordBinding)
+                        SecureField(field.label, text: passwordBinding)
                     }
                 }
                 .textContentType(.password)
@@ -123,41 +155,68 @@ struct LoginView: View {
             }
             .modifier(LoginFieldChrome(isError: false))
         }
-        .padding(20)
-        .background(AppColors.surfaceContainerLow,
-                    in: RoundedRectangle(cornerRadius: AppMetrics.cardRadius, style: .continuous))
     }
 
     private var forgotPassword: some View {
         HStack {
             Spacer()
-            Button("Forgot password?", action: onNavigateToForgotPassword)
+            Button(LoginScreenCopy.forgotPassword) { taps.tap(.forgotPassword) }
                 .font(.subheadline.weight(.medium))
                 .foregroundStyle(AppColors.primary)
         }
         .padding(.top, 8)
     }
 
+    // Each button shows the spinner only for its own path; all three stay disabled while any
+    // sign-in runs.
     private var signInButton: some View {
-        Button { viewModel.login() } label: {
-            if viewModel.isLoading {
+        Button { taps.tap(.signIn) } label: {
+            if viewModel.showsSpinner(for: .email) {
                 ProgressView().tint(AppColors.onPrimary)
             } else {
-                Text("Sign in").fontWeight(.semibold)
+                Text(LoginScreenCopy.signIn).fontWeight(.semibold)
             }
         }
         .buttonStyle(PrimaryButtonStyle())
-        .disabled(!viewModel.isFormValid || viewModel.isLoading)
+        .disabled(!viewModel.isEmailSignInEnabled)
     }
 
     private var googleButton: some View {
-        Button { viewModel.signInWithGoogle() } label: {
-            HStack(spacing: 12) {
-                Image(systemName: "g.circle")
-                Text("Continue with Google").fontWeight(.semibold)
+        Button { taps.tap(.google) } label: {
+            if viewModel.showsSpinner(for: .google) {
+                ProgressView()
+            } else {
+                HStack(spacing: 12) {
+                    Image(systemName: "g.circle")
+                    Text(LoginScreenCopy.continueWithGoogle).fontWeight(.semibold)
+                }
             }
         }
         .buttonStyle(OutlinedButtonStyle())
+        .disabled(viewModel.isLoading)
+    }
+
+    /// AUTH-06: next to Google at the same size, black in light mode and white in dark.
+    private var appleButton: some View {
+        SignInWithAppleButton(.signIn) { request in
+            AppleIdTokenSignIn.configure(request, nonceHash: viewModel.prepareAppleSignIn())
+        } onCompletion: { result in
+            viewModel.completeAppleSignIn(AppleAuthorizationOutcome(result))
+        }
+        .signInWithAppleButtonStyle(colorScheme == .dark ? .white : .black)
+        .frame(maxWidth: .infinity, minHeight: AppMetrics.buttonHeight, maxHeight: AppMetrics.buttonHeight)
+        .overlay {
+            // Apple's button can't show a spinner itself: cover its label with one, in its colours.
+            if viewModel.showsSpinner(for: .apple) {
+                ZStack {
+                    colorScheme == .dark ? Color.white : Color.black
+                    ProgressView().tint(colorScheme == .dark ? Color.black : Color.white)
+                }
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: AppMetrics.buttonRadius, style: .continuous))
+        // `.disabled` doesn't dim Apple's button, so dim it while another path runs.
+        .opacity(viewModel.isLoading && !viewModel.showsSpinner(for: .apple) ? 0.5 : 1)
         .disabled(viewModel.isLoading)
     }
 

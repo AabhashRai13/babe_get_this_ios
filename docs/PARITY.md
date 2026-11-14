@@ -244,6 +244,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **AUTH-09** [todo] (K/core/auth/data/SupabaseAuthRepository.kt) Display name: use `user_metadata.name`, else the fallback (the email local part for login/reset, the typed name for register), else the email's local part.
 - **AUTH-10** [todo] (K/core/auth/ui/AuthPromptDialog.kt) Auth prompt dialog: the title and body name the gated feature. "Sign in" → Login; "Create account" → Register. Used for voice ("Sign in to use voice") and for share and join ("Sign in to share").
 - **AUTH-11** [todo] (T/core/auth/ui/AuthScreensTest.kt) Port AuthScreensTest (27) as view-model and UI tests where they apply.
+  - Adapted (no UI test target yet): the rendering cases check the lists the views are built from (fields, what scrolls, the pinned footer) and the route cases tap through the `*ScreenTaps` the views call. Add an XCUITest for the pinned "Sign up" when a UI test target exists.
 - **SESS-01** [todo] (K/core/auth/data/AuthStateManager.kt) Auth states: Loading / Authenticated(userId) / SessionExpired(userId) / Unauthenticated. Port AuthStateManagerTest (28). Restore on launch:
   - No userId → Unauthenticated.
   - A userId without a token → SessionExpired.

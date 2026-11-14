@@ -68,6 +68,7 @@ final class ListsViewModel {
     @ObservationIgnored private let authState: AuthStateManager?
     @ObservationIgnored private let shareJoiner: (any ListJoining)?
     @ObservationIgnored private let ownership: (any ListOwnershipStore)?
+    @ObservationIgnored private var signOutSubscription: AuthStateSubscription?
 
     /// How many guest lists just moved into the account; the screen says so once, then
     /// `dismissAdoptionNotice()` (Android `adoptionNotice`). A second claim while the notice
@@ -81,7 +82,7 @@ final class ListsViewModel {
 
     /// A sheet is up on the lists screen. An alert presented from the same view while one is
     /// up can be swallowed, so the adoption notice waits for it to go.
-    var isSheetPresented: Bool { authRoute != nil || isChooserPresented || isVoicePresented }
+    var isSheetPresented: Bool { authRoute != nil || isChooserPresented || isVoicePresented || isProfilePresented }
 
     /// The notice shows once there is a count and no sheet is up: a claim lands right after
     /// signing in, often while the auth sheet is still on screen.
@@ -111,6 +112,33 @@ final class ListsViewModel {
         let pending = ownership?.adoptionNotice ?? 0
         self.adoptionNotice = pending
         if pending > 0 { self.adoptionNoticeShownCount = pending }
+        // The lists screen is gone once the account signs out (RootView shows Welcome), so no
+        // view is left to clear its sheets; this view model outlives it and must do it itself.
+        signOutSubscription = authState.observeSignOuts { [weak self] in
+            if Thread.isMainThread {
+                MainActor.assumeIsolated { self?.closeEverythingAfterSignOut() }
+            } else {
+                Task { @MainActor in self?.closeEverythingAfterSignOut() }
+            }
+        }
+    }
+
+    /// Signing out clears the stack to Welcome (NAV-04; Android pops the lists screen and with it
+    /// all its state). Android also closes the profile sheet as soon as the account goes
+    /// (`LaunchedEffect(hasAccount)`). Nothing opened before the sign-out may reappear on the
+    /// next sign-in, so every sheet, prompt, push and pending request is dropped here.
+    private func closeEverythingAfterSignOut() {
+        profileRequested = false
+        isSettingsPresented = false
+        authRoute = nil
+        authPrompt = nil
+        isChooserPresented = false
+        isNamingList = false
+        isVoicePresented = false
+        isJoinDialogPresented = false
+        isJoinAuthPromptPresented = false
+        renamingList = nil
+        openListRequest = nil
     }
 
     /// A lost session keeps the account's lists on screen (Android decision 008); the screen
@@ -282,6 +310,86 @@ final class ListsViewModel {
     func promptCreateAccount() {
         authPrompt = nil
         authRoute = .register
+    }
+
+    // MARK: - Top bar and session banner (HOME-13, HOME-14, NAV-05)
+
+    /// The top bar's account control (Android `AccountAction`).
+    enum AccountControl: Hashable {
+        /// An account owns this phone's lists (signed in, or a lost session): a round avatar
+        /// with this initial, or a person glyph when nil. Opens the profile sheet.
+        case avatar(initial: String?)
+        /// Nobody is signed in: a "Sign in" pill that opens Login.
+        case signIn
+    }
+
+    static let sessionExpiredMessage = "You've been signed out. Sign in again to keep your lists in sync."
+    static let sessionExpiredAction = "Sign in"
+    static let signInPill = "Sign in"
+
+    /// Signed in or a lost session. The profile sheet is the only way to sign out, which is the
+    /// only way the account's lists leave the phone, so it stays while the session is expired.
+    var hasAccount: Bool { authState?.authState.ownerId != nil }
+
+    var accountControl: AccountControl {
+        guard hasAccount else { return .signIn }
+        return .avatar(initial: Self.initial(name: authState?.userName))
+    }
+
+    /// The first letter of the name, upper-cased; nil (a person glyph) when there is no name.
+    /// Never the email: Android `AccountAction` uses `userName?.trim()?.firstOrNull()` only.
+    static func initial(name: String?) -> String? {
+        name?.trimmingCharacters(in: .whitespacesAndNewlines).first.map { String($0).uppercased() }
+    }
+
+    var profileName: String? { authState?.userName }
+    var profileEmail: String? { authState?.userEmail }
+
+    /// Asked for by the avatar. Only shown while an account exists; a sign-out also clears the
+    /// request itself, so the sheet can't reopen on the next sign-in.
+    private var profileRequested = false
+    var isProfilePresented: Bool {
+        get { profileRequested && hasAccount }
+        set { profileRequested = newValue }
+    }
+
+    /// The account control: the profile sheet for an account, Login otherwise.
+    func tapAccountControl() {
+        if hasAccount {
+            profileRequested = true
+        } else {
+            authRoute = .login
+        }
+    }
+
+    /// The session-expired banner's "Sign in": Login, like Android `onNavigateToLogin`.
+    func signInAgain() {
+        authRoute = .login
+    }
+
+    /// Settings is pushed from the lists in every auth state (NAV-05).
+    var isSettingsPresented = false
+
+    /// The top bar's trailing actions, which the screen renders in this order.
+    enum TopBarAction: Hashable {
+        case join, settings, account(AccountControl)
+    }
+
+    /// HOME-13: Join, Settings, then the account control, in every auth state (so Settings is
+    /// always reachable, NAV-05).
+    var topBarActions: [TopBarAction] { [.join, .settings, .account(accountControl)] }
+
+    /// A tap on one of `topBarActions`.
+    func perform(_ action: TopBarAction) {
+        switch action {
+        case .join: startJoining()
+        case .settings: openSettings()
+        case .account: tapAccountControl()
+        }
+    }
+
+    func openSettings() {
+        isSettingsPresented = true
     }
 
     // MARK: - Delete, undo, rename

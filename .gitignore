@@ -2,6 +2,7 @@
 *.xcodeproj
 *.xcworkspace
 BabeGetThis/Resources/Info.plist
+BabeGetThis/Resources/BabeGetThis.entitlements
 
 # Xcode
 xcuserdata/
