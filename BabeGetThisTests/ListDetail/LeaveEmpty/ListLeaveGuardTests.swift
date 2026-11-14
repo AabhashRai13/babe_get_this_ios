@@ -90,12 +90,20 @@ final class ListLeaveGuardTests: XCTestCase {
     }
 
     // Shared lists are never auto-deleted (the partner may still be using them), so
-    // asking would be untrue there.
+    // asking would be untrue there. Goes through the transition: an unknown share state
+    // also answers false, so only "unshared → true, then shared → false" proves the code
+    // is read. It also covers a list shared while the screen is open.
     func testLeavingAnEmptySharedListKeepsIt() async {
-        await loaded(items: [], shareCode: "ABC123")
-        try? await Task.sleep(for: .milliseconds(50))
+        await loaded(items: [], shareCode: nil)
+        await listDetailEventually("unshared and empty: leaving deletes it") {
+            self.leaveGuard.leavingDeletesList(self.model)
+        }
 
-        XCTAssertFalse(leaveGuard.leavingDeletesList(model))
+        cleaner.sendShareCode("ABC123")
+
+        await listDetailEventually("shared now: leaving keeps it") {
+            !self.leaveGuard.leavingDeletesList(self.model)
+        }
     }
 
     func testAddingTheFirstItemStopsTheQuestion() async {
@@ -115,6 +123,10 @@ final class ListLeaveGuardTests: XCTestCase {
         try? await Task.sleep(for: .milliseconds(50))
 
         XCTAssertFalse(leaveGuard.leavingDeletesList(model))
+
+        // The share state was read: once the (empty) items arrive, the answer flips.
+        source.send([])
+        await listDetailEventually { self.leaveGuard.leavingDeletesList(self.model) }
     }
 
     // MARK: - Back, "Keep editing", "Delete list"
