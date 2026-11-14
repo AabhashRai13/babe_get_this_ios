@@ -486,6 +486,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **TEL-01** [todo] (D/technical-decisions/007-telemetry.md) AnalyticsRepository and CrashReporter protocols with Firebase implementations. Staging and Prod use separate Firebase projects; Dev sends nothing.
 - **TEL-02** [todo] (K/core/telemetry/TelemetryConsent.kt) Consent is two independent toggles, "Usage analytics" and "Crash reports". Both are on by default and re-applied at launch. Identity is the Supabase user UUID only. Port TelemetryConsentTest (7).
   - iOS: Settings runs on the container's `TelemetryConsent`, so turning a toggle off stops Analytics or Crashlytics collection in the same call, as Android's `SettingsViewModel` does.
+  - iOS: Analytics starts with collection off (`FIREBASE_ANALYTICS_COLLECTION_ENABLED = NO` in Info.plist) and `applyPersisted()` at app start turns it on when "Usage analytics" is on, so nothing is collected before consent is applied. Android leaves collection on in the manifest and relies on the SDK's persisted flag.
 - **TEL-03** [todo] (K/core/telemetry/data/AnalyticsEventMapper.kt) The non-Got-This events, with params limited to enums, buckets and ids (never item names, emails or codes):
   - `screen_view`.
   - Voice: sheet opened, recording started/failed/cancelled, transcription completed/failed, items saved.

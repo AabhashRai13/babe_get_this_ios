@@ -101,4 +101,26 @@ final class AppStartTests: XCTestCase {
         XCTAssertNotNil(kept)
         XCTAssertNil(kept?.deletedAt)
     }
+
+    /// Info.plist starts Analytics with collection off (FIREBASE_ANALYTICS_COLLECTION_ENABLED = NO),
+    /// so start() is what turns it on for a user who hasn't opted out (TEL-02).
+    func testStartAppliesTheStoredConsentToBothVendors() throws {
+        let analytics = RecordingAnalytics()
+        let crashReporter = RecordingCrashReporter()
+        let consentStore = InMemoryTelemetryConsentStore()
+        consentStore.crashReportingEnabled = false
+        let container = AppContainer(
+            config: .preview, authState: AuthStateManager(tokenStore: InMemoryTokenStore()),
+            database: try AppDatabase.inMemory(),
+            welcome: WelcomeRepository(defaults: defaults, isUpdateInstall: { false }),
+            ownership: FakeListOwnershipStore(),
+            telemetry: TelemetryVendors(analytics: analytics, crashReporter: crashReporter),
+            telemetryConsentStore: consentStore)
+        XCTAssertEqual([], analytics.collection, "building the container decides nothing")
+
+        container.start(syncEngine: TriggerFakeEngine(), network: TriggerFakeNetwork())
+
+        XCTAssertEqual([true], analytics.collection)
+        XCTAssertEqual([false], crashReporter.collection)
+    }
 }
