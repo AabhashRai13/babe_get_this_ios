@@ -24,6 +24,6 @@ The 6 Android telemetry cases (voice-list ItemAdded/CategoryAutoAssigned, FirstI
 Nothing.
 
 ## Follow-ups
-- No iOS `ShareRepository` exists, so nothing passes a `ListJoining` to `ListsViewModel` yet, and `ListsView` has no Join button or dialog.
-- `ListsView` doesn't call `createListWithVoice` (it still routes voice through its existing flow), and doesn't show the session-expired or adoption banners; `AppContainer` doesn't pass `ownership`. Wiring them is UI work beyond this task's acceptance (no extras rule); `AppContainer` is outside the owned paths.
+- Updated after the PR #8 review: `ShareRepository` (F33, merged in the same branch) now conforms to `ListJoining`. `AppContainer` doesn't pass it yet, because it needs the `SyncEngine`, which F30 wires; the Join dialog is F34 and the toolbar's Join button stays disabled until then. Without a joiner, `joinList` sets `joinError` instead of returning silently.
+- Updated after the PR #8 review: `ListsView` passes `createListWithVoice` (now in the voice sheet's `Persist` shape) to the voice sheet, observes the adoption notice, and `AppContainer` passes the real `PrefsListOwnershipStore`. The session-expired banner and the adoption dialog are still UI work for F24 and F36.
 - Exactly 36 cases executed, so the threshold has no headroom.
