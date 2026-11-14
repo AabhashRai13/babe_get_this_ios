@@ -27,6 +27,15 @@ struct RootView: View {
                     }
             }
         }
+        .environment(\.profileViewModel, container.profile)
+        // The profile's messages outlive its sheet: "Your account has been deleted" shows on
+        // Welcome. While the sheet is up, it shows them itself.
+        .overlay(alignment: .bottom) {
+            if !container.lists.isProfilePresented {
+                ProfileToastView(viewModel: container.profile)
+            }
+        }
+        .animation(.easeInOut(duration: 0.2), value: container.profile.toast)
         .animation(.default, value: container.session.screen)
         // Signing out shows Welcome; the list screens it left behind must not come back.
         .onChange(of: container.session.screen) { _, screen in
