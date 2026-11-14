@@ -31,6 +31,23 @@ struct LoginView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+            // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
+            // so the form stays usable while the message is up. It hangs off the bottom of the
+            // scroll, so it sits just above the pinned footer and never covers its link.
+            .overlay(alignment: .bottom) {
+                if let message = viewModel.errorMessage {
+                    Snackbar(message: message)
+                        .padding(.bottom, AppMetrics.screenPadding)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task(id: message) {
+                            AccessibilityNotification.Announcement(message).post()
+                            try? await Task.sleep(for: SnackbarDuration.short)
+                            guard !Task.isCancelled else { return }
+                            withAnimation { viewModel.clearError() }
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
 
             // Pinned below the scroll (LoginScreenCopy.pinnedFooter), never scrolled out of view.
             HStack(spacing: 4) {
@@ -52,22 +69,6 @@ struct LoginView: View {
             }
         }
         .navigationBarTitleDisplayMode(.inline)
-        // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
-        // so the form stays usable while the message is up.
-        .overlay(alignment: .bottom) {
-            if let message = viewModel.errorMessage {
-                Snackbar(message: message)
-                    .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: message) {
-                        AccessibilityNotification.Announcement(message).post()
-                        try? await Task.sleep(for: SnackbarDuration.short)
-                        guard !Task.isCancelled else { return }
-                        withAnimation { viewModel.clearError() }
-                    }
-            }
-        }
-        .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
     }
 
     private var header: some View {

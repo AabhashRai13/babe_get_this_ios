@@ -87,6 +87,23 @@ struct RegisterView: View {
             }
             .scrollBounceBehavior(.basedOnSize)
             .scrollDismissesKeyboard(.interactively)
+            // AUTH-02: errors show as a snackbar (Android `showSnackbar(it)` then `clearError()`),
+            // so the form stays usable while the message is up. It hangs off the bottom of the
+            // scroll, so it sits just above the pinned footer and never covers its link.
+            .overlay(alignment: .bottom) {
+                if let message = viewModel.errorMessage {
+                    Snackbar(message: message)
+                        .padding(.bottom, AppMetrics.screenPadding)
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .task(id: message) {
+                            AccessibilityNotification.Announcement(message).post()
+                            try? await Task.sleep(for: SnackbarDuration.short)
+                            guard !Task.isCancelled else { return }
+                            withAnimation { viewModel.clearError() }
+                        }
+                }
+            }
+            .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
 
             HStack(spacing: 4) {
                 Text(RegisterScreenCopy.haveAccount)
@@ -100,20 +117,6 @@ struct RegisterView: View {
         }
         .background(AppColors.background)
         .navigationBarTitleDisplayMode(.inline)
-        .overlay(alignment: .bottom) {
-            if let message = viewModel.errorMessage {
-                Snackbar(message: message)
-                    .padding(.bottom, AppMetrics.buttonHeight + AppMetrics.screenPadding)
-                    .transition(.move(edge: .bottom).combined(with: .opacity))
-                    .task(id: message) {
-                        AccessibilityNotification.Announcement(message).post()
-                        try? await Task.sleep(for: SnackbarDuration.short)
-                        guard !Task.isCancelled else { return }
-                        withAnimation { viewModel.clearError() }
-                    }
-            }
-        }
-        .animation(.easeOut(duration: 0.25), value: viewModel.errorMessage)
     }
 
     /// Show/Hide for one password field. Swapping SecureField and TextField replaces the
