@@ -181,6 +181,31 @@ final class AuthStateManagerTests: XCTestCase {
         XCTAssertEqual(tokens.token(), "old-token")
     }
 
+    // A 401 from the transcribe API expires the session here while Supabase's own session is
+    // still good. Supabase's next refresh must be kept, as Android's refreshToken keeps it,
+    // or every later launch restores "session expired" although Supabase holds a valid session.
+    func testATokenRotatedWhileTheSessionIsExpiredIsKeptForTheNextLaunch() {
+        manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+        manager.expireSession()
+
+        manager.refreshToken("fresh-token", userId: "u1")
+
+        XCTAssertEqual(tokens.token(), "fresh-token")
+        XCTAssertEqual(manager.authState, .sessionExpired(userId: "u1"), "like Android, the state waits for the next launch")
+        let reopened = AuthStateManager(tokenStore: tokens)
+        reopened.initialize()
+        XCTAssertEqual(reopened.authState, .authenticated(userId: "u1"))
+    }
+
+    func testATokenForAnotherAccountIsIgnoredWhileTheSessionIsExpired() {
+        manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+        manager.expireSession()
+
+        manager.refreshToken("other-token", userId: "u2")
+
+        XCTAssertNil(tokens.token())
+    }
+
     // MARK: - Round-trips against a real backing store
 
     func testInitializeRestoresWhatLoginPersisted() {

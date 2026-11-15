@@ -148,10 +148,20 @@ final class AuthStateManager: @unchecked Sendable {
     /// Supabase session, and a reset code signs the Supabase client in without signing anyone
     /// in here. A rotation in either window would otherwise leave a token nobody owns, which
     /// the next guest's voice request would send.
+    ///
+    /// An expired session of that same account keeps the token too, as Android does: a 401 from
+    /// the transcribe API expires the session here while Supabase's own is still good, and its
+    /// next refresh is what lets the next launch restore the account. The state itself stays
+    /// `.sessionExpired` until then, like Android.
     func refreshToken(_ token: String, userId: String?) {
         transition {
-            guard case .authenticated(let signedIn) = storedAuthState, signedIn == userId else { return }
-            tokenStore.saveToken(token)
+            switch storedAuthState {
+            case .authenticated(let account), .sessionExpired(let account):
+                guard account == userId else { return }
+                tokenStore.saveToken(token)
+            default:
+                return
+            }
         }
     }
 
