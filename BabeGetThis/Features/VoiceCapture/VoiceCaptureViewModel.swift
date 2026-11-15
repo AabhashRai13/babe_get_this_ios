@@ -28,7 +28,7 @@ final class VoiceCaptureViewModel {
     init(
         recorder: VoiceRecording,
         transcriber: VoiceTranscribing,
-        analytics: VoiceCaptureAnalytics = NoopVoiceCaptureAnalytics(),
+        analytics: VoiceCaptureAnalytics,
         deleteFile: @escaping @MainActor (URL) -> Void = { try? FileManager.default.removeItem(at: $0) }
     ) {
         self.recorder = recorder

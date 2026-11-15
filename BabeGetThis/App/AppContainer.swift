@@ -40,6 +40,7 @@ final class AppContainer {
         self.database = database
         self.analytics = telemetry.analytics
         self.crashReporter = telemetry.crashReporter
+        self.authAnalytics = TrackingAuthAnalytics(analytics: telemetry.analytics)
         let telemetryConsent = TelemetryConsent(
             store: telemetryConsentStore, analytics: telemetry.analytics, crashReporter: telemetry.crashReporter)
         self.telemetryConsent = telemetryConsent
@@ -107,6 +108,8 @@ final class AppContainer {
     /// Telemetry (TEL-01..03): Firebase in Staging and Prod once configured, no-ops otherwise.
     @ObservationIgnored let analytics: any AnalyticsRepository
     @ObservationIgnored let crashReporter: any CrashReporter
+    /// Sign-in and sign-up events, for the auth view models.
+    @ObservationIgnored let authAnalytics: TrackingAuthAnalytics
     /// Applies a consent change at the vendor as well as storing it (TEL-02).
     @ObservationIgnored let telemetryConsent: TelemetryConsent
     @ObservationIgnored let telemetryContext: TelemetryContext
@@ -165,7 +168,8 @@ final class AppContainer {
         let auth = TranscribeBearerAuth(tokenStore: KeychainTokenStore(), authStateManager: authState)
         return VoiceCaptureViewModel(
             recorder: AVVoiceRecorder(),
-            transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth))
+            transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth),
+            analytics: TrackingVoiceCaptureAnalytics(analytics: analytics))
     }
 
     // MARK: - Supabase and sync
@@ -231,11 +235,12 @@ final class AppContainer {
         let googleTokens = GoogleIdTokenRequester(
             infoDictionary: Bundle.main.infoDictionary, networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
         return LoginViewModel(authRepository: authRepository, googleAuth: authRepository,
-                              googleTokens: googleTokens, appleAuth: authRepository, reporter: errorReporter)
+                              googleTokens: googleTokens, appleAuth: authRepository, analytics: authAnalytics,
+                              reporter: errorReporter)
     }
 
     func makeRegisterViewModel() -> RegisterViewModel {
-        RegisterViewModel(authRepository: authRepository)
+        RegisterViewModel(authRepository: authRepository, analytics: authAnalytics)
     }
 
     func makeForgotPasswordViewModel() -> ForgotPasswordViewModel {
@@ -300,15 +305,6 @@ extension AppConfig {
         supabaseAnonKey: "",
         apiBaseURL: URL(string: "http://127.0.0.1:8080/")!
     )
-}
-
-/// Sends the Welcome choice as `welcome_choice`.
-private struct TrackingWelcomeAnalytics: WelcomeAnalytics {
-    let analytics: any AnalyticsRepository
-
-    func track(choice: WelcomeChoice) {
-        analytics.track(.welcomeChoiceMade(choice))
-    }
 }
 
 /// A `ListJoining` that finds the real joiner on the main actor at join time, so the container
