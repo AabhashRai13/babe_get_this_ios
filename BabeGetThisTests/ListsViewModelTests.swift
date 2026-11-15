@@ -175,6 +175,44 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertNil(vm.undoMessage)
     }
 
+    func testAnUndoThatTimedOutNoLongerRestores() async throws {
+        try await seedList("a")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 1 }
+        await vm.deleteList(id: "a")
+
+        vm.dismissUndo()
+        await vm.undoDelete()
+
+        let stored = try await db.lists.listRaw(id: "a")
+        XCTAssertNil(stored, "a guest delete is a hard delete, and nothing brought it back")
+    }
+
+    // The snackbar's timer lives in the lists screen, which sign-out tears down, while this
+    // view model lives on. Without this the next account is offered "groceries deleted · Undo",
+    // and the restore re-creates the old account's list under the new one.
+    func testSigningOutWithdrawsAPendingUndo() async throws {
+        let auth = AuthStateManager(tokenStore: InMemoryTokenStore())
+        auth.initialize()
+        auth.login(token: "t", userId: "user-a", userName: "A", userEmail: "a@x.y")
+        try await seedList("groceries", accountId: "user-a", items: 2)
+        let vm = observedViewModel(auth)
+        try await waitUntil { vm.lists.count == 1 }
+        await vm.deleteList(id: "groceries")
+        XCTAssertEqual(vm.undoMessage, "groceries deleted")
+
+        // Sign-out takes the account's lists off the phone (SyncEngine.evictAccountLists), then
+        // ends the session; someone else signs in.
+        try await db.lists.deleteAccountLists()
+        auth.logout()
+        auth.login(token: "t2", userId: "user-b", userName: "B", userEmail: "b@x.y")
+
+        XCTAssertNil(vm.undoMessage)
+        await vm.undoDelete()
+        let stored = try await db.lists.listRaw(id: "groceries")
+        XCTAssertNil(stored, "user-a's list must not come back as user-b's")
+    }
+
     func testRenameListUpdatesTheName() async throws {
         try await seedList("a")
         let vm = observedViewModel()
