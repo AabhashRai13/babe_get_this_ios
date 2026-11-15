@@ -32,7 +32,7 @@ enum SupabaseSessionStatus: Equatable, Sendable {
 
 /// The two `AuthStateManager` transitions the observer drives.
 protocol SessionAuthStateSink: AnyObject, Sendable {
-    func refreshToken(_ token: String)
+    func refreshToken(_ token: String, userId: String?)
     func expireSession()
 }
 
@@ -43,7 +43,8 @@ protocol SessionTelemetryIdentity: Sendable {
     func onUserChanged(_ userId: String?)
 }
 
-/// Until telemetry is wired, identity changes go nowhere.
+/// The app takes telemetry identity from `AuthStateManager.observeDataOwner` (`AppContainer.start`),
+/// so the observer's own identity hook goes nowhere.
 struct NoopSessionTelemetryIdentity: SessionTelemetryIdentity {
     func onUserChanged(_ userId: String?) {}
 }
@@ -117,7 +118,7 @@ final class SessionObserver: Sendable {
     private func onStatus(_ status: SupabaseSessionStatus) {
         switch status {
         case .authenticated(let accessToken, let userId):
-            authState.refreshToken(accessToken)
+            authState.refreshToken(accessToken, userId: userId)
             telemetry.onUserChanged(userId)
         // Mirror a lost session locally, otherwise the token store keeps serving a dead
         // token and the user finds out mid-action via a 401. expireSession, not logout:

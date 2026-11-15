@@ -48,11 +48,14 @@ final class SessionObserverTests: XCTestCase {
         XCTAssertEqual(telemetry.changes, ["user-1"])
     }
 
-    func testASessionWithoutAUserStillPersistsTheToken() async {
-        await run([authenticated(userId: nil)])
+    // The manager decides whether a rotated token is this device's account; the observer
+    // passes the session's user along with it.
+    func testARotatedTokenIsForwardedWithItsSessionUser() async {
+        await run([authenticated(userId: "user-1", token: "access-2"), authenticated(userId: nil)])
 
-        XCTAssertEqual(authState.refreshedTokens, ["access-1"])
-        XCTAssertEqual(telemetry.changes, [nil])
+        XCTAssertEqual(authState.refreshedTokens, ["access-2", "access-1"])
+        XCTAssertEqual(authState.refreshedUserIds, ["user-1", nil])
+        XCTAssertEqual(telemetry.changes, ["user-1", nil])
     }
 
     func testALostSessionExpiresLocallyAndClearsTelemetryIdentity() async {
@@ -177,12 +180,19 @@ final class SupabaseSessionStatusMappingTests: XCTestCase {
 private final class RecordingSessionAuthStateSink: SessionAuthStateSink, @unchecked Sendable {
     private let lock = NSLock()
     private var tokens: [String] = []
+    private var userIds: [String?] = []
     private var expires = 0
 
     var refreshedTokens: [String] { lock.withLock { tokens } }
+    var refreshedUserIds: [String?] { lock.withLock { userIds } }
     var expireCount: Int { lock.withLock { expires } }
 
-    func refreshToken(_ token: String) { lock.withLock { tokens.append(token) } }
+    func refreshToken(_ token: String, userId: String?) {
+        lock.withLock {
+            tokens.append(token)
+            userIds.append(userId)
+        }
+    }
     func expireSession() { lock.withLock { expires += 1 } }
 }
 

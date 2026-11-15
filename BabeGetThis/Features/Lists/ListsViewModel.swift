@@ -139,6 +139,9 @@ final class ListsViewModel {
         isJoinAuthPromptPresented = false
         renamingList = nil
         openListRequest = nil
+        // The Undo snackbar's timer died with the lists screen. Left on offer, the next account
+        // could restore this account's list as its own.
+        withdrawUndo()
     }
 
     /// A lost session keeps the account's lists on screen (Android decision 008); the screen
@@ -440,7 +443,12 @@ final class ListsViewModel {
     }
 
     /// The snackbar timed out: Undo is no longer on offer.
-    func dismissUndo() { undoMessage = nil }
+    func dismissUndo() { withdrawUndo() }
+
+    private func withdrawUndo() {
+        undoMessage = nil
+        pendingDelete = nil
+    }
 
     func startRenaming(id: String) {
         renamingList = lists.first { $0.id == id }

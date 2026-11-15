@@ -42,8 +42,12 @@ struct SystemStartTonePlayer: StartTonePlaying {
 }
 
 /// AVAudioRecorder writing .m4a AAC 16 kHz mono, capped at 30 s.
+///
+/// Recording can end without `stop()`: at the cap, or when iOS takes the mic away
+/// (`RecordingInterruptions`). Either calls `onEndedOnItsOwn` once, and the file recorded so
+/// far waits for `stop()` to hand it over.
 @MainActor
-final class AVVoiceRecorder: VoiceRecording {
+final class AVVoiceRecorder: NSObject, VoiceRecording, AVAudioRecorderDelegate {
     static let maxDuration: TimeInterval = 30
     static let sampleRate: Double = 16_000
 
@@ -60,8 +64,11 @@ final class AVVoiceRecorder: VoiceRecording {
         directory.appending(path: "voice-\(Int(now.timeIntervalSince1970 * 1000)).m4a")
     }
 
+    var onEndedOnItsOwn: (@MainActor () -> Void)?
+
     private let tone: StartTonePlaying
     private let directory: URL
+    private let interruptions: RecordingInterruptions
     private var recorder: AVAudioRecorder?
     private var outputFile: URL?
 
@@ -70,9 +77,12 @@ final class AVVoiceRecorder: VoiceRecording {
         outputFile = file
     }
 
-    init(tone: StartTonePlaying = SystemStartTonePlayer(), directory: URL = FileManager.default.temporaryDirectory) {
+    init(tone: StartTonePlaying = SystemStartTonePlayer(), directory: URL = FileManager.default.temporaryDirectory,
+         interruptions: RecordingInterruptions = RecordingInterruptions()) {
         self.tone = tone
         self.directory = directory
+        self.interruptions = interruptions
+        super.init()
     }
 
     func start() async throws {
@@ -88,26 +98,47 @@ final class AVVoiceRecorder: VoiceRecording {
         let file = Self.fileURL(in: directory)
         outputFile = file
         let newRecorder = try AVAudioRecorder(url: file, settings: Self.settings)
+        newRecorder.delegate = self
         recorder = newRecorder
         guard newRecorder.prepareToRecord(), newRecorder.record(forDuration: Self.maxDuration) else {
             throw VoiceError.unknown("Couldn't open the microphone.")
         }
+        interruptions.start { [weak self] in self?.endedOnItsOwn() }
     }
 
     func stop() async throws -> URL {
-        recorder?.stop()
-        recorder = nil
-        try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
+        release()
         guard let file = outputFile else { throw VoiceError.unknown("No recording in progress.") }
         outputFile = nil
         return file
     }
 
     func cancel() {
-        recorder?.stop()
-        recorder = nil
+        release()
         if let file = outputFile { try? FileManager.default.removeItem(at: file) }
         outputFile = nil
+    }
+
+    /// The cap: `record(forDuration:)` finished by itself. `stop()` and `cancel()` never land
+    /// here, because both detach the delegate before stopping.
+    nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
+        Task { @MainActor [weak self] in self?.endedOnItsOwn() }
+    }
+
+    private func endedOnItsOwn() {
+        guard outputFile != nil else { return } // stopped or cancelled meanwhile
+        // Once per recording: the cap and an interruption can both arrive.
+        interruptions.stop()
+        recorder?.delegate = nil
+        onEndedOnItsOwn?()
+    }
+
+    /// Turns the mic and the watching off; the file is the caller's to keep or delete.
+    private func release() {
+        interruptions.stop()
+        recorder?.delegate = nil
+        recorder?.stop()
+        recorder = nil
         try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation)
     }
 }

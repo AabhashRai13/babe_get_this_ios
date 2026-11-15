@@ -23,6 +23,7 @@ struct VoiceTestFailure: Error { let text: String }
 
 @MainActor
 final class FakeVoiceRecorder: VoiceRecording {
+    var onEndedOnItsOwn: (@MainActor () -> Void)?
     var startGate: VoiceTestGate?
     var stopGate: VoiceTestGate?
     var startError: Error?
@@ -47,6 +48,9 @@ final class FakeVoiceRecorder: VoiceRecording {
     }
 
     func cancel() { cancelCalls += 1 }
+
+    /// The 30 s cap, a call or Siri, or the app leaving the foreground.
+    func endOnItsOwn() { onEndedOnItsOwn?() }
 }
 
 @MainActor

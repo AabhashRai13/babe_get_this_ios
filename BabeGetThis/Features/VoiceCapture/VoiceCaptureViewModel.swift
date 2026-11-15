@@ -35,6 +35,7 @@ final class VoiceCaptureViewModel {
         self.transcriber = transcriber
         self.analytics = analytics
         self.deleteFile = deleteFile
+        recorder.onEndedOnItsOwn = { [weak self] in self?.recordingEndedOnItsOwn() }
     }
 
     func setPersist(_ block: @escaping Persist) {
@@ -80,9 +81,14 @@ final class VoiceCaptureViewModel {
 
     @discardableResult
     func stopRecording() -> Task<Void, Never> {
+        // Already stopping (the recorder ended on its own, and a Stop tap landed before the sheet
+        // re-rendered): one stop and one upload, and cancel() still reaches that upload.
+        if state == .transcribing || state == .saving, let transcribeTask { return transcribeTask }
+        // Now, not in the task: the recorder ending on its own in the same moment must already
+        // see that the recording is over, or it stops (and uploads) a second time.
+        state = .transcribing
         let task = Task { [weak self] in
             guard let self else { return }
-            state = .transcribing
             // Wait for start() (tone + mic open) so we never stop a recorder that doesn't exist yet.
             await recordTask?.value
             if Task.isCancelled { return }
@@ -101,6 +107,14 @@ final class VoiceCaptureViewModel {
         }
         transcribeTask = task
         return task
+    }
+
+    /// The mic went off without the user: the 30 s cap, a call or Siri, or the app leaving the
+    /// foreground. What was said so far is transcribed as if Stop had been tapped, instead of the
+    /// sheet showing "Listening" over a mic that is off.
+    private func recordingEndedOnItsOwn() {
+        guard state == .recording else { return }
+        stopRecording()
     }
 
     private func transcribeAndPersist(_ file: URL) async {
