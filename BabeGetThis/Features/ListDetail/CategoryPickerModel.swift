@@ -14,7 +14,7 @@ extension CategoryRepository: CategoryPickerSource {}
 extension AppContainer {
     /// Lists every category for the add/edit item sheet and creates custom ones for "Other".
     var categoryPickerSource: any CategoryPickerSource {
-        CategoryRepository(dao: database.categories, safeCall: SafeCall(reporter: SilentAppErrorReporter()))
+        categoryRepository
     }
 }
 

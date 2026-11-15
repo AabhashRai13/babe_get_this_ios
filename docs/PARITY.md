@@ -277,11 +277,13 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Confirm "Delete account?" with the deletion body and "Delete" / "Cancel".
   - Order: push → RPC `delete_user` → evict → reset Welcome → "Your account has been deleted".
   - A failure keeps every list on the phone.
+  - iOS hardening: one save, sign-out or deletion runs at a time. While one runs, Save, Log out and Delete account are disabled and the view model ignores another start (Return in the name field included). Android guards each button only by its own flag.
 
 ## Settings
 
 - **SET-01** [todo] (K/feature/settings/ui/SettingsScreen.kt) Settings screen (small app bar, back). Sections in order: Privacy, About. Footer "Version <name> (<build>)". (Android's List lock and Reminders sections are out of v1.)
 - **SET-02** [todo] (K/core/ui/Links.kt) About section: "Rate the app" opens the App Store review page (Android opens the Google Play listing). "Privacy policy" opens https://babegetthis.com/privacy-policy.html.
+  - iOS deviation: "Rate the app" opens `https://apps.apple.com/app/id<BGTAppStoreID>?action=write-review`, and the row is hidden while `BGTAppStoreID` is empty or not all digits (no App Store listing yet). Android always shows the row.
 - **SET-03** [todo] (T/feature/settings/ui/SettingsTest.kt) Port the remaining SettingsTest cases: 5 privacy-toggle (consent) cases and the privacy-policy row (6). Of the 75, 32 are Got This, 12 PIN/list lock and 21 reminders (not ported); the 4 SettingsRow cases go with UI-05.
 
 ## Categories
@@ -484,7 +486,11 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 ## Telemetry (Firebase is in the iOS stack)
 
 - **TEL-01** [todo] (D/technical-decisions/007-telemetry.md) AnalyticsRepository and CrashReporter protocols with Firebase implementations. Staging and Prod use separate Firebase projects; Dev sends nothing.
+  - Crash symbolication: there is no dSYM upload yet (no Crashlytics `run` or `upload-symbols` build phase), so crashes from an archived build will arrive unsymbolicated. When archiving starts, add a Staging/Prod-only `postBuildScripts` phase in `project.yml` that runs `${BUILD_DIR%/Build/*}/SourcePackages/checkouts/firebase-ios-sdk/Crashlytics/run` with Firebase's dSYM input files (keeping `DEBUG_INFORMATION_FORMAT = dwarf-with-dsym`), or upload with `upload-symbols` from the archive step. Android has the same gap for R8 mapping upload (`D/technical-decisions/007-telemetry.md`).
 - **TEL-02** [todo] (K/core/telemetry/TelemetryConsent.kt) Consent is two independent toggles, "Usage analytics" and "Crash reports". Both are on by default and re-applied at launch. Identity is the Supabase user UUID only. Port TelemetryConsentTest (7).
+  - iOS: Settings runs on the container's `TelemetryConsent`, so turning a toggle off stops Analytics or Crashlytics collection in the same call, as Android's `SettingsViewModel` does.
+  - iOS: Analytics starts with collection off (`FIREBASE_ANALYTICS_COLLECTION_ENABLED = NO` in Info.plist) and `applyPersisted()` at app start turns it on when "Usage analytics" is on, so nothing is collected before consent is applied. Android leaves collection on in the manifest and relies on the SDK's persisted flag.
+  - iOS: turning "Crash reports" off also calls Crashlytics `deleteUnsentReports()`, so reports written while opted out are never sent if the user opts back in. Android only flips the flag.
 - **TEL-03** [todo] (K/core/telemetry/data/AnalyticsEventMapper.kt) The non-Got-This events, with params limited to enums, buckets and ids (never item names, emails or codes):
   - `screen_view`.
   - Voice: sheet opened, recording started/failed/cancelled, transcription completed/failed, items saved.

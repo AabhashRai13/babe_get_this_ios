@@ -43,7 +43,8 @@ protocol SessionTelemetryIdentity: Sendable {
     func onUserChanged(_ userId: String?)
 }
 
-/// Until telemetry is wired, identity changes go nowhere.
+/// The app takes telemetry identity from `AuthStateManager.observeDataOwner` (`AppContainer.start`),
+/// so the observer's own identity hook goes nowhere.
 struct NoopSessionTelemetryIdentity: SessionTelemetryIdentity {
     func onUserChanged(_ userId: String?) {}
 }

@@ -26,16 +26,37 @@ final class AppContainer {
     init(config: AppConfig, authState: AuthStateManager = AuthStateManager(tokenStore: KeychainTokenStore()),
          database: AppDatabase, welcome: WelcomeRepository = WelcomeRepository(), forcedScreen: StartScreen? = nil,
          initialPath: [ShoppingListSummary] = [],
-         ownership: any ListOwnershipStore = PrefsListOwnershipStore()) {
+         ownership: any ListOwnershipStore = PrefsListOwnershipStore(),
+         telemetry: TelemetryVendors = .noOp,
+         telemetryConsentStore: any TelemetryConsentStore = UserDefaultsTelemetryConsentStore()) {
         self.config = config
         self.authState = authState
         self.welcome = welcome
         let session = StartSession(authState: authState, welcome: welcome, forcedScreen: forcedScreen)
         self.session = session
-        self.welcomeViewModel = WelcomeViewModel(welcome: welcome, onGuestChosen: { session.refresh() })
+        self.welcomeViewModel = WelcomeViewModel(
+            welcome: welcome, analytics: TrackingWelcomeAnalytics(analytics: telemetry.analytics),
+            onGuestChosen: { session.refresh() })
         self.database = database
-        let safeCall = SafeCall(reporter: SilentAppErrorReporter())
+        self.analytics = telemetry.analytics
+        self.crashReporter = telemetry.crashReporter
+        let telemetryConsent = TelemetryConsent(
+            store: telemetryConsentStore, analytics: telemetry.analytics, crashReporter: telemetry.crashReporter)
+        self.telemetryConsent = telemetryConsent
+        // The monitor is made per check, so building a container starts no path monitor.
+        self.telemetryContext = TelemetryContext(
+            analytics: telemetry.analytics, crashReporter: telemetry.crashReporter,
+            isOnline: { NetworkMonitor().isOnline() }, consent: telemetryConsent,
+            dataShape: DatabaseTelemetryDataShape(items: database.items, lists: database.lists),
+            flavor: config.environment.rawValue)
+        // Every repository failure is offered to crash reporting, which keeps only Unknown and
+        // Database errors (ERR-03). Everything the container builds reports through this one
+        // reporter; nothing outside tests uses `SilentAppErrorReporter`.
+        let errorReporter = ErrorReporter(crashReporter: telemetry.crashReporter)
+        self.errorReporter = errorReporter
+        let safeCall = SafeCall(reporter: errorReporter)
         self.safeCall = safeCall
+        self.categoryRepository = CategoryRepository(dao: database.categories, safeCall: safeCall)
         let containerRef = WeakContainerRef()
         // The trigger reaches the engine only once `start()` has turned sync on, so building the
         // container (tests, `-sampleData`) opens no Supabase client and never touches the network.
@@ -66,8 +87,37 @@ final class AppContainer {
         self.lists = ListsViewModel(repository: listRepository, authState: authState,
                                     shareJoiner: joiner, ownership: ownership)
         self.initialPath = initialPath
+        // Sync and auth are resolved on the first save, sign-out or deletion, so building the
+        // profile opens no Supabase client.
+        self.profile = ProfileViewModel(
+            account: authState,
+            auth: DeferredProfileAuth { [containerRef] in
+                guard let container = containerRef.container else { return UnavailableProfileAuth() }
+                return container.authRepository
+            },
+            sync: DeferredProfileSync { [containerRef] in containerRef.container?.syncEngine },
+            welcome: welcome)
         containerRef.container = self
     }
+
+    /// The profile sheet's state (PROF-01..03). Owned here so a sign-out or deletion finishes
+    /// after the sheet closes.
+    let profile: ProfileViewModel
+
+    /// Telemetry (TEL-01..03): Firebase in Staging and Prod once configured, no-ops otherwise.
+    @ObservationIgnored let analytics: any AnalyticsRepository
+    @ObservationIgnored let crashReporter: any CrashReporter
+    /// Applies a consent change at the vendor as well as storing it (TEL-02).
+    @ObservationIgnored let telemetryConsent: TelemetryConsent
+    @ObservationIgnored let telemetryContext: TelemetryContext
+    /// Keeps analytics and crash identity following the signed-in user.
+    @ObservationIgnored private var telemetryIdentity: AuthStateSubscription?
+
+    /// Hands every mapped error to `crashReporter` (ERR-03), for the view models that report
+    /// failures of their own (sign-in).
+    @ObservationIgnored let errorReporter: any AppErrorReporter
+    /// Categories for the add/edit item sheet, on the reporting `safeCall`.
+    @ObservationIgnored let categoryRepository: CategoryRepository
 
     @ObservationIgnored private let safeCall: SafeCall
     /// What the trigger kicks; nil until `start()`, so unstarted containers never sync.
@@ -84,6 +134,12 @@ final class AppContainer {
     func start(syncEngine engine: (any SyncTriggerEngine)? = nil,
                network: any NetworkAvailabilitySource = SystemNetworkAvailability(),
                sessionStatuses: AsyncStream<SupabaseSessionStatus>? = nil) {
+        // Consent and the static crash keys before anything else is recorded.
+        telemetryContext.onAppStart()
+        // Identity is the Supabase user UUID only, from the same signal for both vendors.
+        telemetryIdentity = authState.observeDataOwner { [telemetryContext] userId in
+            telemetryContext.onUserChanged(userId)
+        }
         if let engine {
             startedSyncEngine = { engine }
         } else {
@@ -175,7 +231,7 @@ final class AppContainer {
         let googleTokens = GoogleIdTokenRequester(
             infoDictionary: Bundle.main.infoDictionary, networkMonitor: NetworkMonitor(), sheet: LiveGoogleSignInSheet())
         return LoginViewModel(authRepository: authRepository, googleAuth: authRepository,
-                              googleTokens: googleTokens, appleAuth: authRepository)
+                              googleTokens: googleTokens, appleAuth: authRepository, reporter: errorReporter)
     }
 
     func makeRegisterViewModel() -> RegisterViewModel {
@@ -200,13 +256,17 @@ final class AppContainer {
             return sampleContainer(config: config, forcedScreen: .lists,
                                    initialPath: LaunchRoute.initialPath(arguments: arguments))
         }
+        // Firebase only in Staging/Prod with all four settings present; Dev never touches it (TEL-01).
+        // Configured before the database opens, so Crashlytics sees a failure there.
+        let telemetry = TelemetryVendors.make(
+            settings: FirebaseSettings.resolve(infoDictionary: bundle.infoDictionary ?? [:], environment: config.environment))
         let database: AppDatabase
         do {
             database = try AppDatabase.onDisk()
         } catch {
             fatalError("Could not open the local database: \(error)")
         }
-        let container = AppContainer(config: config, database: database)
+        let container = AppContainer(config: config, database: database, telemetry: telemetry)
         container.start()
         return container
     }
@@ -240,6 +300,15 @@ extension AppConfig {
         supabaseAnonKey: "",
         apiBaseURL: URL(string: "http://127.0.0.1:8080/")!
     )
+}
+
+/// Sends the Welcome choice as `welcome_choice`.
+private struct TrackingWelcomeAnalytics: WelcomeAnalytics {
+    let analytics: any AnalyticsRepository
+
+    func track(choice: WelcomeChoice) {
+        analytics.track(.welcomeChoiceMade(choice))
+    }
 }
 
 /// A `ListJoining` that finds the real joiner on the main actor at join time, so the container

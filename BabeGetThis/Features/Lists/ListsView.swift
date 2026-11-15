@@ -4,6 +4,8 @@ import SwiftUI
 /// (Active only) and the lists grouped into date buckets.
 struct ListsView: View {
     @Bindable var viewModel: ListsViewModel
+    /// Handed to Settings: the container's `TelemetryConsent`, so a toggle applies at once (TEL-02).
+    let telemetryConsent: any TelemetryConsentStore
     @Environment(\.openURL) private var openURL
     /// Builds the voice sheet's view model; nil where voice isn't wired (previews).
     var makeVoiceViewModel: (() -> VoiceCaptureViewModel)?
@@ -63,7 +65,9 @@ struct ListsView: View {
                 }
             }
         }
-        .navigationDestination(isPresented: $viewModel.isSettingsPresented) { SettingsView() }
+        .navigationDestination(isPresented: $viewModel.isSettingsPresented) {
+            SettingsView(consent: telemetryConsent)
+        }
         .sheet(isPresented: $viewModel.isProfilePresented) {
             ProfileSheet(name: viewModel.profileName, email: viewModel.profileEmail)
         }
@@ -472,9 +476,12 @@ private struct EmptyListsView: View {
 }
 
 #Preview("Lists") {
-    NavigationStack { ListsView(viewModel: ListsViewModel(lists: ShoppingListSummary.samples)) }
+    NavigationStack {
+        ListsView(viewModel: ListsViewModel(lists: ShoppingListSummary.samples),
+                  telemetryConsent: UserDefaultsTelemetryConsentStore())
+    }
 }
 
 #Preview("Empty") {
-    NavigationStack { ListsView(viewModel: ListsViewModel()) }
+    NavigationStack { ListsView(viewModel: ListsViewModel(), telemetryConsent: UserDefaultsTelemetryConsentStore()) }
 }
