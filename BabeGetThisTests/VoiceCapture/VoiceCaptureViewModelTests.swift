@@ -49,6 +49,50 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         XCTAssertEqual(vm.state, .idle)
     }
 
+    // MARK: the recorder ending without the user (30 s cap, a call or Siri, backgrounding)
+
+    func testWhatWasRecordedBeforeTheRecorderEndedOnItsOwnIsTranscribed() async {
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+
+        recorder.endOnItsOwn()
+
+        await voiceTestEventually { vm.state == .done }
+        XCTAssertEqual(vm.state, .done)
+        XCTAssertEqual(recorder.stopCalls, 1)
+        XCTAssertEqual(transcriber.calls, [recorder.stopResult])
+    }
+
+    func testTheRecorderEndingAfterTheUserStoppedChangesNothing() async {
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await recordAndStop(vm)
+
+        recorder.endOnItsOwn()
+        for _ in 0..<50 { await Task.yield() }
+
+        XCTAssertEqual(recorder.stopCalls, 1)
+        XCTAssertEqual(vm.state, .done)
+    }
+
+    // Tapping Stop just as the cap hits: one stop, one upload, nothing orphaned.
+    func testStopAndTheRecorderEndingAtTheSameMomentStopOnce() async {
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+
+        vm.stopRecording()
+        recorder.endOnItsOwn()
+
+        await voiceTestEventually { vm.state == .done }
+        XCTAssertEqual(recorder.stopCalls, 1)
+        XCTAssertEqual(transcriber.calls.count, 1)
+    }
+
     // MARK: recording
 
     func testStartRecordingOpensMicThenReportsRecording() async {

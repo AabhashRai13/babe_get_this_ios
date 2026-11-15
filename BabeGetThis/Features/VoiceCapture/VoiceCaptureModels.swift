@@ -55,6 +55,9 @@ struct NoopVoiceCaptureAnalytics: VoiceCaptureAnalytics {
 /// Microphone recording behind a seam so the view model never touches real audio in tests.
 @MainActor
 protocol VoiceRecording: AnyObject {
+    /// Called when recording ends without `stop()` or `cancel()`: the 30 s cap, a call or Siri
+    /// taking the mic, or the app leaving the foreground. `stop()` still returns the file so far.
+    var onEndedOnItsOwn: (@MainActor () -> Void)? { get set }
     /// Plays the start tone, then opens the mic. Returns once the mic is live.
     func start() async throws
     /// Stops and returns the recorded file.

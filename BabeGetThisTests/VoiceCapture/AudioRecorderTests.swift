@@ -5,6 +5,7 @@ import XCTest
 /// A fake recorder that writes a real (tiny) file, so deletion is observable on disk. No audio is recorded.
 @MainActor
 private final class FileWritingRecorder: VoiceRecording {
+    var onEndedOnItsOwn: (@MainActor () -> Void)?
     let file: URL
     init(file: URL) { self.file = file }
     func start() async throws {}
@@ -58,6 +59,37 @@ final class AudioRecorderTests: XCTestCase {
         recorder.cancel()
 
         XCTAssertFalse(FileManager.default.fileExists(atPath: file.path))
+    }
+
+    // record(forDuration: 30) stops by itself at the cap; the view model must hear about it,
+    // or the sheet keeps saying "Listening" over a mic that's off.
+    func testReachingTheThirtySecondCapEndsTheRecording() async throws {
+        let file = AVVoiceRecorder.fileURL(in: FileManager.default.temporaryDirectory)
+        let recorder = AVVoiceRecorder(tone: InstantTone(), interruptions: RecordingInterruptions(center: NotificationCenter()))
+        var ends = 0
+        recorder.onEndedOnItsOwn = { ends += 1 }
+        recorder.adoptOutputFileForTesting(file)
+
+        recorder.audioRecorderDidFinishRecording(try AVAudioRecorder(url: file, settings: AVVoiceRecorder.settings),
+                                                 successfully: true)
+
+        await voiceTestEventually { ends == 1 }
+        XCTAssertEqual(ends, 1)
+    }
+
+    func testTheCapAfterCancelIsNotAnEnd() async throws {
+        let file = AVVoiceRecorder.fileURL(in: FileManager.default.temporaryDirectory)
+        let recorder = AVVoiceRecorder(tone: InstantTone(), interruptions: RecordingInterruptions(center: NotificationCenter()))
+        var ends = 0
+        recorder.onEndedOnItsOwn = { ends += 1 }
+        recorder.adoptOutputFileForTesting(file)
+        recorder.cancel()
+
+        recorder.audioRecorderDidFinishRecording(try AVAudioRecorder(url: file, settings: AVVoiceRecorder.settings),
+                                                 successfully: true)
+
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(ends, 0)
     }
 
     /// The tone completion arrives on a background queue (AudioToolbox's own serial queue).
