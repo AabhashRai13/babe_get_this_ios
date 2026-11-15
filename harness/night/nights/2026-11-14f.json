@@ -1,0 +1,32 @@
+{
+  "night_id": "2026-11-14f",
+  "base_ref": "night/2026-11-14e/integration",
+  "worker_deadline": "05:30",
+  "total_deadline": "06:15",
+  "merge_order": [
+    1
+  ],
+  "tasks": [
+    {
+      "n": 1,
+      "id": "F44",
+      "slug": "f44-telemetry",
+      "model": "opus",
+      "timeout_min": 180,
+      "budget_usd": 25,
+      "sim": "bgt-night-1",
+      "requires": [
+        "F42"
+      ],
+      "owned": [
+        "BabeGetThis/Core/Telemetry/",
+        "BabeGetThis/Core/Errors/",
+        "BabeGetThis/App/",
+        "BabeGetThisTests/Telemetry/",
+        "BabeGetThisTests/Errors/",
+        "docs/night/2026-11-14f-f44-telemetry.md"
+      ],
+      "brief": "harness/night/briefs/F44.md"
+    }
+  ]
+}

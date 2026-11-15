@@ -688,6 +688,7 @@
       ],
       "acceptance": [
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProfileViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 27)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/ProfileAdapterTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
       "status": "todo"
@@ -787,6 +788,7 @@
       "acceptance": [
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testSectionsArePrivacyThenAbout && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
         "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests/testVersionFooterFormat && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 1)'",
+        "./scripts/verify.sh \"iPhone 18 Pro\" -only-testing:BabeGetThisTests/SettingsViewModelTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 15)'",
         "./scripts/verify.sh \"iPhone 18 Pro\""
       ],
       "status": "todo"
