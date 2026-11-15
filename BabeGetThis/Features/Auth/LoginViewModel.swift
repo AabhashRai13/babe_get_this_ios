@@ -58,7 +58,7 @@ final class LoginViewModel {
          googleTokens: any LoginGoogleTokenRequester,
          appleAuth: any LoginAppleAuthenticating = AppleSignInUnavailable(),
          analytics: any LoginAnalytics = NoopLoginAnalytics(),
-         reporter: any AppErrorReporter = SilentAppErrorReporter(),
+         reporter: any AppErrorReporter,
          makeRawNonce: @escaping @Sendable () -> String = IdTokenNonce.random) {
         self.authRepository = authRepository
         self.googleAuth = googleAuth

@@ -35,6 +35,41 @@ enum AppError: Error, Equatable, Sendable, LocalizedError {
     }
 
     var errorDescription: String? { message }
+
+    /// The case without its payload: what crash reports group by, and how tests check that
+    /// every case has a reporting decision (Android uses `sealedSubclasses`).
+    enum Kind: String, CaseIterable, Sendable {
+        case database, network, server, timeout, validation, notFound, auth, unauthorized, unknown
+
+        /// Android's class name (`UnknownError`), so reports group the same on both platforms.
+        var name: String {
+            switch self {
+            case .database: "DatabaseError"
+            case .network: "NetworkError"
+            case .server: "ServerError"
+            case .timeout: "TimeoutError"
+            case .validation: "ValidationError"
+            case .notFound: "NotFoundError"
+            case .auth: "AuthError"
+            case .unauthorized: "UnauthorizedError"
+            case .unknown: "UnknownError"
+            }
+        }
+    }
+
+    var kind: Kind {
+        switch self {
+        case .database: .database
+        case .network: .network
+        case .server: .server
+        case .timeout: .timeout
+        case .validation: .validation
+        case .notFound: .notFound
+        case .auth: .auth
+        case .unauthorized: .unauthorized
+        case .unknown: .unknown
+        }
+    }
 }
 
 /// Lets code inside a `safeCall` block raise a specific AppError (validation, not found)
