@@ -93,6 +93,24 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         XCTAssertEqual(transcriber.calls.count, 1)
     }
 
+    // The other order: the cap or a call ends the recording, and a Stop tap lands before the
+    // sheet re-renders. Still one stop and one upload.
+    func testAStopTapJustAfterTheRecorderEndedOnItsOwnStopsOnce() async {
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+
+        recorder.endOnItsOwn()
+        vm.stopRecording()
+
+        await voiceTestEventually { vm.state == .done }
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(recorder.stopCalls, 1)
+        XCTAssertEqual(transcriber.calls.count, 1)
+        XCTAssertEqual(vm.state, .done)
+    }
+
     // MARK: recording
 
     func testStartRecordingOpensMicThenReportsRecording() async {

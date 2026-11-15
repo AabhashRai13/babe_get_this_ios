@@ -81,6 +81,9 @@ final class VoiceCaptureViewModel {
 
     @discardableResult
     func stopRecording() -> Task<Void, Never> {
+        // Already stopping (the recorder ended on its own, and a Stop tap landed before the sheet
+        // re-rendered): one stop and one upload, and cancel() still reaches that upload.
+        if state == .transcribing || state == .saving, let transcribeTask { return transcribeTask }
         // Now, not in the task: the recorder ending on its own in the same moment must already
         // see that the recording is over, or it stops (and uploads) a second time.
         state = .transcribing
