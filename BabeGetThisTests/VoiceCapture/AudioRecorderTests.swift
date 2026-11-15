@@ -23,7 +23,8 @@ final class AudioRecorderTests: XCTestCase {
         let transcriber = FakeVoiceTranscriber()
         transcriber.result = .success([TranscribedItem(name: "Milk")])
         // Default deleteFile: the real file removal the app uses.
-        let vm = VoiceCaptureViewModel(recorder: FileWritingRecorder(file: file), transcriber: transcriber)
+        let vm = VoiceCaptureViewModel(recorder: FileWritingRecorder(file: file), transcriber: transcriber,
+                                       analytics: NoopVoiceCaptureAnalytics())
         vm.setPersist { _ in .success("list-1") }
 
         await vm.startRecording().value

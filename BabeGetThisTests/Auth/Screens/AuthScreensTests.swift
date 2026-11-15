@@ -21,7 +21,8 @@ final class AuthScreensTests: XCTestCase {
 
     private func login() -> LoginViewModel {
         let viewModel = LoginViewModel(authRepository: repository, googleAuth: repository,
-                                       googleTokens: ScreensClosedGoogleSheet(), reporter: SilentAppErrorReporter())
+                                       googleTokens: ScreensClosedGoogleSheet(), analytics: NoopLoginAnalytics(),
+                                       reporter: SilentAppErrorReporter())
         viewModel.onLoginSuccess = { [unowned self] in succeeded = true }
         return viewModel
     }
@@ -56,7 +57,7 @@ final class AuthScreensTests: XCTestCase {
     func testLoginOffersGoogleSignIn() async {
         let sheet = ScreensCountingGoogleSheet()
         let viewModel = LoginViewModel(authRepository: repository, googleAuth: repository, googleTokens: sheet,
-                                       reporter: SilentAppErrorReporter())
+                                       analytics: NoopLoginAnalytics(), reporter: SilentAppErrorReporter())
         XCTAssertTrue(LoginScreenCopy.scrollingContent.contains(.google))
         XCTAssertEqual(LoginScreenElement.google.label, "Continue with Google")
 
@@ -176,7 +177,7 @@ final class AuthScreensTests: XCTestCase {
     // MARK: - RegisterScreen
 
     private func register() -> RegisterViewModel {
-        let viewModel = RegisterViewModel(authRepository: repository)
+        let viewModel = RegisterViewModel(authRepository: repository, analytics: NoopRegisterAnalytics())
         viewModel.onRegisterSuccess = { [unowned self] in succeeded = true }
         return viewModel
     }

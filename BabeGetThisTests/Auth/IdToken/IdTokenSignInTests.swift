@@ -164,7 +164,7 @@ final class IdTokenSignInTests: XCTestCase {
     func testHashedNonceReachesTheSheetAndTheRawNonceReachesSupabase() async throws {
         let vm = LoginViewModel(authRepository: LoginTestAuthRepository(), googleAuth: repository,
                                 googleTokens: requester(), appleAuth: IdTokenFakeAppleAuth(),
-                                reporter: SilentAppErrorReporter())
+                                analytics: NoopLoginAnalytics(), reporter: SilentAppErrorReporter())
 
         vm.signInWithGoogle()
         await vm.inFlight?.value

@@ -38,7 +38,7 @@ final class VoiceCaptureSheetTests: XCTestCase {
     private var settingsOpened = 0
 
     private func makeModel(permission: FakeMicrophonePermission) -> (VoiceCaptureSheetModel, VoiceCaptureViewModel) {
-        let vm = VoiceCaptureViewModel(recorder: recorder, transcriber: transcriber)
+        let vm = VoiceCaptureViewModel(recorder: recorder, transcriber: transcriber, analytics: NoopVoiceCaptureAnalytics())
         let model = VoiceCaptureSheetModel(
             viewModel: vm,
             permission: permission,

@@ -46,7 +46,7 @@ final class RegisterViewModel {
     /// The in-flight sign-up, so callers (and tests) can wait for it.
     @ObservationIgnored private(set) var inFlight: Task<Void, Never>?
 
-    init(authRepository: any AuthRepository, analytics: any RegisterAnalytics = NoopRegisterAnalytics()) {
+    init(authRepository: any AuthRepository, analytics: any RegisterAnalytics) {
         self.authRepository = authRepository
         self.analytics = analytics
     }
