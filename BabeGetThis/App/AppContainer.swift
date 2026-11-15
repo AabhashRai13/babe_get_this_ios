@@ -72,13 +72,18 @@ final class AppContainer {
     @ObservationIgnored private let safeCall: SafeCall
     /// What the trigger kicks; nil until `start()`, so unstarted containers never sync.
     @ObservationIgnored private var startedSyncEngine: (() -> any SyncTriggerEngine)?
+    /// Mirrors Supabase's session into `authState` for as long as the app runs.
+    @ObservationIgnored private var sessionObservation: Task<Void, Never>?
 
     /// App start (APP-05, Android `BabeGetThisApp.onCreate`): register the sync trigger, then
     /// restore the auth state, both before the first screen decision. The trigger sees the
-    /// restored state, so launching signed in kicks a sync. `syncEngine` and `network` are
-    /// for tests; the app uses the real engine and `NWPathMonitor`.
+    /// restored state, so launching signed in kicks a sync. Then Supabase's session is mirrored
+    /// (AUTH-03): rotated tokens are saved and a session Supabase lost expires here.
+    /// `syncEngine`, `network` and `sessionStatuses` are for tests; the app uses the real
+    /// engine, `NWPathMonitor` and the Supabase client's auth events.
     func start(syncEngine engine: (any SyncTriggerEngine)? = nil,
-               network: any NetworkAvailabilitySource = SystemNetworkAvailability()) {
+               network: any NetworkAvailabilitySource = SystemNetworkAvailability(),
+               sessionStatuses: AsyncStream<SupabaseSessionStatus>? = nil) {
         if let engine {
             startedSyncEngine = { engine }
         } else {
@@ -86,6 +91,13 @@ final class AppContainer {
         }
         syncTrigger.register(authStates: authState, network: network)
         authState.initialize()
+        // After initialize(), so the first rotated token finds the restored account.
+        let observer = SessionObserver(authState: authState)
+        sessionObservation = if let sessionStatuses {
+            observer.observe(sessionStatuses)
+        } else {
+            observer.observe(auth: supabaseClient.auth)
+        }
     }
 
     fileprivate func syncTriggerEngine() -> (any SyncTriggerEngine)? {
@@ -103,8 +115,8 @@ final class AppContainer {
     // MARK: - Supabase and sync
 
     /// One client for auth and PostgREST, so server calls carry the signed-in session. Built on
-    /// first use, so launching the app (and every test container) opens no Supabase client until
-    /// someone reaches a sign-in screen, a join or a share.
+    /// first use: the started app opens it at launch to mirror the session, and unstarted
+    /// containers (tests, previews, screenshots) never open one.
     @ObservationIgnored private var cachedSupabaseClient: SupabaseClient?
 
     private var supabaseClient: SupabaseClient {

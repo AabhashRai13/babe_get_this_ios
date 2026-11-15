@@ -143,8 +143,16 @@ final class AuthStateManager: @unchecked Sendable {
 
     /// Supabase rotates the access token in the background. Persist just the token
     /// (no state or name change) so later requests stop sending the stale one.
-    func refreshToken(_ token: String) {
-        tokenStore.saveToken(token)
+    ///
+    /// Only for the account signed in here: sign-out clears our storage before it ends the
+    /// Supabase session, and a reset code signs the Supabase client in without signing anyone
+    /// in here. A rotation in either window would otherwise leave a token nobody owns, which
+    /// the next guest's voice request would send.
+    func refreshToken(_ token: String, userId: String?) {
+        transition {
+            guard case .authenticated(let signedIn) = storedAuthState, signedIn == userId else { return }
+            tokenStore.saveToken(token)
+        }
     }
 
     /// The session is gone but the user never signed out. Keeps the user id (and with

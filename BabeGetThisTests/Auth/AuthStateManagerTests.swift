@@ -143,7 +143,7 @@ final class AuthStateManagerTests: XCTestCase {
     func testRefreshTokenPersistsOnlyTheToken() {
         manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
 
-        manager.refreshToken("new-token")
+        manager.refreshToken("new-token", userId: "u1")
 
         XCTAssertEqual(manager.authState, .authenticated(userId: "u1"))
         XCTAssertEqual(manager.userName, "Aabhash")
@@ -153,9 +153,32 @@ final class AuthStateManagerTests: XCTestCase {
     func testARefreshedTokenIsWhatLaterReadsSee() {
         manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
 
-        manager.refreshToken("new-token")
+        manager.refreshToken("new-token", userId: "u1")
 
         XCTAssertEqual(tokens.token(), "new-token")
+    }
+
+    // Sign-out clears our storage before it ends the Supabase session, so Supabase can still
+    // rotate the old account's token in between. That token must not come back: the next
+    // guest's voice request would carry it.
+    func testATokenRotatedAfterSignOutIsNotWrittenBack() {
+        manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+        manager.logout()
+
+        manager.refreshToken("late-token", userId: "u1")
+
+        XCTAssertNil(tokens.token())
+        XCTAssertEqual(manager.authState, .unauthenticated)
+    }
+
+    // A reset code signs the Supabase client in as that account without signing anyone in
+    // here; its tokens belong to nobody on this device.
+    func testATokenForAnotherAccountIsIgnored() {
+        manager.login(token: "old-token", userId: "u1", userName: "Aabhash", userEmail: "a@b.c")
+
+        manager.refreshToken("other-token", userId: "u2")
+
+        XCTAssertEqual(tokens.token(), "old-token")
     }
 
     // MARK: - Round-trips against a real backing store

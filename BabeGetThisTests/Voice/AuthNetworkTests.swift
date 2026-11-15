@@ -160,7 +160,7 @@ final class AuthNetworkTests: XCTestCase {
         respond(401)
         let auth = TranscribeBearerAuth(tokenStore: tokens, authStateManager: manager)
         let signed = auth.authorize(URLRequest(url: baseURL.appending(path: "thing")))
-        manager.refreshToken("rotated456")
+        manager.refreshToken("rotated456", userId: "u1")
 
         let (_, response) = try await session.data(for: signed)
         auth.handle(try XCTUnwrap(response as? HTTPURLResponse), to: signed)
