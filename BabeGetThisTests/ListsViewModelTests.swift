@@ -27,7 +27,7 @@ final class ListsViewModelTests: XCTestCase {
 
     /// A view model following the database, as the screen's `.task` runs it.
     private func observedViewModel(_ auth: AuthStateManager = authStateFor(nil)) -> ListsViewModel {
-        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, analytics: NoopListsAnalytics())
         observation = Task { await vm.observeLists() }
         return vm
     }
@@ -316,7 +316,7 @@ final class ListsViewModelTests: XCTestCase {
         tokens.saveUserId("u1")
         let auth = AuthStateManager(tokenStore: tokens)
         auth.initialize()
-        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, analytics: NoopListsAnalytics())
         vm.pickVoice()
         XCTAssertEqual(vm.authPrompt, .voice)
         XCTAssertFalse(vm.isVoicePresented)
@@ -437,14 +437,14 @@ final class ListsViewModelTests: XCTestCase {
         tokens.saveUserName("Aabhash Rai")
         let auth = AuthStateManager(tokenStore: tokens)
         auth.initialize()
-        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, analytics: NoopListsAnalytics())
 
         XCTAssertEqual(vm.greetingTitle(hour: 14), "Good afternoon, Aabhash")
     }
 
     func testGreetingStaysImpersonalForGuests() {
         let auth = authStateFor(nil)
-        let vm = ListsViewModel(repository: repository(auth), authState: auth)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, analytics: NoopListsAnalytics())
         XCTAssertEqual(vm.greetingTitle(hour: 9), "Good morning")
     }
 
@@ -455,7 +455,8 @@ final class ListsViewModelTests: XCTestCase {
         defer { UserDefaults().removePersistentDomain(forName: suite) }
         let store = PrefsListOwnershipStore(defaults: UserDefaults(suiteName: suite)!)
         let auth = authStateFor("u1")
-        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store,
+                                analytics: NoopListsAnalytics())
         let following = Task { await vm.observeAdoptionNotice() }
         defer { following.cancel() }
         XCTAssertEqual(vm.adoptionNotice, 0)
@@ -477,7 +478,8 @@ final class ListsViewModelTests: XCTestCase {
         XCTAssertFalse(vm.isAdoptionNoticePresented)
         XCTAssertEqual(store.adoptionNotice, 0, "the pending count is cleared in the store")
         // A new screen over the same store doesn't show it again.
-        let again = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let again = ListsViewModel(repository: repository(auth), authState: auth, ownership: store,
+                                   analytics: NoopListsAnalytics())
         XCTAssertEqual(again.adoptionNotice, 0)
     }
 
@@ -486,7 +488,8 @@ final class ListsViewModelTests: XCTestCase {
         let store = FakeListOwnershipStore()
         let auth = authStateFor("u1")
         store.setAdoptionNotice(2)
-        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store,
+                                analytics: NoopListsAnalytics())
         XCTAssertEqual(vm.adoptionNoticeShownCount, 2)
 
         vm.dismissAdoptionNotice()
@@ -500,7 +503,8 @@ final class ListsViewModelTests: XCTestCase {
     func testTheNoticeWaitsUntilNoSheetIsUp() async throws {
         let store = FakeListOwnershipStore()
         let auth = authStateFor("u1")
-        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store)
+        let vm = ListsViewModel(repository: repository(auth), authState: auth, ownership: store,
+                                analytics: NoopListsAnalytics())
         let following = Task { await vm.observeAdoptionNotice() }
         defer { following.cancel() }
         vm.authRoute = .login

@@ -9,7 +9,7 @@ final class ShareLiveViewModelTests: XCTestCase {
                            copied: CopiedText = CopiedText(),
                            errors: CopiedText = CopiedText()) -> ShareLiveViewModel {
         ShareLiveViewModel(listId: "L1", authState: { auth }, sharer: sharer,
-                           reportError: { errors.values.append($0) },
+                           analytics: NoopListDetailAnalytics(), reportError: { errors.values.append($0) },
                            copyToClipboard: { copied.values.append($0) })
     }
 

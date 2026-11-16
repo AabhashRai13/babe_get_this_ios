@@ -2,7 +2,7 @@ import XCTest
 @testable import BabeGetThis
 
 /// Port of Android `ShoppingListViewModelTest` against `ListsViewModel`, minus the six
-/// telemetry cases (iOS v1 has no analytics events yet). The repository and the share
+/// telemetry cases (in `ShoppingListViewModelTelemetryTests`). The repository and the share
 /// repository are fakes that fail on demand, like the Android MockK mocks.
 ///
 /// Name mapping: `setSelectedTab` is `selectedTab`, the create dialog is `isNamingList`,
@@ -33,7 +33,8 @@ final class ShoppingListViewModelTests: XCTestCase {
         joiner: FakeListJoiner? = nil,
         ownership: FakeListOwnershipStore? = nil
     ) -> ListsViewModel {
-        let vm = ListsViewModel(repository: repository, authState: auth, shareJoiner: joiner, ownership: ownership)
+        let vm = ListsViewModel(repository: repository, authState: auth, shareJoiner: joiner, ownership: ownership,
+                                analytics: NoopListsAnalytics())
         observation = Task { await vm.observeLists() }
         return vm
     }

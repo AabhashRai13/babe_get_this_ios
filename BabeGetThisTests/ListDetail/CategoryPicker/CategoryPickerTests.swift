@@ -45,7 +45,8 @@ final class CategoryPickerTests: XCTestCase {
         let db = try AppDatabase.inMemory()
         let repository = CategoryRepository(dao: db.categories, safeCall: SafeCall(reporter: SilentAppErrorReporter()))
         let items = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let model = picker(source: repository)
 
         model.selectOther()
@@ -101,7 +102,8 @@ final class CategoryPickerTests: XCTestCase {
     func testACategoryCreatedThroughOtherIsListedAndPreselectedWhenEditing() async throws {
         let (_, repository) = try categoryRepository()
         let items = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let first = CategoryPickerModel(source: repository)
         first.selectOther()
         first.newCategoryName = "Camping gear"
@@ -124,7 +126,8 @@ final class CategoryPickerTests: XCTestCase {
         let (db, repository) = try categoryRepository()
         let existingId = try await repository.addCategory(name: "Camping gear").get()
         let items = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let model = CategoryPickerModel(source: repository)
         let observing = Task { await model.observeCategories() }
         defer { observing.cancel() }
@@ -145,7 +148,8 @@ final class CategoryPickerTests: XCTestCase {
         let before = try await db.categories.allCategories().count
         let dairy = try XCTUnwrap(DefaultCategories.sortedByName.first { $0.name == "Dairy & Eggs" })
         let items = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let model = CategoryPickerModel(source: repository)
         model.selectOther()
         model.newCategoryName = "dairy & eggs"
@@ -164,7 +168,8 @@ final class CategoryPickerTests: XCTestCase {
         let (db, repository) = try categoryRepository()
         let items = FakeListDetailItemsSource()
         items.addResult = .failure(.database())
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let model = picker(source: repository)
         model.selectOther()
         model.newCategoryName = "Camping gear"
@@ -183,7 +188,8 @@ final class CategoryPickerTests: XCTestCase {
 
     func testNoneSavesItemWithoutCategory() async {
         let items = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: items, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: items,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let model = picker()
         model.select(ProductCategory(id: "c2", name: "Snacks", isDefault: true))
         model.selectNone()

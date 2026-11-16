@@ -49,7 +49,8 @@ final class ListLeaveGuardTests: XCTestCase {
     override func setUp() async throws {
         source = FakeListDetailItemsSource()
         cleaner = FakeListLeaveCleaner()
-        model = ListDetailViewModel(listId: "L1", source: source, haptics: SilentHaptics())
+        model = ListDetailViewModel(listId: "L1", source: source,
+                                    analytics: NoopListDetailAnalytics(), haptics: SilentHaptics())
         leaveGuard = ListLeaveGuard(listId: "L1", cleaner: cleaner)
     }
 

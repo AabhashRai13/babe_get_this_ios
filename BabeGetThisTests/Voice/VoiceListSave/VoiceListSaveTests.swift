@@ -30,7 +30,8 @@ final class VoiceListSaveTests: XCTestCase {
 
         // Create by voice (Lists screen): the hook `ListsView` hands the voice sheet makes a new
         // list with three items.
-        let lists = ListsViewModel(repository: repository, authState: authStateFor(nil))
+        let lists = ListsViewModel(repository: repository, authState: authStateFor(nil),
+                                   analytics: NoopListsAnalytics())
         let created = await lists.createListWithVoice(drafts)
         guard case .success(let newId) = created else { return XCTFail("create failed: \(created)") }
         let newList = try await db.lists.listRaw(id: newId)

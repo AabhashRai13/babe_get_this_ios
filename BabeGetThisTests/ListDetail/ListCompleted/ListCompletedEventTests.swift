@@ -19,7 +19,8 @@ final class ListCompletedEventTests: XCTestCase {
     }
 
     private func buildViewModel() -> ListDetailViewModel {
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         observation = Task { await vm.observeItems() }
         return vm
     }

@@ -193,7 +193,7 @@ final class AuthNavigationTests: XCTestCase {
     // shows as its title.
     func testANameWithSlashesAndQuestionMarksRoundTripsToTheDetailScreen() async throws {
         let repository = NavigationListsRepository()
-        let lists = ListsViewModel(repository: repository, authState: signedOut())
+        let lists = ListsViewModel(repository: repository, authState: signedOut(), analytics: NoopListsAnalytics())
         var navigation = ListsNavigation()
 
         await lists.confirmCreate(named: "Dad's / BBQ? #1")
@@ -219,7 +219,8 @@ final class AuthNavigationTests: XCTestCase {
         for tokens in [InMemoryTokenStore(), signedIn, expired] {
             let auth = AuthStateManager(tokenStore: tokens)
             auth.initialize()
-            let lists = ListsViewModel(repository: NavigationListsRepository(), authState: auth)
+            let lists = ListsViewModel(repository: NavigationListsRepository(), authState: auth,
+                                       analytics: NoopListsAnalytics())
             let actions = lists.topBarActions
 
             // HOME-13 order: Join, Settings, then the account control.

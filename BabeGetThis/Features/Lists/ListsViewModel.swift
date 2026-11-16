@@ -78,6 +78,8 @@ final class ListsViewModel {
     @ObservationIgnored private let authState: AuthStateManager?
     @ObservationIgnored private let shareJoiner: (any ListJoining)?
     @ObservationIgnored private let ownership: (any ListOwnershipStore)?
+    /// Voice-created lists and joins (TEL-04); nil only for the preview snapshot, which writes nothing.
+    @ObservationIgnored private let analytics: (any ListsAnalytics)?
     @ObservationIgnored private var signOutSubscription: AuthStateSubscription?
 
     /// How many guest lists just moved into the account; the screen says so once, then
@@ -105,13 +107,15 @@ final class ListsViewModel {
         self.authState = nil
         self.shareJoiner = nil
         self.ownership = nil
+        self.analytics = nil
     }
 
     init(
         repository: any ListsRepositoryProviding,
         authState: AuthStateManager,
         shareJoiner: (any ListJoining)? = nil,
-        ownership: (any ListOwnershipStore)? = nil
+        ownership: (any ListOwnershipStore)? = nil,
+        analytics: any ListsAnalytics
     ) {
         self.lists = []
         self.hasLoadedLists = false
@@ -119,6 +123,7 @@ final class ListsViewModel {
         self.authState = authState
         self.shareJoiner = shareJoiner
         self.ownership = ownership
+        self.analytics = analytics
         let pending = ownership?.adoptionNotice ?? 0
         self.adoptionNotice = pending
         if pending > 0 { self.adoptionNoticeShownCount = pending }
@@ -490,6 +495,7 @@ final class ListsViewModel {
         switch result {
         case .success(let id):
             openListRequest = ShoppingListSummary(id: id, name: name, totalItems: 0, pickedUpItems: 0, createdAt: .now)
+            analytics?.voiceListCreated(categoryIds: drafts.map(\.categoryId))
             return .success(id)
         case .failure(let error):
             return .failure(.unknown(error.message))
@@ -535,6 +541,7 @@ final class ListsViewModel {
         isJoining = true
         joinError = nil
         defer { isJoining = false }
+        analytics?.joinAttempted()
         let result: Result<String, AppError>
         do {
             result = try await shareJoiner.join(code: code)
@@ -542,8 +549,12 @@ final class ListsViewModel {
             return // Cancelled.
         }
         switch result {
-        case .success: isJoinDialogPresented = false
-        case .failure(let error): joinError = error.message
+        case .success(let listId):
+            isJoinDialogPresented = false
+            analytics?.joinSucceeded(listId: listId)
+        case .failure(let error):
+            joinError = error.message
+            analytics?.joinFailed(error)
         }
     }
 

@@ -31,3 +31,24 @@ func autoNameVoiceList(_ drafts: [ItemDraft]) -> String {
     let others = drafts.count - 1
     return others > 0 ? "\(first) + \(others) more" : first
 }
+
+/// What the lists overview reports (TEL-04), in its own terms; the app's adapter
+/// (`TrackingListAnalytics`) turns it into analytics events. Ids only: a list's name, an item's
+/// name and a join code never cross this line.
+@MainActor
+protocol ListsAnalytics {
+    /// A list was created by voice: one category id per spoken item, nil where none was assigned.
+    func voiceListCreated(categoryIds: [String?])
+    /// A join is about to be sent, before its outcome is known.
+    func joinAttempted()
+    /// This device joined `listId`.
+    func joinSucceeded(listId: String)
+    func joinFailed(_ error: AppError)
+}
+
+struct NoopListsAnalytics: ListsAnalytics {
+    func voiceListCreated(categoryIds: [String?]) {}
+    func joinAttempted() {}
+    func joinSucceeded(listId: String) {}
+    func joinFailed(_ error: AppError) {}
+}

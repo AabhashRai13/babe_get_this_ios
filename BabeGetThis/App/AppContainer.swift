@@ -28,7 +28,8 @@ final class AppContainer {
          initialPath: [ShoppingListSummary] = [],
          ownership: any ListOwnershipStore = PrefsListOwnershipStore(),
          telemetry: TelemetryVendors = .noOp,
-         telemetryConsentStore: any TelemetryConsentStore = UserDefaultsTelemetryConsentStore()) {
+         telemetryConsentStore: any TelemetryConsentStore = UserDefaultsTelemetryConsentStore(),
+         telemetryMarkers: TelemetryMarkers = TelemetryMarkers()) {
         self.config = config
         self.authState = authState
         self.welcome = welcome
@@ -41,6 +42,9 @@ final class AppContainer {
         self.analytics = telemetry.analytics
         self.crashReporter = telemetry.crashReporter
         self.authAnalytics = TrackingAuthAnalytics(analytics: telemetry.analytics)
+        let listAnalytics = TrackingListAnalytics(
+            analytics: telemetry.analytics, markers: telemetryMarkers, authState: authState)
+        self.listAnalytics = listAnalytics
         let telemetryConsent = TelemetryConsent(
             store: telemetryConsentStore, analytics: telemetry.analytics, crashReporter: telemetry.crashReporter)
         self.telemetryConsent = telemetryConsent
@@ -86,7 +90,7 @@ final class AppContainer {
         // opens no Supabase client.
         let joiner = DeferredListJoiner { [containerRef] in containerRef.container?.shareRepository }
         self.lists = ListsViewModel(repository: listRepository, authState: authState,
-                                    shareJoiner: joiner, ownership: ownership)
+                                    shareJoiner: joiner, ownership: ownership, analytics: listAnalytics)
         self.initialPath = initialPath
         // Sync and auth are resolved on the first save, sign-out or deletion, so building the
         // profile opens no Supabase client.
@@ -110,6 +114,8 @@ final class AppContainer {
     @ObservationIgnored let crashReporter: any CrashReporter
     /// Sign-in and sign-up events, for the auth view models.
     @ObservationIgnored let authAnalytics: TrackingAuthAnalytics
+    /// Item, list-completion and sharing events, for the lists and every list detail screen (TEL-04).
+    @ObservationIgnored let listAnalytics: TrackingListAnalytics
     /// Applies a consent change at the vendor as well as storing it (TEL-02).
     @ObservationIgnored let telemetryConsent: TelemetryConsent
     @ObservationIgnored let telemetryContext: TelemetryContext

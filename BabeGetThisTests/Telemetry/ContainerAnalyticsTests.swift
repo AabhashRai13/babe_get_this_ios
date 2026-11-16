@@ -1,21 +1,47 @@
 import XCTest
 @testable import BabeGetThis
 
-/// TEL-03 at the composition root: the events the auth and voice view models already emit reach
-/// the app's analytics. Nothing here configures Firebase or opens a Supabase client.
+/// TEL-03 and TEL-04 at the composition root: the events the auth, voice, lists and list detail
+/// view models emit reach the app's analytics. Nothing here configures Firebase or opens a Supabase client.
 @MainActor
 final class ContainerAnalyticsTests: XCTestCase {
     private var analytics: RecordingAnalytics!
     private var container: AppContainer!
+    private var scratch: ScratchMarkers!
 
     override func setUp() async throws {
         try await super.setUp()
         analytics = RecordingAnalytics()
+        scratch = ScratchMarkers()
         container = AppContainer(
             config: .preview, authState: AuthStateManager(tokenStore: InMemoryTokenStore()),
             database: try AppDatabase.inMemory(), ownership: FakeListOwnershipStore(),
             telemetry: TelemetryVendors(analytics: analytics, crashReporter: RecordingCrashReporter()),
-            telemetryConsentStore: InMemoryTelemetryConsentStore())
+            telemetryConsentStore: InMemoryTelemetryConsentStore(), telemetryMarkers: scratch.markers)
+    }
+
+    override func tearDown() async throws {
+        scratch.remove()
+        try await super.tearDown()
+    }
+
+    func testTheListsReportAVoiceCreatedListToAnalytics() async {
+        let created = await container.lists.createListWithVoice([TestData.draft(name: "Milk")])
+
+        guard case .success = created else { return XCTFail("create failed: \(created)") }
+        XCTAssertEqual([
+            .itemAdded(inputMethod: .voice, categorySource: .none),
+            .categoryAutoAssigned(categoryId: nil),
+            .firstItemAdded(.voice),
+        ], analytics.events)
+    }
+
+    // The list detail screen builds its view models with `listAnalytics` (a view can't be built
+    // here), as the lists do.
+    func testTheListScreensAdapterReportsToAnalytics() {
+        container.listAnalytics.shareCodeCopied()
+
+        XCTAssertEqual([.shareCodeShared], analytics.events)
     }
 
     func testTheVoiceSheetsViewModelReportsToAnalytics() {

@@ -11,7 +11,8 @@ struct ListDetailPlaceholderView: View {
                          authState: { [authState = container.authState] in authState.authState },
                          makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
                          leaveCleaner: container.listRepository,
-                         sharer: DeferredListSharer { [container] in container.shareRepository })
+                         sharer: DeferredListSharer { [container] in container.shareRepository },
+                         analytics: container.listAnalytics)
     }
 }
 
@@ -63,13 +64,14 @@ private struct ListDetailScreen: View {
          authState: @escaping () -> AuthState,
          makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
          leaveCleaner: any ListLeaveCleaning,
-         sharer: any ListSharing) {
+         sharer: any ListSharing,
+         analytics: any ListDetailAnalytics) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
-        let viewModel = ListDetailViewModel(listId: list.id, source: source)
+        let viewModel = ListDetailViewModel(listId: list.id, source: source, analytics: analytics)
         _model = State(initialValue: viewModel)
         let shareLive = ShareLiveViewModel(listId: list.id, authState: authState, sharer: sharer,
-                                           reportError: { viewModel.errorMessage = $0 })
+                                           analytics: analytics, reportError: { viewModel.errorMessage = $0 })
         _chrome = State(initialValue: ListDetailChromeModel(
             listName: list.name, authState: authState, items: { viewModel.items },
             shareLive: shareLive))
@@ -144,8 +146,8 @@ private struct ListDetailScreen: View {
         .sheet(isPresented: $chrome.isVoicePresented) {
             VoiceCaptureSheet(
                 viewModel: makeVoiceViewModel(),
-                persist: { [listId = list.id, repository = container.listRepository] in
-                    await saveVoiceDrafts($0, intoList: listId, using: repository)
+                persist: { [model, repository = container.listRepository] in
+                    await model.addItemsWithVoice($0, using: repository)
                 },
                 onDismiss: { chrome.isVoicePresented = false },
                 onSwitchToType: {
