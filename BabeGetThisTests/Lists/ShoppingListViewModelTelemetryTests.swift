@@ -3,7 +3,8 @@ import XCTest
 
 /// The six telemetry cases of Android `ShoppingListViewModelTest` (TEL-04), against
 /// `ListsViewModel` with the app's own adapter (`TrackingListAnalytics`) reporting to a
-/// recording analytics and to real markers in a throwaway UserDefaults suite.
+/// recording analytics and to real markers in a throwaway UserDefaults suite. One more checks
+/// that this voice path and the list detail's share one activation.
 ///
 /// Android's relaxed MockK markers answer `firstTime()` with false ("already fired"); a case here
 /// that relies on that marks the activation first, so its event list can be checked exactly.
@@ -61,6 +62,21 @@ final class ShoppingListViewModelTelemetryTests: XCTestCase {
         XCTAssertEqual(analytics.count(.firstItemAdded(.voice)), 1)
     }
 
+    func testBothVoicePathsShareOneActivation() async {
+        let auth = authStateFor(nil)
+        let adapter = TrackingListAnalytics(analytics: analytics, markers: scratch.markers, authState: auth)
+        let lists = ListsViewModel(repository: repository, authState: auth, shareJoiner: nil, analytics: adapter)
+        let detail = ListDetailViewModel(listId: "L1", source: FakeListDetailItemsSource(), analytics: adapter,
+                                         haptics: RecordingHapticPlayer())
+
+        _ = await lists.createListWithVoice([TestData.draft(name: "Milk")])
+        _ = await detail.addItemsWithVoice([TestData.draft(name: "Eggs")], using: repository)
+
+        // A voice-created list, then spoken items added inside it: one activation between them.
+        XCTAssertEqual(analytics.count(.itemAdded(inputMethod: .voice, categorySource: .none)), 2)
+        XCTAssertEqual(analytics.count(.firstItemAdded(.voice)), 1)
+    }
+
     func testAFailedVoiceListReportsNothing() async {
         repository.result = .failure(.database())
         let vm = viewModel()
@@ -106,8 +122,9 @@ final class ShoppingListViewModelTelemetryTests: XCTestCase {
 
 // MARK: - Fakes
 
-/// Only `createListWithItems` matters here; the rest answer like an empty, healthy repository.
-private final class VoiceListRepository: ListsRepositoryProviding, @unchecked Sendable {
+/// Only `createListWithItems` and `addItemsToList` matter here; the rest answer like an empty,
+/// healthy repository.
+private final class VoiceListRepository: ListsRepositoryProviding, ListItemsAdding, @unchecked Sendable {
     private let lock = NSLock()
     private var _result: Result<String, AppError> = .success("L1")
 
@@ -124,6 +141,10 @@ private final class VoiceListRepository: ListsRepositoryProviding, @unchecked Se
 
     func createListWithItems(name: String, drafts: [ItemDraft]) async throws -> Result<String, AppError> {
         result
+    }
+
+    func addItemsToList(listId: String, drafts: [ItemDraft]) async throws -> Result<String, AppError> {
+        .success(listId)
     }
 
     func updateListName(listId: String, newName: String) async throws -> Result<Void, AppError> { .success(()) }

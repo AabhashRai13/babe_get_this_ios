@@ -7,7 +7,8 @@ import XCTest
 /// reporting to a recording analytics and to real markers in a throwaway UserDefaults suite.
 ///
 /// These check the two properties that make the analytics worth having: once-only events fire
-/// once, and no user content is ever a parameter. Android's relaxed MockK markers answer
+/// once, and no user content is ever a parameter. Three more pin activation's scope: per signed-in
+/// user, and "anon" after a lost session, as on Android. Android's relaxed MockK markers answer
 /// `firstTime()` with false ("already fired"); a case that relies on that marks it first.
 @MainActor
 final class ShoppingItemsViewModelTelemetryTests: XCTestCase {
@@ -35,8 +36,8 @@ final class ShoppingItemsViewModelTelemetryTests: XCTestCase {
     }
 
     /// Android's `buildViewModel()`: the view model starts collecting straight away.
-    private func buildViewModel() -> ListDetailViewModel {
-        let vm = ListDetailViewModel(listId: "L1", source: source, analytics: adapter(),
+    private func buildViewModel(auth: AuthStateManager = authStateFor(nil)) -> ListDetailViewModel {
+        let vm = ListDetailViewModel(listId: "L1", source: source, analytics: adapter(auth: auth),
                                      haptics: RecordingHapticPlayer())
         observers.append(Task { await vm.observeItems() })
         return vm
@@ -93,6 +94,28 @@ final class ShoppingItemsViewModelTelemetryTests: XCTestCase {
         _ = await vm.add(draft("Eggs", quantity: "6"))
 
         XCTAssertEqual(analytics.count(.firstItemAdded(.manual)), 1)
+    }
+
+    func testActivationIsCountedPerSignedInUser() async {
+        scratch.markers.mark(.firstItemAdded, scope: "u1")
+        let vm = buildViewModel(auth: authStateFor("u2"))
+
+        _ = await vm.add(draft("Milk"))
+
+        // A second account on the phone still records its own activation.
+        XCTAssertEqual(analytics.count(.firstItemAdded(.manual)), 1)
+        XCTAssertEqual(Set(scratch.scopes(of: .firstItemAdded)), ["u1", "u2"])
+    }
+
+    func testALapsedSessionCountsActivationAsAGuestLikeAndroid() async {
+        scratch.markers.mark(.firstItemAdded, scope: "u1")
+        let vm = buildViewModel(auth: authStateFor("u1", expired: true))
+
+        _ = await vm.add(draft("Milk"))
+
+        // Android scopes by `AuthState.Authenticated` only, so a lost session is "anon" there too.
+        XCTAssertEqual(analytics.count(.firstItemAdded(.manual)), 1)
+        XCTAssertEqual(Set(scratch.scopes(of: .firstItemAdded)), ["u1", "anon"])
     }
 
     func testVoiceItemsReportOneAddAndOneAutoCategoryEach() async {
@@ -210,6 +233,17 @@ final class ShoppingItemsViewModelTelemetryTests: XCTestCase {
 
         XCTAssertEqual(vm.completionCount, 1)
         XCTAssertEqual(analytics.events, [.listCompleted(itemCount: 2), .firstListCompleted(itemCount: 2)])
+    }
+
+    func testAFirstCompletedListIsCountedPerSignedInUser() async {
+        scratch.markers.mark(.firstListCompleted, scope: "u1")
+        let vm = buildViewModel(auth: authStateFor("u2"))
+        await emit([item("1")], to: vm)
+
+        await emit([item("1", isPickedUp: true)], to: vm)
+
+        XCTAssertEqual(analytics.events, [.listCompleted(itemCount: 1), .firstListCompleted(itemCount: 1)])
+        XCTAssertEqual(Set(scratch.scopes(of: .firstListCompleted)), ["u1", "u2"])
     }
 }
 
