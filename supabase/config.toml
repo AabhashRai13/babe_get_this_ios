@@ -8,13 +8,15 @@
 # A string used to distinguish different Supabase projects on the same host. Defaults to the
 # working directory name when running `supabase init`.
 # iOS: its own id, so `supabase stop` / `db reset` here never touch the Android stack ("babe-get-this").
-# Both use port 54321, so only one of the two can run at a time.
+# iOS: every port below is moved from 543xx to 553xx (8083 to 55383), so this stack runs next to the
+# Android one and the integration tests (LocalSupabase.swift) can only reach this stack.
 project_id = "babe-get-this-ios"
 
 [api]
 enabled = true
 # Port to use for the API URL.
-port = 54321
+# iOS: 55321 (Android 54321).
+port = 55321
 # Schemas to expose in your API. Tables, views and stored procedures in this schema will get API
 # endpoints. `public` and `graphql_public` schemas are included by default.
 schemas = ["public", "graphql_public"]
@@ -38,9 +40,11 @@ enabled = false
 
 [db]
 # Port to use for the local database URL.
-port = 54322
+# iOS: 55322 (Android 54322).
+port = 55322
 # Port used by db diff command to initialize the shadow database.
-shadow_port = 54320
+# iOS: 55320 (Android 54320).
+shadow_port = 55320
 # Maximum amount of time to wait for health check when starting the local database.
 health_timeout = "2m"
 # The database major version to use. This has to be the same as your remote database's. Run `SHOW
@@ -52,7 +56,8 @@ orioledb_version = ""
 [db.pooler]
 enabled = false
 # Port to use for the local connection pooler.
-port = 54329
+# iOS: 55329 (Android 54329).
+port = 55329
 # Specifies when a server connection can be reused by other clients.
 # Configure one of the supported pooler modes: `transaction`, `session`.
 pool_mode = "transaction"
@@ -104,7 +109,8 @@ enabled = true
 [studio]
 enabled = true
 # Port to use for Supabase Studio.
-port = 54323
+# iOS: 55323 (Android 54323).
+port = 55323
 # External URL of the API server that frontend connects to.
 api_url = "http://127.0.0.1"
 # OpenAI API Key to use for Supabase AI in the Supabase Studio.
@@ -115,10 +121,12 @@ openai_api_key = "env(OPENAI_API_KEY)"
 [local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
-port = 54324
+# iOS: 55324 (Android 54324). PasswordResetIntegrationTests reads the reset email here.
+port = 55324
 # Uncomment to expose additional ports for testing user applications that send emails.
-# smtp_port = 54325
-# pop3_port = 54326
+# iOS: 55325 / 55326 if ever uncommented (Android's commented values are 54325 / 54326).
+# smtp_port = 55325
+# pop3_port = 55326
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
@@ -396,7 +404,8 @@ enabled = true
 # `oneshot` — fallback mode if hot reload causes issues (e.g. in large repos or with symlinks).
 policy = "per_worker"
 # Port to attach the Chrome inspector for debugging edge functions.
-inspector_port = 8083
+# iOS: 55383 (Android 8083).
+inspector_port = 55383
 # The Deno major version to use.
 deno_version = 2
 
@@ -405,7 +414,8 @@ deno_version = 2
 
 [analytics]
 enabled = true
-port = 54327
+# iOS: 55327 (Android 54327).
+port = 55327
 # Configure one of the supported backends: `postgres`, `bigquery`.
 backend = "postgres"
 

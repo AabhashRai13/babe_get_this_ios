@@ -3,17 +3,21 @@ import Supabase
 import XCTest
 @testable import BabeGetThis
 
-/// The local Supabase in Docker (`supabase start` from the repo root, migrations 001-006 in supabase/).
-/// The URL comes from the host app's Dev config, and the run stops unless it is a loopback address, so
-/// these tests can never reach a hosted project.
+/// This repo's own local Supabase in Docker (`supabase start` from the repo root: supabase/config.toml,
+/// project babe-get-this-ios, migrations 001-006). Its ports are 553xx, apart from the Android repo's
+/// stack on 543xx, which the Dev app config points at. The tests use this fixed loopback URL, never the
+/// app's, so they can reach neither the Android stack nor a hosted project.
 enum LocalSupabase {
-    /// The key every Supabase CLI stack issues for its default JWT secret: public and only valid on a
-    /// local stack. Used when Config/Secrets.xcconfig leaves DEV_SUPABASE_ANON_KEY empty.
-    static let defaultLocalAnonKey =
-        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
+    /// config.toml `[api] port`.
+    static let apiURL = URL(string: "http://127.0.0.1:55321")!
 
-    /// Mailpit, the local stack's mail catcher (config.toml `[local_smtp]`).
-    static let mailURL = URL(string: "http://127.0.0.1:54324")!
+    /// Mailpit, the local stack's mail catcher (config.toml `[local_smtp] port`).
+    static let mailURL = URL(string: "http://127.0.0.1:55324")!
+
+    /// The key every Supabase CLI stack issues for its default JWT secret (config.toml sets none): public
+    /// and only valid on a local stack.
+    static let localAnonKey =
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0"
 
     enum SetupError: Error, CustomStringConvertible {
         case notLocal(String)
@@ -31,25 +35,30 @@ enum LocalSupabase {
         let anonKey: String
     }
 
-    /// The Dev config's Supabase URL and the local anon key. Throws unless the app was built with the Dev
-    /// config and the URL is a loopback address.
+    /// This repo's stack and its anon key. Throws unless the host app was built with the Dev config and
+    /// the stack's URLs are loopback addresses.
     static func endpoint() throws -> Endpoint {
         let config = try AppConfig(infoDictionary: Bundle.main.infoDictionary ?? [:])
-        let host = config.supabaseURL.host() ?? ""
-        guard config.environment == .dev, ["127.0.0.1", "localhost", "::1"].contains(host) else {
+        guard config.environment == .dev else {
             throw SetupError.notLocal(
-                "Integration tests only run against the local Docker Supabase. This build points at "
-                    + "\(config.supabaseURL) (\(config.environment.rawValue)); use the BabeGetThis-Dev scheme.")
+                "Integration tests only run in a Dev build (this one is \(config.environment.rawValue)); "
+                    + "use the BabeGetThis-Dev scheme.")
         }
-        let key = config.supabaseAnonKey.isEmpty ? defaultLocalAnonKey : config.supabaseAnonKey
-        return Endpoint(url: config.supabaseURL, anonKey: key)
+        for url in [apiURL, mailURL] {
+            guard ["127.0.0.1", "localhost", "::1"].contains(url.host() ?? "") else {
+                throw SetupError.notLocal(
+                    "Integration tests only run against the local Docker Supabase, not \(url).")
+            }
+        }
+        return Endpoint(url: apiURL, anonKey: localAnonKey)
     }
 
     /// Fails (never skips) when the stack is down or lacks the migrations: an integration run that
     /// silently skips would read as a pass.
     static func requireRunning() async throws -> Endpoint {
         let endpoint = try endpoint()
-        let hint = "Start it from the repo root with `supabase start` (then `supabase db reset --local`)."
+        let hint = "Start this repo's stack (babe-get-this-ios, ports 553xx) from the repo root with "
+            + "`supabase start`, then `supabase db reset --local`."
         let session = URLSession(configuration: .ephemeral)
         for (path, what) in [("auth/v1/health", "Auth"), ("rest/v1/lists?select=id&limit=1", "the lists table")] {
             var request = URLRequest(url: URL(string: path, relativeTo: endpoint.url)!, timeoutInterval: 5)

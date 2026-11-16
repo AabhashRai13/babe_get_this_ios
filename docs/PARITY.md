@@ -490,9 +490,11 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **SRV-05** [done] (supabase/migrations/005_items_updated_at_index.sql) Index `items(updated_at)` backs the account-wide item query, which relies on RLS rather than a list filter.
 - **SRV-06** [done] (supabase/tests/database/000_baseline.test.sql) Integration tests against the local Docker Supabase with migrations 001–006: first INSERT, upsert, the join RPC, realtime catch-up and RLS denial. Never against production.
   - They live in their own test target, run by a separate test plan, so the default `verify.sh` run never needs Docker.
-  - They fail, not skip, when 127.0.0.1:54321 is unreachable.
+  - They fail, not skip, when the local stack is unreachable.
   - iOS: `BabeGetThisIntegrationTests` in the `Integration` test plan (11 tests), through the app's own
     `SupabaseSharedListRemote` and `SupabaseAuthRemote`. Android's pgTAP files (`supabase/tests`) are not copied.
+  - iOS: they run against this repo's own stack (`supabase/config.toml`, ports 553xx, API 127.0.0.1:55321),
+    never the Android stack on 54321.
 
 ## Telemetry (Firebase is in the iOS stack)
 
