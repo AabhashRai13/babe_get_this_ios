@@ -85,18 +85,19 @@ struct ListsView: View {
         .task { await viewModel.observeLists() }
         .task { await viewModel.observeAdoptionNotice() }
         .overlay(alignment: .bottom) {
-            if let message = viewModel.undoMessage {
-                Snackbar(message: message, actionTitle: "Undo") {
+            if let offer = viewModel.undoOffer {
+                Snackbar(message: offer.message, actionTitle: "Undo") {
                     SystemHapticPlayer().play(.light)
                     // Unstructured: leaving the screen right after tapping Undo must not cancel the restore.
                     Task { await viewModel.undoDelete() }
                 }
                 .padding(.bottom, 8)
                 .transition(.move(edge: .bottom).combined(with: .opacity))
-                // Restarts for each new message; 4 s like Android's SnackbarDuration.Short.
-                .task(id: message) {
+                // Restarts for each delete, even one with the same text; 4 s like Android's
+                // SnackbarDuration.Short.
+                .task(id: offer) {
                     try? await Task.sleep(for: SnackbarDuration.short)
-                    if !Task.isCancelled { viewModel.dismissUndo() }
+                    if !Task.isCancelled { viewModel.dismissUndo(offer) }
                 }
             }
         }
