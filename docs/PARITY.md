@@ -494,7 +494,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - iOS: `BabeGetThisIntegrationTests` in the `Integration` test plan (11 tests), through the app's own
     `SupabaseSharedListRemote` and `SupabaseAuthRemote`. Android's pgTAP files (`supabase/tests`) are not copied.
   - iOS: they run against this repo's own stack (`supabase/config.toml`, ports 553xx, API 127.0.0.1:55321),
-    never the Android stack on 54321.
+    never the Android stack on 54321, and `scripts/check-migrations.sh` checks the copied migrations for drift.
 
 ## Telemetry (Firebase is in the iOS stack)
 

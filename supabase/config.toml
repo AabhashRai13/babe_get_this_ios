@@ -1,7 +1,7 @@
 # Local Supabase for the iOS integration tests (BabeGetThisIntegrationTests, F38). Copied from the
 # Android repo's supabase/config.toml (branch feat/got-this); the changes are marked "iOS:".
-# Migrations 001-006 in ./migrations are the Android files, unchanged. Local Docker only: never link
-# or push this to a hosted project.
+# Migrations 001-006 in ./migrations are the Android files, unchanged (scripts/check-migrations.sh
+# compares them with the Android clone). Local Docker only: never link or push this to a hosted project.
 #
 # For detailed configuration reference documentation, visit:
 # https://supabase.com/docs/guides/local-development/cli/config

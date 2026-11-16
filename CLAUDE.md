@@ -10,7 +10,7 @@ The Android app and its docs ARE the spec. Extract decisions from them; don't re
 - **Never touch production Supabase.** The project NAMED "babegetthis-staging"
   (ref `fpzjyusgqdzqituokrwq`) IS PRODUCTION. Real staging is "babe-get-this-real-staging"
   (ref `vdiheceziirgvbudxdxg`). Dev and tests use the local Supabase in Docker with
-  migrations 001–006 from `../android/Babe-get-this/supabase/migrations`.
+  migrations 001–006 (copied into `supabase/migrations` from `../android/Babe-get-this/supabase/migrations`).
 - No code signing, archiving or App Store uploads.
 
 ## Reference
@@ -68,6 +68,7 @@ xcodebuild -project BabeGetThis.xcodeproj -scheme BabeGetThis-Dev \
 # Integration tests (fail, never skip, without the stack), from the repo root. This repo's stack
 # (babe-get-this-ios) runs on 553xx (API 127.0.0.1:55321), next to the Android stack on 543xx; the tests
 # only reach 55321. These commands only act on this project: never `supabase stop --all`.
+./scripts/check-migrations.sh   # supabase/migrations still match the Android clone (skips without it)
 supabase start && supabase db reset --local
 ./scripts/verify.sh "iPhone 18 Pro" -testPlan Integration -only-testing:BabeGetThisIntegrationTests
 supabase stop
