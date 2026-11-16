@@ -17,7 +17,7 @@ extension ShoppingItemRepository: ListDetailItemsSource {}
 
 /// State of the list detail screen (Android `ShoppingItemsViewModel`): the list's items,
 /// observed live from the database, and the writes that go through the item repository.
-/// iOS v1 leaves out Android's lock, share, reminder, Got This and telemetry parts.
+/// iOS v1 leaves out Android's lock, reminder and Got This parts; sharing lives in `ShareLiveViewModel`.
 @MainActor
 @Observable
 final class ListDetailViewModel {
@@ -28,6 +28,7 @@ final class ListDetailViewModel {
     let listId: String
     private let source: any ListDetailItemsSource
     private let haptics: any HapticPlaying
+    private let analytics: any ListDetailAnalytics
 
     /// The latest rows from the database, and the screen state derived from them once per emission.
     private(set) var storedItems: [StoredShoppingItem] = []
@@ -45,9 +46,11 @@ final class ListDetailViewModel {
     /// nil until the first emission: opening an already-finished list must not celebrate.
     @ObservationIgnored private var wasAllDone: Bool?
 
-    init(listId: String, source: any ListDetailItemsSource, haptics: any HapticPlaying = SystemHapticPlayer()) {
+    init(listId: String, source: any ListDetailItemsSource, analytics: any ListDetailAnalytics,
+         haptics: any HapticPlaying = SystemHapticPlayer()) {
         self.listId = listId
         self.source = source
+        self.analytics = analytics
         self.haptics = haptics
     }
 
@@ -99,6 +102,8 @@ final class ListDetailViewModel {
         if wasAllDone == false && isAllDone {
             completionCount += 1
             haptics.play(.success)
+            // The transition only, so re-opening a finished list doesn't report another trip.
+            analytics.listCompleted(itemCount: rows.count)
         }
         wasAllDone = isAllDone
     }
@@ -108,7 +113,9 @@ final class ListDetailViewModel {
     /// Ticks or unticks the item. iOS v1 never writes `picked_up_at` (the repository doesn't).
     func toggle(_ id: String) async {
         guard let item = storedItems.first(where: { $0.id == id }) else { return }
-        await run { try await source.togglePickedUp(itemId: id, isPickedUp: !item.isPickedUp) }
+        let isPickedUp = !item.isPickedUp
+        guard await run({ try await source.togglePickedUp(itemId: id, isPickedUp: isPickedUp) }) else { return }
+        analytics.itemToggled(inList: listId, isPickedUp: isPickedUp)
     }
 
     func delete(_ id: String) async {
@@ -141,7 +148,7 @@ final class ListDetailViewModel {
         guard draft.isValid else { return false }
         let shop = draft.shop.trimmingCharacters(in: .whitespacesAndNewlines)
         let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
-        return await run {
+        let saved = await run {
             try await source.addItem(
                 listId: listId,
                 name: draft.name.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -150,12 +157,15 @@ final class ListDetailViewModel {
                 shop: shop.isEmpty ? nil : shop,
                 note: note.isEmpty ? nil : note)
         }
+        if saved { analytics.itemAdded(toList: listId, categoryId: draft.categoryId) }
+        return saved
     }
 
     /// Saves an edit from the dialog (Android `onEdit`). Only the dialog's fields change: the
     /// stored row keeps its id, list, created time and picked-up state. Returns whether it was saved.
     func edit(_ id: String, with draft: ItemDraft) async -> Bool {
         guard draft.isValid, var item = storedItems.first(where: { $0.id == id }) else { return false }
+        let previousCategoryId = item.categoryId
         let shop = draft.shop.trimmingCharacters(in: .whitespacesAndNewlines)
         let note = draft.note.trimmingCharacters(in: .whitespacesAndNewlines)
         item.name = draft.name.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -165,7 +175,20 @@ final class ListDetailViewModel {
         item.shop = shop.isEmpty ? nil : shop
         item.note = note.isEmpty ? nil : note
         let updated = item
-        return await run { try await source.updateItem(updated) }
+        guard await run({ try await source.updateItem(updated) }) else { return false }
+        analytics.itemEdited(inList: listId, fromCategoryId: previousCategoryId, toCategoryId: updated.categoryId)
+        return true
+    }
+
+    /// The voice sheet's persist step for this list (Android `addItemsWithVoice`): saves the
+    /// drafts, then reports them. The lists' voice path reports the same events.
+    func addItemsWithVoice(_ drafts: [ItemDraft], using repository: any ListItemsAdding) async
+        -> Result<String, VoiceError> {
+        let result = await saveVoiceDrafts(drafts, intoList: listId, using: repository)
+        if case .success = result {
+            analytics.voiceItemsAdded(toList: listId, categoryIds: drafts.map(\.categoryId))
+        }
+        return result
     }
 
     /// Runs a repository write; a failure becomes `errorMessage`. Returns whether it succeeded.

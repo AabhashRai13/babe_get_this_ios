@@ -16,7 +16,8 @@ final class ShareLiveChromeTests: XCTestCase {
                         shareAuth: AuthState = .authenticated(userId: "user-1")) -> ListDetailChromeModel {
         let shareLive = ShareLiveViewModel(
             listId: "L1", authState: { shareAuth }, sharer: ChromeFakeSharer(result: result),
-            reportError: { [unowned self] in errors.append($0) }, copyToClipboard: { _ in })
+            analytics: NoopListDetailAnalytics(), reportError: { [unowned self] in errors.append($0) },
+            copyToClipboard: { _ in })
         return ListDetailChromeModel(listName: "Groceries", authState: { .authenticated(userId: "user-1") },
                                      shareLive: shareLive)
     }

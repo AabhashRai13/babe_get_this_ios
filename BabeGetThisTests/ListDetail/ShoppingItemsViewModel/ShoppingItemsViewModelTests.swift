@@ -70,7 +70,8 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     /// Android's `buildViewModel()`: the view model starts collecting straight away.
     private func buildViewModel() -> ListDetailViewModel {
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         observers.append(Task { await vm.observeItems() })
         return vm
     }
@@ -249,7 +250,8 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         let repository = ShoppingItemRepository(
             itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
             syncKicker: CountingSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
-        let vm = ListDetailViewModel(listId: "list-1", source: repository, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "list-1", source: repository,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let observation = Task { await vm.observeItems() }
         defer { observation.cancel() }
         await listDetailEventually { vm.items.count == 1 }
@@ -285,7 +287,8 @@ final class ShoppingItemsViewModelTests: XCTestCase {
         let repository = ShoppingItemRepository(
             itemDao: db.items, categoryDao: db.categories, listDao: db.lists,
             syncKicker: CountingSyncKicker(), safeCall: SafeCall(reporter: SilentAppErrorReporter()))
-        let vm = ListDetailViewModel(listId: "list-1", source: repository, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "list-1", source: repository,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let observation = Task { await vm.observeItems() }
         defer { observation.cancel() }
         await listDetailEventually { vm.items.count == 1 }
@@ -422,7 +425,8 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     // Android reads these from SavedStateHandle; iOS passes them to the screen's models.
     func testListIdAndListNameComeFromTheScreen() {
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         let model = chrome(.unauthenticated)
 
         XCTAssertEqual(vm.listId, "L1")
@@ -431,7 +435,7 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     // iOS has no optional navigation keys: an empty id and name are kept as given, not replaced.
     func testMissingListIdAndNameStayEmptyStrings() {
-        let vm = ListDetailViewModel(listId: "", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "", source: source, analytics: NoopListDetailAnalytics(), haptics: haptics)
         let model = ListDetailChromeModel(listName: "", authState: { .unauthenticated }, haptics: haptics)
 
         XCTAssertEqual(vm.listId, "")
@@ -563,13 +567,12 @@ final class ShoppingItemsViewModelTests: XCTestCase {
 
     // MARK: Voice
 
-    // The detail screen's voice delegate is `saveVoiceDrafts(_:intoList:using:)` (the screen
-    // passes its list id and the list repository).
+    // The detail screen's voice persist step; the screen passes the list repository.
     func testAddItemsWithVoiceDelegatesAndReturnsTheResultUnchanged() async {
         let repository = RecordingListItemsAdder(result: .success("L1"))
         let drafts = [TestData.draft(name: "Milk")]
 
-        let result = await saveVoiceDrafts(drafts, intoList: "L1", using: repository)
+        let result = await buildViewModel().addItemsWithVoice(drafts, using: repository)
 
         XCTAssertEqual(result, .success("L1"))
         XCTAssertEqual(repository.calls.map(\.listId), ["L1"])

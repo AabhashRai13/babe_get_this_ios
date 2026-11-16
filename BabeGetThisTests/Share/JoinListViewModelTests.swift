@@ -86,7 +86,7 @@ final class JoinListViewModelTests: XCTestCase {
     func testListsViewModelIsJoiningWhileTheJoinRuns() async {
         let joiner = GatedJoiner()
         let vm = ListsViewModel(repository: EmptyListsRepository(), authState: authStateFor("user-1"),
-                                shareJoiner: joiner)
+                                shareJoiner: joiner, analytics: NoopListsAnalytics())
         vm.startJoining()
 
         let join = Task { await vm.joinList(code: "ABC234") }
@@ -101,7 +101,7 @@ final class JoinListViewModelTests: XCTestCase {
 
     func testReopeningTheDialogStartsWithAnEmptyCodeAndNoError() async {
         let vm = ListsViewModel(repository: EmptyListsRepository(), authState: authStateFor("user-1"),
-                                shareJoiner: FailingJoiner())
+                                shareJoiner: FailingJoiner(), analytics: NoopListsAnalytics())
         vm.startJoining()
         vm.joinField.updateCode("XXXXXX")
         await vm.joinList(code: vm.joinField.code)

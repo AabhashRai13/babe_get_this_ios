@@ -97,3 +97,31 @@ final class InMemoryTelemetryConsentStore: TelemetryConsentStore, @unchecked Sen
     var analyticsEnabled = true
     var crashReportingEnabled = true
 }
+
+/// Real `TelemetryMarkers` on a UserDefaults suite of their own, so once-only state never leaks
+/// between tests or into the app's suite. Call `remove()` in tearDown.
+final class ScratchMarkers {
+    let suiteName = "telemetry-markers-test-\(UUID().uuidString)"
+    let defaults: UserDefaults
+    let markers: TelemetryMarkers
+
+    init() {
+        defaults = UserDefaults(suiteName: suiteName)!
+        markers = TelemetryMarkers(defaults: defaults)
+    }
+
+    func remove() { defaults.removePersistentDomain(forName: suiteName) }
+
+    /// Every scope `marker` has been written for.
+    func scopes(of marker: Marker) -> [String] {
+        let prefix = "\(marker.rawValue):"
+        return defaults.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix(prefix) }
+            .map { String($0.dropFirst(prefix.count)) }
+    }
+}
+
+extension RecordingAnalytics {
+    /// How many times exactly `event` was tracked.
+    func count(_ event: AnalyticsEvent) -> Int { events.filter { $0 == event }.count }
+}

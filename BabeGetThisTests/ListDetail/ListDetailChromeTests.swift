@@ -69,7 +69,8 @@ final class ListDetailChromeTests: XCTestCase {
 
     func testSignedInShareLiveOpensTheSheetWithTheCode() async {
         let shareLive = ShareLiveViewModel(listId: "L1", authState: { .authenticated(userId: "u1") },
-                                           sharer: CodeSharer(), reportError: { _ in },
+                                           sharer: CodeSharer(), analytics: NoopListDetailAnalytics(),
+                                           reportError: { _ in },
                                            copyToClipboard: { _ in })
         let model = ListDetailChromeModel(listName: "Groceries", authState: { .authenticated(userId: "u1") },
                                           haptics: RecordingHaptics(), shareLive: shareLive)
@@ -87,7 +88,8 @@ final class ListDetailChromeTests: XCTestCase {
     // them itself, so the shared text follows the items shown, not a snapshot.
     func testShareAsTextFormatsTheScreensLiveItems() async {
         let source = FakeListDetailItemsSource()
-        let viewModel = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
+        let viewModel = ListDetailViewModel(listId: "L1", source: source,
+                                            analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let observing = Task { await viewModel.observeItems() }
         defer { observing.cancel() }
         let model = ListDetailChromeModel(listName: "Groceries", authState: { .unauthenticated },

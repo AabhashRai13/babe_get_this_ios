@@ -38,6 +38,7 @@ final class ShareLiveViewModel {
 
     @ObservationIgnored private let authState: () -> AuthState
     @ObservationIgnored private let sharer: any ListSharing
+    @ObservationIgnored private let analytics: any ListDetailAnalytics
     @ObservationIgnored private let reportError: @MainActor (String) -> Void
     @ObservationIgnored private let copyToClipboard: @MainActor (String) -> Void
 
@@ -46,11 +47,13 @@ final class ShareLiveViewModel {
     init(listId: String,
          authState: @escaping () -> AuthState,
          sharer: any ListSharing,
+         analytics: any ListDetailAnalytics,
          reportError: @escaping @MainActor (String) -> Void,
          copyToClipboard: @escaping @MainActor (String) -> Void = { UIPasteboard.general.string = $0 }) {
         self.listId = listId
         self.authState = authState
         self.sharer = sharer
+        self.analytics = analytics
         self.reportError = reportError
         self.copyToClipboard = copyToClipboard
     }
@@ -75,7 +78,9 @@ final class ShareLiveViewModel {
             return // Cancelled.
         }
         switch result {
-        case .success(let code): shareCode = code
+        case .success(let code):
+            shareCode = code
+            analytics.shareCodeShown(forList: listId)
         case .failure(let error): reportError(error.message)
         }
     }
@@ -85,6 +90,7 @@ final class ShareLiveViewModel {
     func copyCode() {
         guard let shareCode else { return }
         copyToClipboard(shareCode)
+        analytics.shareCodeCopied()
     }
 
     func dismissShareCode() { shareCode = nil }

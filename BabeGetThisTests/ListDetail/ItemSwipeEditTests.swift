@@ -7,7 +7,8 @@ import XCTest
 final class ItemEditTests: XCTestCase {
     func testEditWithAnInvalidDraftWritesNothing() async {
         let source = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let observation = Task { await vm.observeItems() }
         defer { observation.cancel() }
         source.send([TestData.storedItem("a")])
@@ -27,7 +28,8 @@ final class ItemCardTests: XCTestCase {
     func testSwipeRightTogglesPickedUp() async {
         let source = FakeListDetailItemsSource()
         let haptics = RecordingHapticPlayer()
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         let observation = Task { await vm.observeItems() }
         defer { observation.cancel() }
         source.send([TestData.storedItem("a")])
@@ -67,7 +69,8 @@ final class ItemCardTests: XCTestCase {
 
     func testTogglingAPickedUpItemUnticksIt() async {
         let source = FakeListDetailItemsSource()
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: RecordingHapticPlayer())
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: RecordingHapticPlayer())
         let observation = Task { await vm.observeItems() }
         defer { observation.cancel() }
         source.send([TestData.storedItem("a", isPickedUp: true)])

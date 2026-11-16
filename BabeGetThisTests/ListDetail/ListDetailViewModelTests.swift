@@ -24,7 +24,8 @@ final class ListDetailViewModelTests: XCTestCase {
     /// Android's `buildViewModel()`: the view model starts collecting straight away.
     private func buildViewModel(listId: String = "L1", source: (any ListDetailItemsSource)? = nil) -> ListDetailViewModel {
         let fake: any ListDetailItemsSource = self.source
-        let vm = ListDetailViewModel(listId: listId, source: source ?? fake, haptics: haptics)
+        let vm = ListDetailViewModel(listId: listId, source: source ?? fake,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         observation = Task { await vm.observeItems() }
         return vm
     }
@@ -250,7 +251,8 @@ final class ListDetailViewModelTests: XCTestCase {
     // MARK: uiState
 
     func testNothingIsShownBeforeTheItemsHaveLoaded() {
-        let vm = ListDetailViewModel(listId: "L1", source: source, haptics: haptics)
+        let vm = ListDetailViewModel(listId: "L1", source: source,
+                                     analytics: NoopListDetailAnalytics(), haptics: haptics)
         XCTAssertFalse(vm.hasLoaded)
     }
 }

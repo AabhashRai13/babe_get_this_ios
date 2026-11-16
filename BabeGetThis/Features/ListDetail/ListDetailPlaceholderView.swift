@@ -7,21 +7,10 @@ struct ListDetailPlaceholderView: View {
     @Environment(AppContainer.self) private var container
 
     var body: some View {
-        ListDetailScreen(list: list, source: container.itemRepository,
+        ListDetailScreen(list: list, models: container.makeListDetailModels(forList: list.id),
                          authState: { [authState = container.authState] in authState.authState },
                          makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
-                         leaveCleaner: container.listRepository,
-                         sharer: DeferredListSharer { [container] in container.shareRepository })
-    }
-}
-
-/// A `ListSharing` that finds the share repository on the main actor when a share starts, so
-/// opening a list builds no Supabase client.
-private struct DeferredListSharer: ListSharing {
-    let resolve: @MainActor @Sendable () -> any ListSharing
-
-    func share(listId: String) async throws -> Result<String, AppError> {
-        try await resolve().share(listId: listId)
+                         leaveCleaner: container.listRepository)
     }
 }
 
@@ -59,20 +48,18 @@ private struct ListDetailScreen: View {
     @Environment(\.leaveAuthFromList) private var leaveAuthFromList
     private let makeVoiceViewModel: () -> VoiceCaptureViewModel
 
-    init(list: ShoppingListSummary, source: any ListDetailItemsSource,
+    /// `models` come from `AppContainer.makeListDetailModels(forList:)`, which wires their analytics.
+    init(list: ShoppingListSummary, models: ListDetailModels,
          authState: @escaping () -> AuthState,
          makeVoiceViewModel: @escaping () -> VoiceCaptureViewModel,
-         leaveCleaner: any ListLeaveCleaning,
-         sharer: any ListSharing) {
+         leaveCleaner: any ListLeaveCleaning) {
         self.list = list
         self.makeVoiceViewModel = makeVoiceViewModel
-        let viewModel = ListDetailViewModel(listId: list.id, source: source)
+        let viewModel = models.items
         _model = State(initialValue: viewModel)
-        let shareLive = ShareLiveViewModel(listId: list.id, authState: authState, sharer: sharer,
-                                           reportError: { viewModel.errorMessage = $0 })
         _chrome = State(initialValue: ListDetailChromeModel(
             listName: list.name, authState: authState, items: { viewModel.items },
-            shareLive: shareLive))
+            shareLive: models.shareLive))
         _leaveGuard = State(initialValue: ListLeaveGuard(listId: list.id, cleaner: leaveCleaner))
     }
 
@@ -144,8 +131,8 @@ private struct ListDetailScreen: View {
         .sheet(isPresented: $chrome.isVoicePresented) {
             VoiceCaptureSheet(
                 viewModel: makeVoiceViewModel(),
-                persist: { [listId = list.id, repository = container.listRepository] in
-                    await saveVoiceDrafts($0, intoList: listId, using: repository)
+                persist: { [model, repository = container.listRepository] in
+                    await model.addItemsWithVoice($0, using: repository)
                 },
                 onDismiss: { chrome.isVoicePresented = false },
                 onSwitchToType: {

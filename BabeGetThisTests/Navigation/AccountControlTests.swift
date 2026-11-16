@@ -15,7 +15,7 @@ final class AccountControlTests: XCTestCase {
         if let email { tokens.saveUserEmail(email) }
         auth = AuthStateManager(tokenStore: tokens)
         auth.initialize()
-        return ListsViewModel(repository: NavigationListsRepository(), authState: auth)
+        return ListsViewModel(repository: NavigationListsRepository(), authState: auth, analytics: NoopListsAnalytics())
     }
 
     // MARK: HOME-13

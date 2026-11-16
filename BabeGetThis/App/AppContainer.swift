@@ -28,7 +28,8 @@ final class AppContainer {
          initialPath: [ShoppingListSummary] = [],
          ownership: any ListOwnershipStore = PrefsListOwnershipStore(),
          telemetry: TelemetryVendors = .noOp,
-         telemetryConsentStore: any TelemetryConsentStore = UserDefaultsTelemetryConsentStore()) {
+         telemetryConsentStore: any TelemetryConsentStore = UserDefaultsTelemetryConsentStore(),
+         telemetryMarkers: TelemetryMarkers = TelemetryMarkers()) {
         self.config = config
         self.authState = authState
         self.welcome = welcome
@@ -41,6 +42,9 @@ final class AppContainer {
         self.analytics = telemetry.analytics
         self.crashReporter = telemetry.crashReporter
         self.authAnalytics = TrackingAuthAnalytics(analytics: telemetry.analytics)
+        let listAnalytics = TrackingListAnalytics(
+            analytics: telemetry.analytics, markers: telemetryMarkers, authState: authState)
+        self.listAnalytics = listAnalytics
         let telemetryConsent = TelemetryConsent(
             store: telemetryConsentStore, analytics: telemetry.analytics, crashReporter: telemetry.crashReporter)
         self.telemetryConsent = telemetryConsent
@@ -86,7 +90,7 @@ final class AppContainer {
         // opens no Supabase client.
         let joiner = DeferredListJoiner { [containerRef] in containerRef.container?.shareRepository }
         self.lists = ListsViewModel(repository: listRepository, authState: authState,
-                                    shareJoiner: joiner, ownership: ownership)
+                                    shareJoiner: joiner, ownership: ownership, analytics: listAnalytics)
         self.initialPath = initialPath
         // Sync and auth are resolved on the first save, sign-out or deletion, so building the
         // profile opens no Supabase client.
@@ -110,6 +114,8 @@ final class AppContainer {
     @ObservationIgnored let crashReporter: any CrashReporter
     /// Sign-in and sign-up events, for the auth view models.
     @ObservationIgnored let authAnalytics: TrackingAuthAnalytics
+    /// Item, list-completion and sharing events, for the lists and every list detail screen (TEL-04).
+    @ObservationIgnored let listAnalytics: TrackingListAnalytics
     /// Applies a consent change at the vendor as well as storing it (TEL-02).
     @ObservationIgnored let telemetryConsent: TelemetryConsent
     @ObservationIgnored let telemetryContext: TelemetryContext
@@ -170,6 +176,19 @@ final class AppContainer {
             recorder: AVVoiceRecorder(),
             transcriber: TranscribeClient(baseURL: config.apiBaseURL, auth: auth),
             analytics: TrackingVoiceCaptureAnalytics(analytics: analytics))
+    }
+
+    /// The list detail screen's view models for one list, both reporting to `listAnalytics`
+    /// (TEL-04). A failed share shows on the items' snackbar. `sharer` is for tests; the app
+    /// shares through `shareRepository`, found when a share starts, so opening a list builds no
+    /// Supabase client.
+    func makeListDetailModels(forList listId: String, sharer: (any ListSharing)? = nil) -> ListDetailModels {
+        let items = ListDetailViewModel(listId: listId, source: itemRepository, analytics: listAnalytics)
+        let shareLive = ShareLiveViewModel(
+            listId: listId, authState: { [authState] in authState.authState },
+            sharer: sharer ?? DeferredListSharer { [self] in self.shareRepository },
+            analytics: listAnalytics, reportError: { items.errorMessage = $0 })
+        return ListDetailModels(items: items, shareLive: shareLive)
     }
 
     // MARK: - Supabase and sync
@@ -315,6 +334,22 @@ private struct DeferredListJoiner: ListJoining {
     func join(code: String) async throws -> Result<String, AppError> {
         guard let joiner = await resolve() else { return .failure(.unknown()) }
         return try await joiner.join(code: code)
+    }
+}
+
+/// The list detail screen's two view models: its items, and its share-live flow.
+struct ListDetailModels {
+    let items: ListDetailViewModel
+    let shareLive: ShareLiveViewModel
+}
+
+/// A `ListSharing` that finds the share repository on the main actor when a share starts, so
+/// opening a list builds no Supabase client.
+private struct DeferredListSharer: ListSharing {
+    let resolve: @MainActor @Sendable () -> any ListSharing
+
+    func share(listId: String) async throws -> Result<String, AppError> {
+        try await resolve().share(listId: listId)
     }
 }
 
