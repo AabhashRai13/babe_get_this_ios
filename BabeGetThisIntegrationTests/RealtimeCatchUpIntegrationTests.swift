@@ -36,8 +36,10 @@ final class RealtimeCatchUpIntegrationTests: LocalSupabaseTestCase {
         let quiet = try await owner.remote.fetchItems(listId: list.id, sinceIso: sincePoint)
         XCTAssertEqual(quiet, [], "nothing to catch up yet")
 
-        // The partner adds an item. Postgres changes can lag the join reply by a moment, so the write is
-        // repeated (an edit of the same item) until an event arrives.
+        // The partner adds an item. supabase-swift (2.55.6) reports the channel subscribed on the join reply,
+        // which can come before Realtime is listening for Postgres changes. A write in that gap raises no
+        // event at all (it is dropped, not late), so the write is repeated (an edit of the same item) until
+        // an event arrives.
         var eggs = newItem("Eggs", in: list)
         var heard = false
         for attempt in 1...4 where !heard {
