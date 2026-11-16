@@ -66,6 +66,19 @@ final class FakeVoiceTranscriber: VoiceTranscribing {
     }
 }
 
+/// Stands in for iOS background time: records each stretch the view model asks for and each time
+/// it gives one back.
+@MainActor
+final class FakeBackgroundTime {
+    private(set) var begun: [String] = []
+    private(set) var endCalls = 0
+
+    func begin(_ name: String) -> @MainActor () -> Void {
+        begun.append(name)
+        return { [weak self] in self?.endCalls += 1 }
+    }
+}
+
 @MainActor
 final class RecordingVoiceAnalytics: VoiceCaptureAnalytics {
     private(set) var events: [VoiceCaptureEvent] = []

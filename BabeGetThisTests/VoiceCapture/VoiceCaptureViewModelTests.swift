@@ -6,6 +6,7 @@ final class VoiceCaptureViewModelTests: XCTestCase {
     private var recorder: FakeVoiceRecorder!
     private var transcriber: FakeVoiceTranscriber!
     private var analytics: RecordingVoiceAnalytics!
+    private var backgroundTime: FakeBackgroundTime!
     private var deleted: [URL] = []
     private let drafts = [TranscribedItem(name: "Milk"), TranscribedItem(name: "Eggs")]
 
@@ -13,6 +14,7 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         recorder = FakeVoiceRecorder()
         transcriber = FakeVoiceTranscriber()
         analytics = RecordingVoiceAnalytics()
+        backgroundTime = FakeBackgroundTime()
         deleted = []
     }
 
@@ -21,6 +23,7 @@ final class VoiceCaptureViewModelTests: XCTestCase {
             recorder: recorder,
             transcriber: transcriber,
             analytics: analytics,
+            beginBackgroundTime: backgroundTime.begin,
             deleteFile: { [weak self] in self?.deleted.append($0) }
         )
     }
@@ -109,6 +112,86 @@ final class VoiceCaptureViewModelTests: XCTestCase {
         XCTAssertEqual(recorder.stopCalls, 1)
         XCTAssertEqual(transcriber.calls.count, 1)
         XCTAssertEqual(vm.state, .done)
+    }
+
+    // MARK: finishing after the app leaves the foreground
+
+    // Home or a call: iOS turns the mic off and the app goes to the background. The upload and
+    // the save run there, so the app must ask iOS for time or it is suspended mid-upload and
+    // what was said is lost.
+    func testLeavingTheForegroundMidRecordingHoldsBackgroundTimeUntilTheListIsSaved() async {
+        let transcribeGate = VoiceTestGate()
+        let persistGate = VoiceTestGate()
+        transcriber.gate = transcribeGate
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in
+            await persistGate.wait()
+            return .success("list-1")
+        }
+        await vm.startRecording().value
+
+        recorder.endOnItsOwn()
+        // Before the notification handler returns: iOS may suspend the app right after it.
+        XCTAssertEqual(backgroundTime.begun.count, 1)
+
+        await voiceTestEventually { self.transcriber.calls.count == 1 }
+        XCTAssertEqual(backgroundTime.endCalls, 0, "held during the upload")
+        await transcribeGate.open()
+        await voiceTestEventually { vm.state == .saving }
+        XCTAssertEqual(backgroundTime.endCalls, 0, "held while the list is saved")
+
+        await persistGate.open()
+        await voiceTestEventually { self.backgroundTime.endCalls == 1 }
+        XCTAssertEqual(vm.state, .done)
+        XCTAssertEqual(backgroundTime.begun.count, 1)
+        XCTAssertEqual(backgroundTime.endCalls, 1)
+    }
+
+    func testAFailedUploadGivesTheBackgroundTimeBack() async {
+        transcriber.result = .failure(VoiceError.server(code: 502, message: "bad gateway"))
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+
+        await recordAndStop(vm)
+
+        XCTAssertEqual(backgroundTime.begun.count, 1)
+        XCTAssertEqual(backgroundTime.endCalls, 1)
+    }
+
+    // The gate ignores cancellation, so the upload task outlives cancel(): the time goes back at
+    // cancel, once.
+    func testCancelGivesTheBackgroundTimeBackAtOnce() async {
+        let gate = VoiceTestGate()
+        transcriber.gate = gate
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+        let stopTask = vm.stopRecording()
+        await voiceTestEventually { self.transcriber.calls.count == 1 }
+
+        vm.cancel()
+        XCTAssertEqual(backgroundTime.endCalls, 1)
+
+        await gate.open()
+        await stopTask.value
+        XCTAssertEqual(backgroundTime.endCalls, 1)
+    }
+
+    func testAStopTapJustAfterTheRecorderEndedOnItsOwnAsksForBackgroundTimeOnce() async {
+        transcriber.result = .success(drafts)
+        let vm = makeViewModel()
+        vm.setPersist { _ in .success("list-1") }
+        await vm.startRecording().value
+
+        recorder.endOnItsOwn()
+        vm.stopRecording()
+
+        await voiceTestEventually { self.backgroundTime.endCalls == 1 }
+        for _ in 0..<50 { await Task.yield() }
+        XCTAssertEqual(backgroundTime.begun.count, 1)
+        XCTAssertEqual(backgroundTime.endCalls, 1)
     }
 
     // MARK: recording
