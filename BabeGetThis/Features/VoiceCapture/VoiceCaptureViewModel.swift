@@ -16,12 +16,17 @@ final class VoiceCaptureViewModel {
     @ObservationIgnored private let recorder: VoiceRecording
     @ObservationIgnored private let transcriber: VoiceTranscribing
     @ObservationIgnored private let analytics: VoiceCaptureAnalytics
+    /// Asks iOS for time to finish after the app leaves the foreground; returns the call that
+    /// gives it back.
+    @ObservationIgnored private let beginBackgroundTime: @MainActor (String) -> @MainActor () -> Void
     @ObservationIgnored private let deleteFile: @MainActor (URL) -> Void
     @ObservationIgnored private var persist: Persist?
     /// In-flight start (tone + mic open). Stop waits for it; cancel aborts it.
     @ObservationIgnored private var recordTask: Task<Void, Never>?
     /// In-flight transcribe + persist, so cancel() means nothing lands.
     @ObservationIgnored private var transcribeTask: Task<Void, Never>?
+    /// Background time held from stop until that upload and save end, or until cancel().
+    @ObservationIgnored private var transcribeBackgroundTime: BackgroundTimeGrant?
     /// Set while a recording is live; tells a real abort from the sheet's post-success reset.
     @ObservationIgnored private var recordingStartedAt: Date?
 
@@ -29,11 +34,13 @@ final class VoiceCaptureViewModel {
         recorder: VoiceRecording,
         transcriber: VoiceTranscribing,
         analytics: VoiceCaptureAnalytics,
+        beginBackgroundTime: @escaping @MainActor (String) -> @MainActor () -> Void = SystemBackgroundTime.begin,
         deleteFile: @escaping @MainActor (URL) -> Void = { try? FileManager.default.removeItem(at: $0) }
     ) {
         self.recorder = recorder
         self.transcriber = transcriber
         self.analytics = analytics
+        self.beginBackgroundTime = beginBackgroundTime
         self.deleteFile = deleteFile
         recorder.onEndedOnItsOwn = { [weak self] in self?.recordingEndedOnItsOwn() }
     }
@@ -87,7 +94,13 @@ final class VoiceCaptureViewModel {
         // Now, not in the task: the recorder ending on its own in the same moment must already
         // see that the recording is over, or it stops (and uploads) a second time.
         state = .transcribing
+        // This stop can be the app leaving the foreground (Home, a call). Ask iOS for time now,
+        // before the notification handler returns, or the app is suspended mid-upload and what
+        // was said is lost. Held through the save.
+        let backgroundTime = BackgroundTimeGrant(end: beginBackgroundTime("Voice upload"))
+        transcribeBackgroundTime = backgroundTime
         let task = Task { [weak self] in
+            defer { backgroundTime.end() }
             guard let self else { return }
             // Wait for start() (tone + mic open) so we never stop a recorder that doesn't exist yet.
             await recordTask?.value
@@ -171,7 +184,26 @@ final class VoiceCaptureViewModel {
         recordTask = nil
         transcribeTask?.cancel()
         transcribeTask = nil
+        // Now, not when the cancelled upload unwinds: nothing it does after this can land.
+        transcribeBackgroundTime?.end()
+        transcribeBackgroundTime = nil
         recorder.cancel()
         state = .idle
+    }
+}
+
+/// One stretch of background time. `end()` gives it back once, so cancel() and the cancelled
+/// upload unwinding later can both call it.
+@MainActor
+private final class BackgroundTimeGrant {
+    private var endTime: (@MainActor () -> Void)?
+
+    init(end: @escaping @MainActor () -> Void) {
+        endTime = end
+    }
+
+    func end() {
+        endTime?()
+        endTime = nil
     }
 }
