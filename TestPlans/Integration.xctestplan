@@ -1,0 +1,24 @@
+{
+  "configurations" : [
+    {
+      "id" : "7A2B3C4D-5E6F-4A7B-8C9D-0E1F2A3B4C5D",
+      "name" : "Configuration 1",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "codeCoverage" : false
+  },
+  "testTargets" : [
+    {
+      "target" : {
+        "containerPath" : "container:BabeGetThis.xcodeproj",
+        "identifier" : "EC66BA428872C17DF4BF72DD",
+        "name" : "BabeGetThisIntegrationTests"
+      }
+    }
+  ],
+  "version" : 1
+}

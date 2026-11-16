@@ -10,7 +10,7 @@ The Android app and its docs ARE the spec. Extract decisions from them; don't re
 - **Never touch production Supabase.** The project NAMED "babegetthis-staging"
   (ref `fpzjyusgqdzqituokrwq`) IS PRODUCTION. Real staging is "babe-get-this-real-staging"
   (ref `vdiheceziirgvbudxdxg`). Dev and tests use the local Supabase in Docker with
-  migrations 001–006 from `../android/Babe-get-this/supabase/migrations`.
+  migrations 001–006 (copied into `supabase/migrations` from `../android/Babe-get-this/supabase/migrations`).
 - No code signing, archiving or App Store uploads.
 
 ## Reference
@@ -38,7 +38,10 @@ The Android app and its docs ARE the spec. Extract decisions from them; don't re
 project.yml            XcodeGen spec (targets, configs, schemes)
 Config/*.xcconfig      Dev / Staging / Prod settings; Secrets.xcconfig is git-ignored
 BabeGetThis/           App sources (App/, Core/, Features/, Resources/)
-BabeGetThisTests/      XCTest unit tests
+BabeGetThisTests/      XCTest unit tests (test plan Unit, the default)
+BabeGetThisIntegrationTests/  Tests against the local Docker Supabase (test plan Integration only)
+TestPlans/             Unit + Integration .xctestplan files; they name targets by XcodeGen's stable ids
+supabase/              config.toml (project_id babe-get-this-ios, ports 553xx) + migrations 001-006 copied from Android
 scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Staging from the Android icon)
 ```
 
@@ -62,6 +65,13 @@ scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Stagi
 xcodegen generate
 xcodebuild -project BabeGetThis.xcodeproj -scheme BabeGetThis-Dev \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro' test
+# Integration tests (fail, never skip, without the stack), from the repo root. This repo's stack
+# (babe-get-this-ios) runs on 553xx (API 127.0.0.1:55321), next to the Android stack on 543xx; the tests
+# only reach 55321. These commands only act on this project: never `supabase stop --all`.
+./scripts/check-migrations.sh   # supabase/migrations still match the Android clone (skips without it)
+supabase start && supabase db reset --local
+./scripts/verify.sh "iPhone 18 Pro" -testPlan Integration -only-testing:BabeGetThisIntegrationTests
+supabase stop
 ```
 
 ## Environments

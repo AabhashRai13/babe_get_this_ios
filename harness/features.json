@@ -708,6 +708,7 @@
       ],
       "acceptance": [
         "test -f supabase/config.toml && test \"$(ls supabase/migrations)\" = \"$(printf '001_realtime_list_sharing.sql\\n002_created_by_survives_account_deletion.sql\\n003_account_lists.sql\\n004_delete_user_purges_solo_lists.sql\\n005_items_updated_at_index.sql\\n006_got_this.sql')\"",
+        "./scripts/check-migrations.sh",
         "supabase start",
         "supabase db reset --local",
         "./scripts/verify.sh \"iPhone 18 Pro\" -testPlan Integration -only-testing:BabeGetThisIntegrationTests && python3 -c 'import json,sys; sys.exit(json.load(open(\"build/results/latest.json\"))[\"executed\"] < 7)'",
@@ -715,7 +716,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\"",
         "grep -Eq '^otp_length = 8' supabase/config.toml"
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F39",
