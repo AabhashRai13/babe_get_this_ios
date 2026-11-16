@@ -123,19 +123,38 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).tests
         GENERATE_INFOPLIST_FILE: YES
 
+  # Integration tests against the local Supabase in Docker (supabase/, F38). Only the Integration
+  # test plan runs them: `./scripts/verify.sh <sim> -testPlan Integration`. The default plan (Unit)
+  # never does, so the default verify run needs no Docker.
+  BabeGetThisIntegrationTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - BabeGetThisIntegrationTests
+    dependencies:
+      - target: BabeGetThis
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: $(APP_BUNDLE_ID).integrationtests
+        GENERATE_INFOPLIST_FILE: YES
+
 schemes:
   BabeGetThis-Dev:
     build:
       targets:
         BabeGetThis: all
         BabeGetThisTests: [test]
+        BabeGetThisIntegrationTests: [test]
     run:
       config: Dev
     test:
       config: Dev
-      gatherCoverageData: true
-      targets:
-        - BabeGetThisTests
+      # Unit (the default) = BabeGetThisTests, with coverage. Integration = BabeGetThisIntegrationTests,
+      # run only with -testPlan Integration and a local Supabase (`supabase start`).
+      testPlans:
+        - path: TestPlans/Unit.xctestplan
+          defaultPlan: true
+        - path: TestPlans/Integration.xctestplan
     profile:
       config: Dev
     analyze:

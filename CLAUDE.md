@@ -38,7 +38,10 @@ The Android app and its docs ARE the spec. Extract decisions from them; don't re
 project.yml            XcodeGen spec (targets, configs, schemes)
 Config/*.xcconfig      Dev / Staging / Prod settings; Secrets.xcconfig is git-ignored
 BabeGetThis/           App sources (App/, Core/, Features/, Resources/)
-BabeGetThisTests/      XCTest unit tests
+BabeGetThisTests/      XCTest unit tests (test plan Unit, the default)
+BabeGetThisIntegrationTests/  Tests against the local Docker Supabase (test plan Integration only)
+TestPlans/             Unit + Integration .xctestplan files; they name targets by XcodeGen's stable ids
+supabase/              config.toml (project_id babe-get-this-ios) + migrations 001-006 copied from Android
 scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Staging from the Android icon)
 ```
 
@@ -62,6 +65,11 @@ scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Stagi
 xcodegen generate
 xcodebuild -project BabeGetThis.xcodeproj -scheme BabeGetThis-Dev \
   -destination 'platform=iOS Simulator,name=iPhone 18 Pro' test
+# Integration tests (fail, never skip, without the stack). The Android stack uses the same ports:
+# stop it first, and never reset it.
+supabase start && supabase db reset --local
+./scripts/verify.sh "iPhone 18 Pro" -testPlan Integration -only-testing:BabeGetThisIntegrationTests
+supabase stop
 ```
 
 ## Environments
