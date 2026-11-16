@@ -284,7 +284,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **SET-01** [todo] (K/feature/settings/ui/SettingsScreen.kt) Settings screen (small app bar, back). Sections in order: Privacy, About. Footer "Version <name> (<build>)". (Android's List lock and Reminders sections are out of v1.)
 - **SET-02** [todo] (K/core/ui/Links.kt) About section: "Rate the app" opens the App Store review page (Android opens the Google Play listing). "Privacy policy" opens https://babegetthis.com/privacy-policy.html.
   - iOS deviation: "Rate the app" opens `https://apps.apple.com/app/id<BGTAppStoreID>?action=write-review`, and the row is hidden while `BGTAppStoreID` is empty or not all digits (no App Store listing yet). Android always shows the row.
-- **SET-03** [todo] (T/feature/settings/ui/SettingsTest.kt) Port the remaining SettingsTest cases: 5 privacy-toggle (consent) cases and the privacy-policy row (6). Of the 75, 32 are Got This, 12 PIN/list lock and 21 reminders (not ported); the 4 SettingsRow cases go with UI-05.
+- **SET-03** [done] (T/feature/settings/ui/SettingsTest.kt) Port the remaining SettingsTest cases: 5 privacy-toggle (consent) cases and the privacy-policy row (6). Of the 75, 32 are Got This, 12 PIN/list lock and 21 reminders (not ported); the 4 SettingsRow cases go with UI-05.
 
 ## Categories
 
