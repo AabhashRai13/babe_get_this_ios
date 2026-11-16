@@ -715,7 +715,7 @@
         "./scripts/verify.sh \"iPhone 18 Pro\"",
         "grep -Eq '^otp_length = 8' supabase/config.toml"
       ],
-      "status": "todo"
+      "status": "done"
     },
     {
       "id": "F39",

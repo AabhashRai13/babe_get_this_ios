@@ -216,7 +216,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Name, email, password ≥ 6 and confirm, with live "Password must be at least 6 characters" / "Passwords do not match".
   - The name is sent as `user_metadata.name`.
   - No session returned → "Check your email to confirm your account, then sign in."
-- **AUTH-04** [todo] (K/core/auth/ui/ForgotPasswordViewModel.kt) Forgot password. Port ForgotPasswordViewModelTest (9).
+- **AUTH-04** [done] (K/core/auth/ui/ForgotPasswordViewModel.kt) Forgot password. Port ForgotPasswordViewModelTest (9).
   - Step 1: email → "Send code". It never reveals whether the account exists.
   - Step 2: an **8-digit** code (digits only, truncated to 8) and a new password ≥ 6.
     - Decided by the owner on 2026-11-12: 8 digits, matching Android's `ForgotPasswordViewModel.kt` `CODE_LENGTH = 8`
@@ -224,7 +224,10 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
     - The Android repo's local `supabase/config.toml` sets `otp_length = 6` under `[auth.email]`. The iOS local Docker
       stack must set `otp_length = 8`, otherwise Dev and integration tests get 6-digit codes the app rejects.
       Set it in the iOS repo's own Supabase config (planned with the integration-test task), not in the Android repo.
-    - Staging and prod Supabase Auth must also use 8. Confirm this in each project's Auth settings before release.
+      Done in F38: `supabase/config.toml` sets it, and its recovery email shows the code (`{{ .Token }}`; the CLI's
+      default email has only a link). `PasswordResetIntegrationTests` runs the 8-digit reset flow against it.
+    - Staging and prod Supabase Auth must also use 8, with a recovery email that shows the code. Confirm this in each
+      project's Auth settings before release.
   - Verify the OTP (type recovery), update the password, and end up signed in.
 - **AUTH-05** [todo] (K/core/auth/ui/GoogleSignIn.kt) Google sign-in:
   - Generate a raw nonce, send its SHA-256 to Google, then pass the id token and raw nonce to Supabase `signInWithIdToken(provider: google)`.
@@ -379,7 +382,10 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **SYNC-19** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) SyncEngineTest, catch-up part: the 13 catchUp / apply / fullCatchUp cases.
 - **SYNC-20** [todo] (T/core/sync/data/repository/SyncEngineTest.kt) SyncEngineTest, eviction part: the 5 non-Got-This eviction cases (6 minus the purchase-history one).
 - **SYNC-17** [todo] (T/core/sync/data/repository/SyncEngineAccountCatchUpTest.kt) Port the SyncEngineAccountCatchUpTest cases minus 3 Got This and 1 list-lock case (14).
-- **SYNC-18** [todo] (supabase/migrations/006_got_this.sql) Because iOS v1 never sends `picked_up_at`, migration 006's `items_track_picked_up_at` trigger records iOS ticks as 'legacy'. This is accepted; prove it in an integration test, with no client code.
+- **SYNC-18** [done] (supabase/migrations/006_got_this.sql) Because iOS v1 never sends `picked_up_at`, migration 006's `items_track_picked_up_at` trigger records iOS ticks as 'legacy'. This is accepted; prove it in an integration test, with no client code.
+  - iOS: `LegacyTickIntegrationTests`. Clients can't read `ticks`, so the tests check what only the legacy branch
+    produces: a server-stamped `picked_up_at` and purchases whose tick id is md5("<item id>:<that time in ms>").
+    No test calls `record_ticks`, the only 'app' writer.
 
 ## Account vs guest lists (decision 008)
 
@@ -477,11 +483,14 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - SELECT and UPDATE on `lists`/`items` require `is_list_member`.
   - A list can be inserted only with `created_by = auth.uid()`; items only by a member.
   - No DELETE policies (soft delete only) and no direct `list_members` insert.
-- **SRV-04** [todo] (supabase/migrations/004_delete_user_purges_solo_lists.sql) `delete_user()` removes the caller's solo lists (items cascade), then the auth user. Shared lists stay, with `created_by` set to null.
+- **SRV-04** [done] (supabase/migrations/004_delete_user_purges_solo_lists.sql) `delete_user()` removes the caller's solo lists (items cascade), then the auth user. Shared lists stay, with `created_by` set to null.
+  - iOS: proved by `DeleteUserIntegrationTests` (F38).
 - **SRV-05** [todo] (supabase/migrations/005_items_updated_at_index.sql) Index `items(updated_at)` backs the account-wide item query, which relies on RLS rather than a list filter.
-- **SRV-06** [todo] (supabase/tests/database/000_baseline.test.sql) Integration tests against the local Docker Supabase with migrations 001–006: first INSERT, upsert, the join RPC, realtime catch-up and RLS denial. Never against production.
+- **SRV-06** [done] (supabase/tests/database/000_baseline.test.sql) Integration tests against the local Docker Supabase with migrations 001–006: first INSERT, upsert, the join RPC, realtime catch-up and RLS denial. Never against production.
   - They live in their own test target, run by a separate test plan, so the default `verify.sh` run never needs Docker.
   - They fail, not skip, when 127.0.0.1:54321 is unreachable.
+  - iOS: `BabeGetThisIntegrationTests` in the `Integration` test plan (11 tests), through the app's own
+    `SupabaseSharedListRemote` and `SupabaseAuthRemote`. Android's pgTAP files (`supabase/tests`) are not copied.
 
 ## Telemetry (Firebase is in the iOS stack)
 
