@@ -499,7 +499,8 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Habit: item_added, item_checked_off, list_completed, category_auto_assigned/corrected.
   - (Android's reminder_posted / reminder_tapped are out of v1 with reminders.)
   - Port AnalyticsEventMapperTest (24 minus 4 Got This and 2 reminder = 18), BucketsTest (10 minus 2 reminder = 8), FailureReasonsTest (2), TelemetryMarkersTest (6) and TelemetryContextTest (8).
-- **TEL-04** [todo] (K/core/telemetry/model/AnalyticsEvent.kt) Wire the events into the view models: the 6 telemetry cases of ShoppingListViewModelTest and the 11 of ShoppingItemsViewModelTest.
+- **TEL-04** [done] (K/core/telemetry/model/AnalyticsEvent.kt) Wire the events into the view models: the 6 telemetry cases of ShoppingListViewModelTest and the 11 of ShoppingItemsViewModelTest.
+  - iOS: the view models report in their own terms (`ListsAnalytics`, `ListDetailAnalytics`) and `TrackingListAnalytics` turns that into events and owns the once-only markers, as for login, register and voice. The share-live events come from `ShareLiveViewModel`, which holds the detail screen's share flow. On both voice paths `first_item_added` is checked once, after the items' events (Android's in-list path checks it per item; either way it fires at most once).
 - **TEL-05** [todo] (D/technical-decisions/007-telemetry.md) No App Tracking Transparency prompt and no IDFA collection: Firebase Analytics is added without ad-id support, so AdSupport is not linked through Firebase, and there is no `NSUserTrackingUsageDescription`.
 
 ## Feature flags, review (out of v1: owner's v1 scope)
