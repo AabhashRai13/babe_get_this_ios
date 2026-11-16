@@ -55,8 +55,17 @@ final class ListsViewModel {
     /// A failed write's message, for the screen to show once.
     var errorMessage: String?
 
+    /// One per delete, so two lists with the same name deleted back to back are two offers:
+    /// the screen keys the snackbar's timer on the offer, and the second delete gets its own 4 s.
+    struct UndoOffer: Equatable {
+        let id: Int
+        let message: String
+    }
+
+    /// While the Undo snackbar is up.
+    private(set) var undoOffer: UndoOffer?
     /// "<name> deleted", while the Undo snackbar is up.
-    private(set) var undoMessage: String?
+    var undoMessage: String? { undoOffer?.message }
     /// The list whose rename dialog is open (Android `editingList`).
     private(set) var renamingList: ShoppingListSummary?
 
@@ -64,6 +73,7 @@ final class ListsViewModel {
     @ObservationIgnored private var domainLists: [ShoppingList] = []
     /// Cached because the CASCADE wipes a guest list's items with the list row.
     @ObservationIgnored private var pendingDelete: (list: ShoppingList, items: [ShoppingItemRecord])?
+    @ObservationIgnored private var undoOffersMade = 0
     @ObservationIgnored private let repository: (any ListsRepositoryProviding)?
     @ObservationIgnored private let authState: AuthStateManager?
     @ObservationIgnored private let shareJoiner: (any ListJoining)?
@@ -412,7 +422,8 @@ final class ListsViewModel {
         case .success(let items):
             if let captured {
                 pendingDelete = (captured, items)
-                undoMessage = "\(captured.name) deleted"
+                undoOffersMade += 1
+                undoOffer = UndoOffer(id: undoOffersMade, message: "\(captured.name) deleted")
             }
         case .failure(let error):
             errorMessage = error.message
@@ -422,7 +433,7 @@ final class ListsViewModel {
     /// Restores the last deleted list with its items. The pending copy is cleared only once
     /// the restore succeeded, so a failed attempt can be retried.
     func undoDelete() async {
-        undoMessage = nil
+        undoOffer = nil
         guard let repository, let pending = pendingDelete else { return }
         let result: Result<Void, AppError>
         do {
@@ -442,11 +453,15 @@ final class ListsViewModel {
         }
     }
 
-    /// The snackbar timed out: Undo is no longer on offer.
-    func dismissUndo() { withdrawUndo() }
+    /// The snackbar for `offer` timed out: Undo is no longer on offer. A timer left from an
+    /// earlier delete changes nothing.
+    func dismissUndo(_ offer: UndoOffer) {
+        guard undoOffer == offer else { return }
+        withdrawUndo()
+    }
 
     private func withdrawUndo() {
-        undoMessage = nil
+        undoOffer = nil
         pendingDelete = nil
     }
 

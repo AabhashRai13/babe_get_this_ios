@@ -44,6 +44,12 @@ final class ListsViewModelTests: XCTestCase {
         }
     }
 
+    private func seedNamedLists(_ ids: [String], name: String) async throws {
+        for (index, id) in ids.enumerated() {
+            try await db.lists.insertList(TestData.listEntity(id: id, name: name, createdAt: TestData.t0 + Int64(index)))
+        }
+    }
+
     private func waitUntil(timeout: TimeInterval = 3, line: UInt = #line,
                            _ condition: () -> Bool) async throws {
         let deadline = Date().addingTimeInterval(timeout)
@@ -170,8 +176,8 @@ final class ListsViewModelTests: XCTestCase {
         let vm = observedViewModel()
         try await waitUntil { vm.lists.count == 1 }
         await vm.deleteList(id: "a")
-        XCTAssertNotNil(vm.undoMessage)
-        vm.dismissUndo()
+        let offer = try XCTUnwrap(vm.undoOffer)
+        vm.dismissUndo(offer)
         XCTAssertNil(vm.undoMessage)
     }
 
@@ -181,11 +187,44 @@ final class ListsViewModelTests: XCTestCase {
         try await waitUntil { vm.lists.count == 1 }
         await vm.deleteList(id: "a")
 
-        vm.dismissUndo()
+        vm.dismissUndo(try XCTUnwrap(vm.undoOffer))
         await vm.undoDelete()
 
         let stored = try await db.lists.listRaw(id: "a")
         XCTAssertNil(stored, "a guest delete is a hard delete, and nothing brought it back")
+    }
+
+    // The screen keys the snackbar's 4 s timer on the offer. Keyed on the text, a second delete
+    // of a list with the same name kept the first delete's timer and lost most of its Undo.
+    func testDeletingTwoListsWithTheSameNameMakesTwoUndoOffers() async throws {
+        try await seedNamedLists(["a", "b"], name: "Groceries")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 2 }
+
+        await vm.deleteList(id: "a")
+        let first = try XCTUnwrap(vm.undoOffer)
+        await vm.deleteList(id: "b")
+        let second = try XCTUnwrap(vm.undoOffer)
+
+        XCTAssertEqual(first.message, "Groceries deleted")
+        XCTAssertEqual(second.message, "Groceries deleted")
+        XCTAssertNotEqual(first, second)
+    }
+
+    func testTheFirstDeletesTimeoutLeavesTheSecondDeletesUndoOnOffer() async throws {
+        try await seedNamedLists(["a", "b"], name: "Groceries")
+        let vm = observedViewModel()
+        try await waitUntil { vm.lists.count == 2 }
+        await vm.deleteList(id: "a")
+        let first = try XCTUnwrap(vm.undoOffer)
+        await vm.deleteList(id: "b")
+        let second = try XCTUnwrap(vm.undoOffer)
+
+        vm.dismissUndo(first)
+
+        XCTAssertEqual(vm.undoOffer, second)
+        await vm.undoDelete()
+        try await waitUntil { vm.lists.map(\.id) == ["b"] }
     }
 
     // The snackbar's timer lives in the lists screen, which sign-out tears down, while this
