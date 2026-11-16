@@ -448,6 +448,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Every SUBSCRIBED status (the first join and every re-join) also signals.
   - The channel is removed when collection ends.
   - iOS: each subscription gets its own topic `list-<listId>-<uuid>`, because supabase-swift reuses a registered topic (Android's `channel(...)` builds a new channel each time).
+  - iOS: Realtime's `system` "Subscribed to PostgreSQL" message (`status: ok`) also signals. supabase-swift 2.55.6 reports SUBSCRIBED on the join reply, before Realtime delivers Postgres changes (seconds later on a cold server), so a write in between raised no event and the SUBSCRIBED catch-up had already run. Android's supabase-kt 3.0.3 sets SUBSCRIBED on the join reply too and doesn't re-emit it for the later message, so Android has the same gap.
 - **RT-02** [done] (REALTIME_TEST_FINDINGS.md) Realtime carries no data: every signal → `catchUp(listId)`. Measured median latency is about 0.7–0.9 s.
 - **RT-03** [done] (K/feature/shoppingitems/ui/viewModels/ShoppingItemsViewModel.kt) On the detail screen, keyed on whether the list is shared:
   - Shared: catch up once, then subscribe.
