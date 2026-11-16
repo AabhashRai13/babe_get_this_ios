@@ -69,7 +69,7 @@ final class SettingsTests: XCTestCase {
     // Android: Play's User Data policy wants the privacy policy reachable inside the app, not only
     // from the store listing. App Review asks the same (guideline 5.1.1).
     func testThePrivacyPolicyRowOpensThePublishedPolicy() throws {
-        let opened = OpenedURLs()
+        var opened: [URL] = []
         let hosted = HostedView(
             SettingsView(consent: RecordingConsentStore())
                 .environment(\.openURL, OpenURLAction { url in
@@ -80,9 +80,8 @@ final class SettingsTests: XCTestCase {
 
         let row = try XCTUnwrap(hosted.element(labelled: "Privacy policy"), "labels: \(hosted.labels)")
         XCTAssertTrue(row.accessibilityActivate())
-        RunLoop.main.run(until: Date().addingTimeInterval(0.05))
 
-        XCTAssertEqual(opened.urls.map(\.absoluteString), ["https://babegetthis.com/privacy-policy.html"])
+        XCTAssertEqual(opened.map(\.absoluteString), ["https://babegetthis.com/privacy-policy.html"])
     }
 }
 
@@ -108,14 +107,4 @@ private final class RecordingConsentStore: TelemetryConsentStore {
         get { crashReporting }
         set { crashReporting = newValue; crashReportingWrites.append(newValue) }
     }
-}
-
-/// The URLs handed to the environment's `openURL`, in order.
-private final class OpenedURLs: @unchecked Sendable {
-    private let lock = NSLock()
-    private var _urls: [URL] = []
-
-    var urls: [URL] { lock.withLock { _urls } }
-
-    func append(_ url: URL) { lock.withLock { _urls.append(url) } }
 }
