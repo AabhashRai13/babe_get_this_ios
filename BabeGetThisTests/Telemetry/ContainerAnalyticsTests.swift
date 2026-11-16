@@ -13,8 +13,12 @@ final class ContainerAnalyticsTests: XCTestCase {
         try await super.setUp()
         analytics = RecordingAnalytics()
         scratch = ScratchMarkers()
-        container = AppContainer(
-            config: .preview, authState: AuthStateManager(tokenStore: InMemoryTokenStore()),
+        container = try makeContainer(authState: AuthStateManager(tokenStore: InMemoryTokenStore()))
+    }
+
+    private func makeContainer(authState: AuthStateManager) throws -> AppContainer {
+        AppContainer(
+            config: .preview, authState: authState,
             database: try AppDatabase.inMemory(), ownership: FakeListOwnershipStore(),
             telemetry: TelemetryVendors(analytics: analytics, crashReporter: RecordingCrashReporter()),
             telemetryConsentStore: InMemoryTelemetryConsentStore(), telemetryMarkers: scratch.markers)
@@ -36,12 +40,30 @@ final class ContainerAnalyticsTests: XCTestCase {
         ], analytics.events)
     }
 
-    // The list detail screen builds its view models with `listAnalytics` (a view can't be built
-    // here), as the lists do.
-    func testTheListScreensAdapterReportsToAnalytics() {
-        container.listAnalytics.shareCodeCopied()
+    // The list detail screen takes both its view models from `makeListDetailModels(forList:)`.
+    func testTheListScreensItemsReportToAnalytics() async throws {
+        guard case .success(let listId) = try await container.listRepository.createList(name: "Weekly") else {
+            return XCTFail("create failed")
+        }
+        var draft = ItemDraft()
+        draft.name = "Milk"
+        draft.quantity = "1"
 
-        XCTAssertEqual([.shareCodeShared], analytics.events)
+        let saved = await container.makeListDetailModels(forList: listId).items.add(draft)
+
+        XCTAssertTrue(saved)
+        XCTAssertEqual([.itemAdded(inputMethod: .manual, categorySource: .none), .firstItemAdded(.manual)],
+                       analytics.events)
+    }
+
+    func testTheListScreensShareLiveReportsToAnalytics() async throws {
+        container = try makeContainer(authState: authStateFor("u1"))
+        let shareLive = container.makeListDetailModels(forList: "L1", sharer: FixedCodeSharer()).shareLive
+
+        await shareLive.shareLive()
+
+        XCTAssertEqual(shareLive.shareCode, "ABC123")
+        XCTAssertEqual([.shareCodeCreated], analytics.events)
     }
 
     func testTheVoiceSheetsViewModelReportsToAnalytics() {
@@ -99,4 +121,9 @@ final class ContainerAnalyticsTests: XCTestCase {
         // The analytics taxonomy has no "unauthorized"; like Android, an auth failure is unknown.
         XCTAssertEqual([.nothingHeard, .network, .timeout, .unknown, .server, .unknown], sent)
     }
+}
+
+/// Hands back one code without reaching a server.
+private struct FixedCodeSharer: ListSharing {
+    func share(listId: String) async throws -> Result<String, AppError> { .success("ABC123") }
 }

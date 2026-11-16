@@ -178,6 +178,19 @@ final class AppContainer {
             analytics: TrackingVoiceCaptureAnalytics(analytics: analytics))
     }
 
+    /// The list detail screen's view models for one list, both reporting to `listAnalytics`
+    /// (TEL-04). A failed share shows on the items' snackbar. `sharer` is for tests; the app
+    /// shares through `shareRepository`, found when a share starts, so opening a list builds no
+    /// Supabase client.
+    func makeListDetailModels(forList listId: String, sharer: (any ListSharing)? = nil) -> ListDetailModels {
+        let items = ListDetailViewModel(listId: listId, source: itemRepository, analytics: listAnalytics)
+        let shareLive = ShareLiveViewModel(
+            listId: listId, authState: { [authState] in authState.authState },
+            sharer: sharer ?? DeferredListSharer { [self] in self.shareRepository },
+            analytics: listAnalytics, reportError: { items.errorMessage = $0 })
+        return ListDetailModels(items: items, shareLive: shareLive)
+    }
+
     // MARK: - Supabase and sync
 
     /// One client for auth and PostgREST, so server calls carry the signed-in session. Built on
@@ -321,6 +334,22 @@ private struct DeferredListJoiner: ListJoining {
     func join(code: String) async throws -> Result<String, AppError> {
         guard let joiner = await resolve() else { return .failure(.unknown()) }
         return try await joiner.join(code: code)
+    }
+}
+
+/// The list detail screen's two view models: its items, and its share-live flow.
+struct ListDetailModels {
+    let items: ListDetailViewModel
+    let shareLive: ShareLiveViewModel
+}
+
+/// A `ListSharing` that finds the share repository on the main actor when a share starts, so
+/// opening a list builds no Supabase client.
+private struct DeferredListSharer: ListSharing {
+    let resolve: @MainActor @Sendable () -> any ListSharing
+
+    func share(listId: String) async throws -> Result<String, AppError> {
+        try await resolve().share(listId: listId)
     }
 }
 
