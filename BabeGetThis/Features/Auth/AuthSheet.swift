@@ -83,6 +83,7 @@ private struct LoginScreen: View {
     var body: some View {
         LoginView(viewModel: viewModel, onNavigateToRegister: onRegister,
                   onNavigateToForgotPassword: onForgotPassword, onClose: onClose)
+            .reportsScreen(.login)
     }
 }
 
@@ -109,6 +110,7 @@ private struct RegisterScreen: View {
                         .tint(AppColors.textSecondary)
                 }
             }
+            .reportsScreen(.register)
     }
 }
 
@@ -124,5 +126,6 @@ private struct ForgotPasswordScreen: View {
 
     var body: some View {
         ForgotPasswordView(viewModel: viewModel)
+            .reportsScreen(.forgotPassword)
     }
 }

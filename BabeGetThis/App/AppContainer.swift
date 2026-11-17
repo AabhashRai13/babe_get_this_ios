@@ -49,11 +49,13 @@ final class AppContainer {
             store: telemetryConsentStore, analytics: telemetry.analytics, crashReporter: telemetry.crashReporter)
         self.telemetryConsent = telemetryConsent
         // The monitor is made per check, so building a container starts no path monitor.
-        self.telemetryContext = TelemetryContext(
+        let telemetryContext = TelemetryContext(
             analytics: telemetry.analytics, crashReporter: telemetry.crashReporter,
             isOnline: { NetworkMonitor().isOnline() }, consent: telemetryConsent,
             dataShape: DatabaseTelemetryDataShape(items: database.items, lists: database.lists),
             flavor: config.environment.rawValue)
+        self.telemetryContext = telemetryContext
+        self.screenTracker = ScreenTracker { screen in telemetryContext.onScreen(screen) }
         // Every repository failure is offered to crash reporting, which keeps only Unknown and
         // Database errors (ERR-03). Everything the container builds reports through this one
         // reporter; nothing outside tests uses `SilentAppErrorReporter`.
@@ -119,6 +121,8 @@ final class AppContainer {
     /// Applies a consent change at the vendor as well as storing it (TEL-02).
     @ObservationIgnored let telemetryConsent: TelemetryConsent
     @ObservationIgnored let telemetryContext: TelemetryContext
+    /// Feeds `telemetryContext.onScreen(_:)` from the screens' `.reportsScreen(_:)` (TEL-03).
+    @ObservationIgnored let screenTracker: ScreenTracker
     /// Keeps analytics and crash identity following the signed-in user.
     @ObservationIgnored private var telemetryIdentity: AuthStateSubscription?
 

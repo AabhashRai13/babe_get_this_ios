@@ -35,6 +35,7 @@ struct SettingsView: View {
         .background(AppColors.background)
         .navigationTitle(Self.title)
         .navigationBarTitleDisplayMode(.inline)
+        .reportsScreen(.settings)
     }
 
     private func header(_ title: String) -> some View {
