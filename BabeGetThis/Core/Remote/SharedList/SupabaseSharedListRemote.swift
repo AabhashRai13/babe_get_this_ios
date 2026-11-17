@@ -3,6 +3,9 @@ import Supabase
 
 /// Port of Android `SupabaseSharedListRemote.kt`.
 final class SupabaseSharedListRemote: SharedListRemote {
+    /// Ends `changes(listId:)` when its channel stays unsubscribed after it joined.
+    struct ChannelClosed: Error {}
+
     private let client: SupabaseClient
 
     init(client: SupabaseClient) {
@@ -89,19 +92,14 @@ final class SupabaseSharedListRemote: SharedListRemote {
                 let items = channel.postgresChange(
                     AnyAction.self, schema: "public", table: "items", filter: .eq("list_id", value: listId)
                 )
-                // Joins (initial AND automatic re-joins after a socket drop) also yield, so a consumer doing
-                // catch-up-per-element is complete without any special reconnect handling.
-                let statuses = channel.statusChange
                 do {
-                    try await withThrowingTaskGroup(of: Void.self) { group in
-                        group.addTask { for await _ in lists { continuation.yield(()) } }
-                        group.addTask { for await _ in items { continuation.yield(()) } }
-                        group.addTask {
-                            for await status in statuses where status == .subscribed { continuation.yield(()) }
-                        }
-                        group.addTask { try await channel.subscribeWithError() }
-                        try await group.waitForAll()
-                    }
+                    try await Self.forwardSignals(
+                        lists: lists, items: items,
+                        statuses: channel.statusChange, currentStatus: { channel.status },
+                        system: channel.system(),
+                        subscribe: { try await channel.subscribeWithError() },
+                        to: continuation
+                    )
                     continuation.finish()
                 } catch {
                     continuation.finish(throwing: error)
@@ -109,6 +107,65 @@ final class SupabaseSharedListRemote: SharedListRemote {
                 await client.removeChannel(channel)
             }
             continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// How long a joined channel may sit unsubscribed before `forwardSignals` treats it as closed.
+    static let closeGrace: Duration = .seconds(1)
+
+    /// Yields one element into `continuation` per "worth catching up" signal of one list channel, until the
+    /// feeds end, `subscribe` throws, the channel closes (below), or the task is cancelled:
+    /// - every Postgres change on the list row or its items;
+    /// - every SUBSCRIBED status: joins (initial AND automatic re-joins after a socket drop) also yield, so a
+    ///   consumer doing catch-up-per-element is complete without any special reconnect handling;
+    /// - every `system` message with `status: ok`, which Realtime sends ("Subscribed to PostgreSQL") once it
+    ///   delivers this channel's Postgres changes. supabase-swift (2.55.6) reports SUBSCRIBED on the join reply,
+    ///   which can come seconds earlier on a cold server. A write in between raises no event, and the SUBSCRIBED
+    ///   catch-up has already run, so the write would wait for some later event. supabase-kt sets SUBSCRIBED on
+    ///   the join reply too, so Android has the same gap.
+    ///
+    /// A joined channel that is still unsubscribed `closeGrace` later throws `ChannelClosed`, so the lifecycle
+    /// subscribes a fresh channel after its backoff. supabase-swift (2.55.6) leaves a channel unsubscribed for good
+    /// when the server closes it (`phx_close`, e.g. after an expired token), on `phx_error` while the socket stays
+    /// up, and when a rejoin gives up; none of these end the feeds. A socket reconnect also resets the channel to
+    /// unsubscribed, but starts its rejoin in the same step, so its status has moved on by the time the grace ends.
+    ///
+    /// Split out of `changes(listId:)` so tests can feed it a fake channel: supabase-swift's socket can't be
+    /// replaced from outside the package.
+    static func forwardSignals<Change: Sendable>(
+        lists: AsyncStream<Change>,
+        items: AsyncStream<Change>,
+        statuses: AsyncStream<RealtimeChannelStatus>,
+        currentStatus: @escaping @Sendable () -> RealtimeChannelStatus,
+        system: AsyncStream<RealtimeMessageV2>,
+        subscribe: @escaping @Sendable () async throws -> Void,
+        sleep: @escaping @Sendable (Duration) async throws -> Void = { try await Task.sleep(for: $0) },
+        to continuation: AsyncThrowingStream<Void, any Error>.Continuation
+    ) async throws {
+        try await withThrowingTaskGroup(of: Void.self) { group in
+            group.addTask { for await _ in lists { continuation.yield(()) } }
+            group.addTask { for await _ in items { continuation.yield(()) } }
+            group.addTask {
+                var joined = false
+                for await status in statuses {
+                    switch status {
+                    case .subscribed:
+                        joined = true
+                        continuation.yield(())
+                    case .unsubscribed where joined:
+                        try await sleep(closeGrace)
+                        if currentStatus() == .unsubscribed { throw ChannelClosed() }
+                    default:
+                        break
+                    }
+                }
+            }
+            group.addTask {
+                // A failed Postgres subscribe says `status: error`; Realtime retries it and sends `ok` later.
+                for await message in system where message.status == .ok { continuation.yield(()) }
+            }
+            group.addTask { try await subscribe() }
+            try await group.waitForAll()
         }
     }
 
