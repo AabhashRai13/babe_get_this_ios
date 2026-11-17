@@ -22,7 +22,7 @@ private struct LeaveEmptyListModifier: ViewModifier {
                             Image(systemName: "chevron.backward")
                                 .fontWeight(.semibold)
                         }
-                        .accessibilityLabel("Back")
+                        .accessibilityLabel(Text(.back))
                         .accessibilityIdentifier("detail.back")
                     }
                 }

@@ -10,9 +10,9 @@ import Observation
 @MainActor
 @Observable
 final class ProfileViewModel {
-    nonisolated static let nameEmptyMessage = "Name cannot be empty"
-    nonisolated static let nameUpdatedMessage = "Name updated"
-    nonisolated static let accountDeletedMessage = "Your account has been deleted"
+    nonisolated static var nameEmptyMessage: String { String(localized: .profileNameEmpty) }
+    nonisolated static var nameUpdatedMessage: String { String(localized: .profileNameUpdated) }
+    nonisolated static var accountDeletedMessage: String { String(localized: .profileAccountDeleted) }
 
     /// One message for the snackbar; a new id per message so a repeat shows again.
     struct Toast: Equatable, Identifiable {

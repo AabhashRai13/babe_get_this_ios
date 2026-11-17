@@ -78,7 +78,7 @@ final class VoiceCaptureViewModel {
                 if Task.isCancelled { return }
                 recorder.cancel()
                 recordingStartedAt = nil
-                state = .failed("Couldn't start recording. Is the microphone in use?")
+                state = .failed(String(localized: .voiceErrorStart))
                 analytics.track(.recordingFailed)
             }
         }
@@ -115,7 +115,7 @@ final class VoiceCaptureViewModel {
             } catch {
                 if Task.isCancelled { return }
                 recorder.cancel()
-                state = .failed("Couldn't finish that recording. Try again?")
+                state = .failed(String(localized: .voiceErrorFinish))
             }
         }
         transcribeTask = task
@@ -137,7 +137,7 @@ final class VoiceCaptureViewModel {
             let items = try await transcriber.transcribeAndParse(audioFile: file)
             if Task.isCancelled { return }
             if items.isEmpty {
-                state = .failed("Didn't catch any items. Try again?")
+                state = .failed(String(localized: .voiceErrorNoItems))
                 // A failure from the user's side, not a zero-item success.
                 analytics.track(.transcriptionFailed(reason: .nothingHeard, latencyMillis: latency()))
                 return
@@ -159,7 +159,7 @@ final class VoiceCaptureViewModel {
 
     private func persistDrafts(_ drafts: [ItemDraft]) async {
         guard let persist else {
-            state = .failed("Something went wrong saving your list.")
+            state = .failed(String(localized: .voiceErrorSave))
             return
         }
         state = .saving

@@ -2,11 +2,11 @@ import Foundation
 
 /// Error categories the voice flow can surface, same set and copy as Android's AppError.
 enum VoiceError: Error, Equatable, Sendable {
-    case network(String = "No internet connection.")
-    case timeout(String = "Request timed out. Please try again.")
-    case unauthorized(String = "Session expired. Please log in again.")
-    case server(code: Int, message: String = "Server error. Please try later.")
-    case unknown(String = "An unexpected error occurred.")
+    case network(String = String(localized: .errorNetwork))
+    case timeout(String = String(localized: .errorTimeout))
+    case unauthorized(String = String(localized: .errorUnauthorized))
+    case server(code: Int, message: String = String(localized: .errorServer))
+    case unknown(String = String(localized: .errorUnknown))
 
     var message: String {
         switch self {
@@ -15,15 +15,15 @@ enum VoiceError: Error, Equatable, Sendable {
         }
     }
 
-    static let recordingProblem = "Couldn't process that recording. Please try again."
+    static var recordingProblem: String { String(localized: .voiceErrorRecording) }
 
     /// Maps an HTTP status like Android's safeCall, with transcribe's 4xx override.
     static func fromStatus(_ code: Int) -> VoiceError {
         switch code {
         case 401: .unauthorized()
         case 400...499: .server(code: code, message: recordingProblem)
-        case 500...599: .server(code: code, message: "Server error. Please try later.")
-        default: .server(code: code, message: "Unexpected server response.")
+        case 500...599: .server(code: code, message: String(localized: .errorServer))
+        default: .server(code: code, message: String(localized: .errorUnexpectedResponse))
         }
     }
 
@@ -33,11 +33,11 @@ enum VoiceError: Error, Equatable, Sendable {
         if let url = error as? URLError {
             switch url.code {
             case .timedOut: return .timeout()
-            case .cannotConnectToHost: return .network("Cannot reach server.")
+            case .cannotConnectToHost: return .network(String(localized: .errorCannotReachServer))
             case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasBadDate,
                  .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected,
                  .clientCertificateRequired:
-                return .network("Secure connection failed.")
+                return .network(String(localized: .errorSecureConnection))
             default: return .network()
             }
         }

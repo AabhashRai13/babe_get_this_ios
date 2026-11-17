@@ -17,10 +17,10 @@ extension ShoppingListRepository: ListLeaveCleaning {}
 @Observable
 final class ListLeaveGuard {
     /// Copy from Android `strings.xml` (`leave_empty_list_*`).
-    static let title = "Delete this empty list?"
-    static let message = "This list has no items, so it will be deleted when you leave."
-    static let confirmTitle = "Delete list"
-    static let stayTitle = "Keep editing"
+    static var title: String { String(localized: .leaveEmptyListTitle) }
+    static var message: String { String(localized: .leaveEmptyListBody) }
+    static var confirmTitle: String { String(localized: .leaveEmptyListConfirm) }
+    static var stayTitle: String { String(localized: .leaveEmptyListStay) }
 
     let listId: String
     private let cleaner: any ListLeaveCleaning

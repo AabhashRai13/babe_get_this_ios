@@ -20,7 +20,11 @@ final class AuthCopyTests: XCTestCase {
     func testVisibilityToggleNamesItsField() {
         XCTAssertEqual(AuthCopy.visibilityToggleLabel(isVisible: false), "Show password")
         XCTAssertEqual(AuthCopy.visibilityToggleLabel(isVisible: true), "Hide password")
-        XCTAssertEqual(AuthCopy.visibilityToggleLabel(isVisible: false, field: "confirm password"),
+        XCTAssertEqual(AuthCopy.visibilityToggleLabel(isVisible: false, field: .confirmPassword),
                        "Show confirm password")
+        XCTAssertEqual(AuthCopy.visibilityToggleLabel(isVisible: true, field: .confirmPassword),
+                       "Hide confirm password")
+        XCTAssertEqual(AuthCopy.visibilityToggleTitle(isVisible: false), "Show")
+        XCTAssertEqual(AuthCopy.visibilityToggleTitle(isVisible: true), "Hide")
     }
 }

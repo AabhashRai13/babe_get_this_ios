@@ -5,24 +5,24 @@ import Foundation
 /// Repositories return `Result<T, AppError>` (Android's `Result.Success` / `Result.Error`).
 enum AppError: Error, Equatable, Sendable, LocalizedError {
     // Database (GRDB)
-    case database(String = "Something went wrong. Please try again.")
+    case database(String = String(localized: .errorDatabase))
 
     // Network
-    case network(String = "No internet connection.")
-    case server(code: Int, message: String = "Server error. Please try later.")
-    case timeout(String = "Request timed out. Please try again.")
+    case network(String = String(localized: .errorNetwork))
+    case server(code: Int, message: String = String(localized: .errorServer))
+    case timeout(String = String(localized: .errorTimeout))
 
     /// No default on purpose: a validation failure that can't say what was wrong is useless.
     case validation(String)
 
-    case notFound(String = "Item not found.")
+    case notFound(String = String(localized: .errorNotFound))
 
     /// Login/register failed (wrong credentials, email taken, ...).
-    case auth(String = "Authentication failed.")
+    case auth(String = String(localized: .errorAuth))
     /// Server returned 401: the token expired or is invalid.
-    case unauthorized(String = "Session expired. Please log in again.")
+    case unauthorized(String = String(localized: .errorUnauthorized))
 
-    case unknown(String = "An unexpected error occurred.")
+    case unknown(String = String(localized: .errorUnknown))
 
     var message: String {
         switch self {

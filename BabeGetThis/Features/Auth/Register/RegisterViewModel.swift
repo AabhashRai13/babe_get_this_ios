@@ -15,10 +15,12 @@ struct NoopRegisterAnalytics: RegisterAnalytics {
 @Observable
 final class RegisterViewModel {
     nonisolated static let minPasswordLength = 6
-    nonisolated static let invalidEmailMessage = "Enter a valid email address"
-    nonisolated static let passwordTooShortMessage = "Password must be at least \(minPasswordLength) characters"
-    nonisolated static let passwordMismatchMessage = "Passwords do not match"
-    nonisolated static let confirmEmailMessage = "Check your email to confirm your account, then sign in."
+    nonisolated static var invalidEmailMessage: String { String(localized: .authInvalidEmail) }
+    nonisolated static var passwordTooShortMessage: String {
+        String(localized: .authPasswordTooShort(minPasswordLength))
+    }
+    nonisolated static var passwordMismatchMessage: String { String(localized: .authPasswordsMismatch) }
+    nonisolated static var confirmEmailMessage: String { String(localized: .authConfirmEmailSent) }
 
     private(set) var name = ""
     private(set) var email = ""

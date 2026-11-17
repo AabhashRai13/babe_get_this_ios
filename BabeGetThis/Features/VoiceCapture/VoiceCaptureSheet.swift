@@ -111,11 +111,11 @@ private struct RecordingContent: View {
                     .monospacedDigit()
                     .foregroundStyle(AppColors.textPrimary)
             }
-            Text("Listening…")
+            Text(.voiceListening)
                 .font(.subheadline)
                 .foregroundStyle(AppColors.textSecondary)
             Button(action: onStop) {
-                Label("Stop", systemImage: "xmark")
+                Label(.voiceStop, systemImage: "xmark")
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.top, 20)

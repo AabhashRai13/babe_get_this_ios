@@ -105,7 +105,7 @@ private struct RegisterScreen: View {
             .toolbar {
                 ToolbarItem(placement: .topBarLeading) {
                     Button(action: onClose) { Image(systemName: "xmark") }
-                        .accessibilityLabel("Close")
+                        .accessibilityLabel(Text(.close))
                         .tint(AppColors.textSecondary)
                 }
             }

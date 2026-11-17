@@ -1,0 +1,260 @@
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name">Babe, Get This</string>
+
+    <!-- Shopping List Screen -->
+    <string name="shopping_list_empty_title">No lists yet</string>
+    <string name="shopping_list_empty_subtitle">Create a list and share it so you can shop together.</string>
+    <string name="shopping_list_empty_cta">Create your first list</string>
+    <string name="shopping_list_create">Create list</string>
+    <plurals name="shopping_list_items_count">
+        <item quantity="one">%d item</item>
+        <item quantity="other">%d items</item>
+    </plurals>
+    <!-- Pluralised on the total, the second argument. -->
+    <plurals name="shopping_list_items_progress">
+        <item quantity="one">%1$d/%2$d item</item>
+        <item quantity="other">%1$d/%2$d items</item>
+    </plurals>
+    <plurals name="greeting_lists">
+        <item quantity="one">%d list</item>
+        <item quantity="other">%d lists</item>
+    </plurals>
+    <plurals name="greeting_items_to_get">
+        <item quantity="one">%d item to get</item>
+        <item quantity="other">%d items to get</item>
+    </plurals>
+    <string name="greeting_nothing_to_get">nothing to pick up yet</string>
+    <string name="greeting_summary">%1$s · %2$s</string>
+    <string name="shopping_list_all_completed">All done! All your lists are completed.</string>
+    <string name="shopping_list_no_completed">No completed lists yet</string>
+    <string name="tab_active">Active</string>
+    <string name="tab_completed">Completed</string>
+    <string name="shopping_list_name_hint">List name</string>
+    <string name="shopping_list_create_title">New List</string>
+    <string name="snackbar_deleted">%1$s deleted</string>
+    <string name="leave_empty_list_title">Delete this empty list?</string>
+    <string name="leave_empty_list_body">This list has no items, so it will be deleted when you leave.</string>
+    <string name="leave_empty_list_confirm">Delete list</string>
+    <string name="leave_empty_list_stay">Keep editing</string>
+    <string name="cancel">Cancel</string>
+    <string name="create">Create</string>
+    <string name="undo">Undo</string>
+    <string name="account">Account</string>
+    <string name="create_list_type">Type</string>
+    <string name="create_list_voice">Voice</string>
+
+    <!-- Shopping Items Screen -->
+    <string name="shopping_items_active">ACTIVE ITEMS</string>
+    <string name="shopping_items_completed">COMPLETED</string>
+    <plurals name="shopping_items_count">
+        <item quantity="one">%d Item</item>
+        <item quantity="other">%d Items</item>
+    </plurals>
+    <string name="shopping_items_list_created">List created!</string>
+    <string name="shopping_items_add_first">Add your first item to get started</string>
+    <string name="shopping_items_add_first_button">Add first item</string>
+    <string name="shopping_items_add_title">Add Item</string>
+    <string name="shopping_items_name_hint">Item name</string>
+    <string name="shopping_items_quantity_hint">Quantity (required)</string>
+    <string name="shopping_items_quantity_placeholder">e.g. 2 large, slightly firm</string>
+    <string name="shopping_items_category">Category (optional)</string>
+    <string name="shopping_items_category_placeholder">Search or select category</string>
+    <string name="shopping_items_category_no_match">No categories match \"%1$s\"</string>
+    <string name="shopping_items_note">Note (optional)</string>
+    <string name="shopping_items_note_placeholder">Leave a note to make it easier</string>
+    <string name="shopping_items_shop">Shop (optional)</string>
+    <string name="shopping_items_shop_placeholder">e.g. Whole Foods, Costco</string>
+    <string name="shopping_items_new_category">New category name</string>
+    <string name="category_none">None</string>
+    <string name="category_other">Other</string>
+    <string name="add">Add</string>
+    <string name="save">Save</string>
+    <string name="shopping_items_edit_title">Edit Item</string>
+    <string name="shopping_list_edit_title">Rename List</string>
+
+    <!-- Auth Screens -->
+    <!-- Lost session and lists moved into the account (docs/technical-decisions/008) -->
+    <string name="session_expired_banner">You\'ve been signed out. Sign in again to keep your lists in sync.</string>
+    <string name="session_expired_sign_in">Sign in</string>
+    <plurals name="adoption_notice">
+        <item quantity="one">Your list is now saved to your account, so it\'s backed up and shows up on any phone you sign in on.</item>
+        <item quantity="other">Your %d lists are now saved to your account, so they\'re backed up and show up on any phone you sign in on.</item>
+    </plurals>
+    <string name="adoption_notice_ok">OK</string>
+    <string name="adoption_notice_privacy">Privacy policy</string>
+    <!-- Welcome: first launch, signed out (docs/technical-decisions/008) -->
+    <string name="welcome_sign_in">Sign in</string>
+    <string name="welcome_continue_as_guest">Continue as guest</string>
+    <string name="auth_welcome">Welcome to</string>
+    <string name="auth_login_subtitle">Sign in to sync your lists with your partner</string>
+    <string name="auth_register_subtitle">Create an account to start sharing lists</string>
+    <string name="auth_email">Email</string>
+    <string name="auth_password">Password</string>
+    <string name="auth_confirm_password">Confirm password</string>
+    <string name="auth_name">Your name</string>
+    <string name="auth_login">Sign in</string>
+    <string name="auth_register">Create account</string>
+    <string name="auth_forgot_password">Forgot password?</string>
+    <string name="auth_reset_password">Reset password</string>
+    <string name="auth_forgot_subtitle">Enter your email and we\'ll send you an 8-digit code</string>
+    <string name="auth_code_sent">Enter the code we sent to %1$s and choose a new password</string>
+    <string name="auth_code">8-digit code</string>
+    <string name="auth_new_password">New password</string>
+    <string name="auth_send_code">Send code</string>
+    <string name="auth_no_account">Don\'t have an account?</string>
+    <string name="auth_has_account">Already have an account?</string>
+    <string name="auth_sign_up">Sign up</string>
+    <string name="auth_sign_in">Sign in</string>
+    <string name="auth_continue_with_google">Continue with Google</string>
+
+    <!-- Share / Auth Prompt -->
+    <string name="share_auth_title">Sign in to share</string>
+    <string name="share_auth_body">Create an account to share lists with your partner and sync across devices.</string>
+
+    <!-- Profile -->
+    <string name="profile_name">Name</string>
+    <string name="profile_no_email">No email</string>
+    <string name="profile_logout">Log out</string>
+    <!-- Signing out with changes that never reached the server (docs/technical-decisions/008) -->
+    <string name="sign_out_unsynced_title">Sign out?</string>
+    <string name="sign_out_unsynced_body">Some changes haven\'t been saved to your account yet. If you sign out now, they\'ll be lost.</string>
+    <string name="sign_out_unsynced_confirm">Sign out anyway</string>
+    <string name="delete_account_body">This permanently deletes your account and can\'t be undone. Your lists are removed from this phone and our server; lists you shared stay with the people you shared them with.</string>
+
+    <!-- Settings -->
+    <string name="settings">Settings</string>
+    <string name="settings_title">Settings</string>
+    <string name="settings_pin_section">List lock</string>
+    <string name="settings_pin_set_up">Set up a PIN</string>
+    <string name="settings_pin_set_up_subtitle">Lock individual lists with a 4-digit PIN, stored only on this device</string>
+    <string name="settings_pin_change">Change PIN</string>
+    <string name="settings_pin_remove">Remove PIN</string>
+    <string name="settings_pin_regenerate">Regenerate recovery code</string>
+    <string name="settings_pin_forgot">Forgot your PIN?</string>
+    <string name="settings_pin_removed">PIN removed. All lists are unlocked.</string>
+    <string name="settings_pin_changed">PIN changed</string>
+    <string name="settings_pin_device_only">Your PIN is stored on this device only. It is not tied to your account and won\'t sync.</string>
+
+    <!-- Privacy / telemetry consent -->
+    <string name="settings_privacy_section">Privacy</string>
+    <string name="settings_analytics_title">Usage analytics</string>
+    <string name="settings_analytics_subtitle">Which features get used, never what is on your lists.</string>
+    <string name="settings_crash_title">Crash reports</string>
+    <string name="settings_crash_subtitle">Sends diagnostics when the app fails, so it can be fixed.</string>
+    <string name="settings_about_section">About</string>
+    <string name="settings_privacy_policy_title">Privacy policy</string>
+    <string name="settings_privacy_policy_subtitle">What is collected and how it is used</string>
+    <string name="settings_rate_title">Rate the app</string>
+    <string name="settings_rate_subtitle">Leave a review on Google Play</string>
+
+    <!-- Shopping reminders -->
+    <string name="reminder_channel_name">Shopping reminders</string>
+    <string name="reminder_title">Forget something on %1$s?</string>
+    <string name="reminder_body_one">%1$s is still unticked</string>
+    <string name="reminder_body_two">%1$s and %2$s are still unticked</string>
+    <!-- "N more" is always 1 or more here; the verb agrees with the whole phrase, not N, so a plural would not help. -->
+    <string name="reminder_body_more" tools:ignore="PluralsCandidate">%1$s, %2$s and %3$d more are still unticked</string>
+    <plurals name="reminder_body_locked">
+        <item quantity="one">%d item is still unticked</item>
+        <item quantity="other">%d items are still unticked</item>
+    </plurals>
+    <string name="reminder_prompt_title">Forget something?</string>
+    <string name="reminder_prompt_body">Get one nudge if you leave items unticked after a shop.</string>
+    <string name="reminder_prompt_accept">Remind me</string>
+    <string name="reminder_prompt_decline">Not now</string>
+    <string name="settings_reminders_section">Reminders</string>
+    <string name="settings_reminders_title">Shopping reminders</string>
+    <string name="settings_reminders_subtitle">A nudge when you leave items unticked after a shop</string>
+    <string name="settings_reminders_blocked_subtitle">Allow notifications in system settings to turn this on</string>
+
+    <string name="settings_got_this_section">Got This</string>
+    <string name="settings_got_this_hints_title">Bought-recently hints</string>
+    <string name="settings_got_this_hints_subtitle">Show when an item on your list was bought recently</string>
+    <string name="settings_got_this_running_low_title">Running-low reminders</string>
+    <string name="settings_got_this_running_low_subtitle">Suggest things you usually buy, with one heads-up a week</string>
+    <string name="settings_got_this_running_low_blocked">Notifications are off for this app</string>
+    <string name="settings_got_this_clear_title">Clear purchase history</string>
+    <string name="settings_got_this_clear_message">This deletes your purchase history on all your devices. Your lists stay as they are, and people you share lists with keep their own history.</string>
+    <string name="settings_got_this_clear_confirm">Clear</string>
+
+    <!-- PIN entry -->
+    <string name="pin_label">PIN</string>
+    <string name="pin_unlock_title">Unlock list</string>
+    <string name="pin_delete_title">Delete locked list</string>
+    <string name="pin_share_title">Unlock to share</string>
+    <string name="pin_verify_current_title">Enter current PIN</string>
+    <string name="pin_create_title">Create a PIN</string>
+    <string name="pin_create_body">Choose a 4-digit PIN to lock your lists</string>
+    <string name="pin_confirm_title">Confirm your PIN</string>
+    <string name="pin_confirm_body">Enter your PIN again to confirm</string>
+    <string name="pin_new_title">Choose a new PIN</string>
+    <string name="pin_mismatch">PINs don\'t match. Try again.</string>
+    <plurals name="pin_wrong">
+        <item quantity="one">Wrong PIN. %1$d attempt left.</item>
+        <item quantity="other">Wrong PIN. %1$d attempts left.</item>
+    </plurals>
+    <string name="pin_locked_out">Too many attempts. Try again in %1$s.</string>
+    <string name="pin_cancel">Cancel</string>
+    <string name="pin_continue">Continue</string>
+    <string name="pin_unlock">Unlock</string>
+    <string name="pin_delete">Delete</string>
+    <string name="pin_confirm">Confirm</string>
+
+    <!-- Recovery code -->
+    <string name="recovery_title">Save your recovery code</string>
+    <string name="recovery_body">This is the only way to reset your PIN if you forget it. It\'s shown once and stored only on this device, so write it down now.</string>
+    <string name="recovery_acknowledge">I\'ve saved my recovery code</string>
+    <string name="recovery_enter_title">Enter recovery code</string>
+    <string name="recovery_enter_body">Enter the recovery code you saved when you set up your PIN</string>
+    <string name="recovery_label">Recovery code</string>
+    <string name="recovery_wrong">That recovery code isn\'t right</string>
+    <string name="recovery_copy">Copy recovery code</string>
+
+    <!-- Lock -->
+    <string name="lock_list">Lock list</string>
+    <string name="unlock_list">Unlock list</string>
+    <string name="lock_locked">Locked</string>
+    <plurals name="lock_remove_pin_warning">
+        <item quantity="one">%1$d locked list will be unlocked. Continue?</item>
+        <item quantity="other">%1$d locked lists will be unlocked. Continue?</item>
+    </plurals>
+    <string name="lock_delete_cancelled">Nothing was deleted</string>
+
+    <!-- Auth prompts (one dialog, per-feature copy — task 8.4) -->
+    <string name="voice_auth_title">Sign in to use voice</string>
+    <string name="voice_auth_body">Create an account to capture shopping lists by voice.</string>
+
+    <!-- Realtime list sharing -->
+    <string name="done">Done</string>
+    <string name="share_live_title">Share list live</string>
+    <string name="share_live_hint">Anyone with this code can see and edit this list. Text it to them, and they enter it under "Join a shared list".</string>
+    <string name="share_live_copy">Copy</string>
+    <string name="share_live_action">Share live</string>
+    <string name="share_as_text">Share as text</string>
+    <string name="voice_add">Add by voice</string>
+    <string name="join_list_title">Join a shared list</string>
+    <string name="join_list_hint">6-character code</string>
+    <string name="join_list_button">Join</string>
+    <string name="join_list_action">Join a shared list</string>
+
+    <string name="got_this_bought_today">Bought today</string>
+    <string name="got_this_bought_yesterday">Bought yesterday</string>
+    <plurals name="got_this_bought_days_ago">
+        <item quantity="one">Bought %d day ago</item>
+        <item quantity="other">Bought %d days ago</item>
+    </plurals>
+    <string name="got_this_hint_remove">Remove from list</string>
+    <string name="got_this_hint_mute">Don\'t remind me about this</string>
+    <string name="got_this_usuals_title">Usually bought around now</string>
+    <string name="got_this_usuals_more">+%d</string>
+    <string name="got_this_usuals_not_now">Not now</string>
+    <string name="got_this_heads_up">Get a weekly heads-up</string>
+    <string name="got_this_prompt_title">Running low?</string>
+    <string name="got_this_prompt_body">Get one heads-up a week for things you usually buy.</string>
+    <string name="got_this_channel_name">Running-low reminders</string>
+    <string name="got_this_notification_title">Running low?</string>
+    <string name="got_this_notification_one">%1$s is usually bought around now.</string>
+    <string name="got_this_notification_two">%1$s and %2$s are usually bought around now.</string>
+    <string name="got_this_notification_three">%1$s, %2$s and %3$s are usually bought around now.</string>
+    <string name="got_this_notification_more" tools:ignore="PluralsCandidate">%1$s, %2$s, %3$s and %4$d more are usually bought around now.</string>
+</resources>

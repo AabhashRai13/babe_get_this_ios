@@ -3,7 +3,7 @@ import Foundation
 /// Builds the plain-text representation of a list for the system share sheet
 /// (Android `ShoppingListShareText`). Pure (name, items) -> String.
 enum ShoppingListShareText {
-    private static let footer = "via Babe, Get This"
+    private static var footer: String { String(localized: .shareTextFooter) }
 
     static func format(listName: String, items: [ShoppingItem]) -> String {
         let unchecked = items.filter { !$0.isPickedUp }
@@ -20,7 +20,7 @@ enum ShoppingListShareText {
             text += "\n"
         }
         if pickedUpCount > 0 {
-            text += "\n(\(pickedUpCount) already picked up)\n"
+            text += "\n" + String(localized: .shareTextAlreadyPickedUp(pickedUpCount)) + "\n"
         }
         text += "\n\(footer)"
         return text

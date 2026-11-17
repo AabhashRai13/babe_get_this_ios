@@ -7,12 +7,12 @@ import Supabase
 enum AuthErrorMapper {
     /// One wording for every Google failure, whether Supabase rejected the token or the
     /// account sheet failed.
-    static let googleSignInFailed = "Google sign-in failed. Please try again."
+    static var googleSignInFailed: String { String(localized: .authErrorGoogleFailed) }
     /// iOS only (AUTH-06): the same wording for Apple.
-    static let appleSignInFailed = "Apple sign-in failed. Please try again."
+    static var appleSignInFailed: String { String(localized: .authErrorAppleFailed) }
     /// iOS only: the build has no Google client id yet.
-    static let googleSignInNotConfigured = "Google sign-in isn't set up in this build yet."
-    static let genericFailure = "Authentication failed. Please try again."
+    static var googleSignInNotConfigured: String { String(localized: .authErrorGoogleNotConfigured) }
+    static var genericFailure: String { String(localized: .authErrorGeneric) }
 
     /// More causes than any real wrapper produces; stops a cycle the identity check can't see.
     private static let maxChainDepth = 32
@@ -59,12 +59,14 @@ enum AuthErrorMapper {
         // Google ID-token sign-in. Checked first: these messages also contain
         // "token"/"expired" and would otherwise get the email-code wording.
         if has("id_token") || has("ID token") || has("nonce") { return googleSignInFailed }
-        if has("Invalid login") { return "Invalid email or password." }
-        if has("already registered") || has("already been registered") { return "That email is already registered." }
-        if has("Email not confirmed") { return "Please confirm your email before signing in." }
+        if has("Invalid login") { return String(localized: .authErrorInvalidLogin) }
+        if has("already registered") || has("already been registered") {
+            return String(localized: .authErrorEmailRegistered)
+        }
+        if has("Email not confirmed") { return String(localized: .authErrorEmailNotConfirmed) }
         // Before "token": an expired token reads as expired, not as an invalid code.
-        if has("expired") { return "That code has expired. Request a new one." }
-        if has("otp") || has("token") { return "Invalid code. Check the email and try again." }
+        if has("expired") { return String(localized: .authErrorCodeExpired) }
+        if has("otp") || has("token") { return String(localized: .authErrorInvalidCode) }
         return genericFailure
     }
 

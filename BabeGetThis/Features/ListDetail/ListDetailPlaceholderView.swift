@@ -89,14 +89,14 @@ private struct ListDetailScreen: View {
                         .shadow(color: AppColors.shadow.opacity(0.12),
                                 radius: AppMetrics.fabShadowRadius, y: AppMetrics.fabShadowY)
                 }
-                .accessibilityLabel("Add by voice")
+                .accessibilityLabel(Text(.voiceAdd))
                 .accessibilityIdentifier("voice-fab")
                 // The empty state has its own "Add first item" button (Android hides the FAB too).
                 if model.hasLoaded && !model.isEmpty {
                     Button {
                         showingAdd = true
                     } label: {
-                        Label("Add", systemImage: "plus")
+                        Label(.add, systemImage: "plus")
                     }
                     .buttonStyle(TonalFABStyle())
                     .accessibilityIdentifier("add-item-button")
@@ -211,7 +211,7 @@ private struct ListDetailScreen: View {
                 .plainRow(top: 8, bottom: 16)
 
             if !model.activeItems.isEmpty {
-                SectionHeaderView(title: "ACTIVE ITEMS", count: model.activeItems.count)
+                SectionHeaderView(title: String(localized: .shoppingItemsActive), count: model.activeItems.count)
                     .plainRow(bottom: 8)
                 ForEach(model.activeGroups) { shopGroup in
                     if model.showsShopHeader(shopGroup) {
@@ -229,7 +229,7 @@ private struct ListDetailScreen: View {
             }
 
             if !model.completedItems.isEmpty {
-                SectionHeaderView(title: "COMPLETED")
+                SectionHeaderView(title: String(localized: .shoppingItemsCompleted))
                     .plainRow(top: 16, bottom: 8)
                 ForEach(model.completedItems) { itemRow($0) }
             }

@@ -308,13 +308,13 @@ struct ShoppingListRepository: Sendable {
     private static func requireListName(_ name: String) throws -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            throw AppErrorException(.validation("List name can't be empty."))
+            throw AppErrorException(.validation(String(localized: .errorListNameEmpty)))
         }
         return trimmed
     }
 
     private static func listNotFound() -> AppErrorException {
-        AppErrorException(.notFound("That list no longer exists."))
+        AppErrorException(.notFound(String(localized: .errorListGone)))
     }
 
     private static func nowMillis() -> Int64 {

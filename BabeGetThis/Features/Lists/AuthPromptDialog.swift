@@ -7,14 +7,14 @@ struct AuthPromptContent: Equatable {
     let body: String
 
     static let voice = AuthPromptContent(
-        title: "Sign in to use voice",
-        body: "Create an account to capture shopping lists by voice.")
+        title: String(localized: .voiceAuthTitle),
+        body: String(localized: .voiceAuthBody))
     static let share = AuthPromptContent(
-        title: "Sign in to share",
-        body: "Create an account to share lists with your partner and sync across devices.")
+        title: String(localized: .shareAuthTitle),
+        body: String(localized: .shareAuthBody))
 
-    static let confirmTitle = "Sign in"
-    static let dismissTitle = "Create account"
+    static var confirmTitle: String { String(localized: .authSignIn) }
+    static var dismissTitle: String { String(localized: .authRegister) }
 }
 
 /// Alert-style dialog: "Sign in" (primary) and "Create account". Either button also dismisses.

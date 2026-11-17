@@ -34,11 +34,11 @@ enum TimePeriod: CaseIterable, Sendable {
 
     var displayName: String {
         switch self {
-        case .today: "Today"
-        case .yesterday: "Yesterday"
-        case .lastWeek: "Last 7 Days"
-        case .thisMonth: "This Month"
-        case .older: "Older"
+        case .today: String(localized: .dateGroupToday)
+        case .yesterday: String(localized: .dateGroupYesterday)
+        case .lastWeek: String(localized: .dateGroupLastWeek)
+        case .thisMonth: String(localized: .dateGroupThisMonth)
+        case .older: String(localized: .dateGroupOlder)
         }
     }
 }

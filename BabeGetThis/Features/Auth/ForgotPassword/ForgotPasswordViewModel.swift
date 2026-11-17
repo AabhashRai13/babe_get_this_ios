@@ -8,8 +8,10 @@ import Observation
 final class ForgotPasswordViewModel {
     nonisolated static let codeLength = 8
     nonisolated static let minPasswordLength = 6
-    nonisolated static let invalidEmailMessage = "Enter a valid email address"
-    nonisolated static let passwordTooShortMessage = "Password must be at least \(minPasswordLength) characters"
+    nonisolated static var invalidEmailMessage: String { String(localized: .authInvalidEmail) }
+    nonisolated static var passwordTooShortMessage: String {
+        String(localized: .authPasswordTooShort(minPasswordLength))
+    }
 
     private(set) var email = ""
     private(set) var code = ""

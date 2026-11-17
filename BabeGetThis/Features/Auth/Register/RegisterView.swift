@@ -116,7 +116,7 @@ struct RegisterView: View {
             }
         case .password:
             field(icon: "lock", error: viewModel.passwordError,
-                  trailing: toggle($passwordVisible, field: "password")) {
+                  trailing: toggle($passwordVisible, field: .password)) {
                 secure(formField.label, binding(\.password, viewModel.onPasswordChange), visible: passwordVisible)
                     .focused($focus, equals: .password)
                     .submitLabel(.next)
@@ -124,7 +124,7 @@ struct RegisterView: View {
             }
         case .confirmPassword:
             field(icon: "lock", error: viewModel.confirmPasswordError,
-                  trailing: toggle($confirmVisible, field: "confirm password")) {
+                  trailing: toggle($confirmVisible, field: .confirmPassword)) {
                 secure(formField.label, binding(\.confirmPassword, viewModel.onConfirmPasswordChange),
                        visible: confirmVisible)
                     .focused($focus, equals: .confirm)
@@ -136,8 +136,8 @@ struct RegisterView: View {
 
     /// Show/Hide for one password field. Swapping SecureField and TextField replaces the
     /// field, which drops focus, so the focused field gets it back after the swap.
-    private func toggle(_ visible: Binding<Bool>, field: String) -> some View {
-        Button(visible.wrappedValue ? "Hide" : "Show") {
+    private func toggle(_ visible: Binding<Bool>, field: AuthCopy.PasswordField) -> some View {
+        Button(AuthCopy.visibilityToggleTitle(isVisible: visible.wrappedValue)) {
             let kept = focus
             visible.wrappedValue.toggle()
             Task { @MainActor in focus = kept }

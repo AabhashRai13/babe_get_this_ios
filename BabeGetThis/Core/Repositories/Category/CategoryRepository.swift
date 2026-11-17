@@ -71,7 +71,7 @@ struct CategoryRepository: Sendable {
     private static func requireCategoryName(_ name: String) throws -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            throw AppErrorException(.validation("Category name can't be empty."))
+            throw AppErrorException(.validation(String(localized: .errorCategoryNameEmpty)))
         }
         return trimmed
     }

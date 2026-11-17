@@ -65,18 +65,18 @@ struct ShareRepository: Sendable {
     func share(listId: String) async throws -> Result<String, AppError> {
         try await safeCall {
             guard let list = try await lists.listRaw(id: listId) else {
-                throw AppErrorException(.notFound("That list no longer exists."))
+                throw AppErrorException(.notFound(String(localized: .errorListGone)))
             }
             // Codes are static per list: re-opening the share dialog shows the
             // same one, so a code texted last week keeps working.
             if let code = list.shareCode { return code }
-            guard currentUserId() != nil else { throw AppErrorException(.auth("Sign in to share lists.")) }
+            guard currentUserId() != nil else { throw AppErrorException(.auth(String(localized: .shareErrorSignIn))) }
 
             // A list made offline may not have reached the server yet. The push
             // uploads its items too; its failure is read off onServer below.
             if !list.onServer { _ = try await syncEngine.push() }
             guard try await lists.listRaw(id: listId)?.onServer == true else {
-                throw AppErrorException(.network("Couldn't share — check your connection."))
+                throw AppErrorException(.network(String(localized: .shareErrorNetwork)))
             }
 
             // The server answers with the code it actually holds: if this list was
@@ -102,7 +102,7 @@ struct ShareRepository: Sendable {
         try await safeCall {
             guard let listId = try await remote.joinListByCode(code.trimmingCharacters(in: .whitespacesAndNewlines))
             else {
-                throw AppErrorException(.notFound("That code didn't match any list."))
+                throw AppErrorException(.notFound(String(localized: .shareErrorCodeNotFound)))
             }
             switch try await syncEngine.fullCatchUp(listId: listId) {
             case .failure(let error): throw AppErrorException(error)

@@ -71,6 +71,12 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: $(APP_ICON_NAME)
         ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
         GENERATE_INFOPLIST_FILE: YES
+        # UI-08: copy lives in Resources/Localizable.xcstrings under Android's strings.xml keys.
+        # Each key becomes a LocalizedStringResource symbol (`Text(.shoppingListEmptyTitle)`), so a
+        # missing or mistyped key fails the build instead of showing the raw key.
+        STRING_CATALOG_GENERATE_SYMBOLS: YES
+        SWIFT_EMIT_LOC_STRINGS: YES
+        LOCALIZATION_PREFERS_STRING_CATALOGS: YES
     info:
       path: BabeGetThis/Resources/Info.plist
       properties:

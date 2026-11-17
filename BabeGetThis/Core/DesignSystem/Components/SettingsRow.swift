@@ -19,6 +19,8 @@ struct SettingsRow<Trailing: View>: View {
     private let icon: String?
     private let tint: Color
     private let trailing: Trailing
+    /// 24 pt at the default text size, growing with Dynamic Type like the title next to it.
+    @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 24
 
     init(
         title: String,
@@ -67,9 +69,9 @@ struct SettingsRow<Trailing: View>: View {
         HStack(spacing: 16) {
             if let icon {
                 Image(systemName: icon)
-                    .font(.system(size: 24))
+                    .font(.system(size: iconSize))
                     .foregroundStyle(tint)
-                    .frame(width: 24, height: 24)
+                    .frame(width: iconSize, height: iconSize)
                     .accessibilityHidden(true)
             }
             VStack(alignment: .leading) {

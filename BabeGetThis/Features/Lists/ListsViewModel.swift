@@ -12,7 +12,7 @@ final class ListsViewModel {
         case completed
 
         var id: Self { self }
-        var title: String { self == .active ? "Active" : "Completed" }
+        var title: String { self == .active ? String(localized: .tabActive) : String(localized: .tabCompleted) }
 
         /// Outlined when inactive, filled when active (Android TabPill).
         func systemImage(selected: Bool) -> String {
@@ -42,7 +42,7 @@ final class ListsViewModel {
         var isEmpty: Bool { sections.isEmpty }
 
         var emptyMessage: String {
-            tab == .active ? "All done! All your lists are completed." : "No completed lists yet"
+            tab == .active ? String(localized: .shoppingListAllCompleted) : String(localized: .shoppingListNoCompleted)
         }
     }
 
@@ -341,9 +341,9 @@ final class ListsViewModel {
         case signIn
     }
 
-    static let sessionExpiredMessage = "You've been signed out. Sign in again to keep your lists in sync."
-    static let sessionExpiredAction = "Sign in"
-    static let signInPill = "Sign in"
+    static var sessionExpiredMessage: String { String(localized: .sessionExpiredBanner) }
+    static var sessionExpiredAction: String { String(localized: .sessionExpiredSignIn) }
+    static var signInPill: String { String(localized: .authSignIn) }
 
     /// Signed in or a lost session. The profile sheet is the only way to sign out, which is the
     /// only way the account's lists leave the phone, so it stays while the session is expired.
@@ -428,7 +428,7 @@ final class ListsViewModel {
             if let captured {
                 pendingDelete = (captured, items)
                 undoOffersMade += 1
-                undoOffer = UndoOffer(id: undoOffersMade, message: "\(captured.name) deleted")
+                undoOffer = UndoOffer(id: undoOffersMade, message: String(localized: .snackbarDeleted(captured.name)))
             }
         case .failure(let error):
             errorMessage = error.message
@@ -526,7 +526,7 @@ final class ListsViewModel {
 
     func dismissJoinDialog() { isJoinDialogPresented = false }
 
-    static let joinUnavailableMessage = "Joining a list isn't available yet."
+    static var joinUnavailableMessage: String { String(localized: .joinListUnavailable) }
 
     func dismissJoinAuthPrompt() { isJoinAuthPromptPresented = false }
 
@@ -579,9 +579,9 @@ final class ListsViewModel {
 enum Greeting {
     static func prefix(hour: Int) -> String {
         switch hour {
-        case ..<12: "Good morning"
-        case ..<17: "Good afternoon"
-        default: "Good evening"
+        case ..<12: String(localized: .greetingMorning)
+        case ..<17: String(localized: .greetingAfternoon)
+        default: String(localized: .greetingEvening)
         }
     }
 
@@ -591,27 +591,25 @@ enum Greeting {
             .trimmingCharacters(in: .whitespaces)
             .split(separator: " ").first.map(String.init)
         guard let firstName, !firstName.isEmpty else { return prefix(hour: hour) }
-        return "\(prefix(hour: hour)), \(firstName)"
+        return String(localized: .greetingNamed(prefix(hour: hour), firstName))
     }
 
     static func summary(listCount: Int, itemsToGet: Int) -> String {
-        let lists = listCount == 1 ? "1 list" : "\(listCount) lists"
-        let items: String = switch itemsToGet {
-        case 0: "nothing to pick up yet"
-        case 1: "1 item to get"
-        default: "\(itemsToGet) items to get"
-        }
-        return "\(lists) · \(items)"
+        let lists = String(localized: .greetingLists(listCount))
+        let items = itemsToGet == 0
+            ? String(localized: .greetingNothingToGet)
+            : String(localized: .greetingItemsToGet(itemsToGet))
+        return String(localized: .greetingSummary(lists, items))
     }
 
     /// "3/7 items" (pluralised on the total, like Android).
     static func progress(picked: Int, total: Int) -> String {
-        "\(picked)/\(total) \(total == 1 ? "item" : "items")"
+        String(localized: .shoppingListItemsProgress(picked, total: total))
     }
 
     /// "5 items": the Completed tab's plain count.
     static func count(_ total: Int) -> String {
-        "\(total) \(total == 1 ? "item" : "items")"
+        String(localized: .shoppingListItemsCount(total))
     }
 }
 
@@ -627,7 +625,7 @@ struct ListCardContent: Equatable {
     init(list: ShoppingListSummary, isCompletedTab: Bool) {
         name = list.name
         subtitle = if list.totalItems == 0 {
-            "No items yet"
+            String(localized: .shoppingListNoItems)
         } else if isCompletedTab {
             Greeting.count(list.totalItems)
         } else {
