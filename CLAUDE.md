@@ -58,6 +58,11 @@ scripts/               make-app-icons.swift (regenerates AppIcon / -Dev / -Stagi
   Use `AppColors.*` and `ListAccent(listId:)`; never hard-code hex values in views.
 - Spacing and radii: `AppMetrics`. Buttons: `PrimaryButtonStyle`, `OutlinedButtonStyle`, `TonalFABStyle`.
 - System font (SF) with Dynamic Type text styles; Android uses default Roboto, so there is nothing to port.
+  No numeric font sizes: a size that must be a number is an `@ScaledMetric` (`PolishPassTests` checks).
+- Copy lives in `BabeGetThis/Resources/Localizable.xcstrings` under Android's `strings.xml` keys (iOS-only
+  keys get a comment). Use the generated symbols, `Text(.shoppingListEmptyTitle)` /
+  `String(localized: .snackbarDeleted(name))`; never a user-facing literal. `TextField(LocalizedStringResource, ...)`
+  is iOS 26+, so pass `String(localized:)` there. Icon-only buttons need `.accessibilityLabel`.
 - Launch argument `-sampleData` (non-prod only) skips Welcome and shows sample lists, for screenshots.
 
 ## Commands
