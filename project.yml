@@ -77,8 +77,11 @@ targets:
         CFBundleDisplayName: $(APP_DISPLAY_NAME)
         CFBundleShortVersionString: $(MARKETING_VERSION)
         CFBundleVersion: $(CURRENT_PROJECT_VERSION)
+        # APP-04: Android's splash (values/splash.xml, values-night/splash.xml). Background is the
+        # first frame's colour; LaunchIcon is ic_launcher_monochrome in the primary colour per mode.
         UILaunchScreen:
           UIColorName: Background
+          UIImageName: LaunchIcon
         UISupportedInterfaceOrientations:
           - UIInterfaceOrientationPortrait
         UIApplicationSupportsIndirectInputEvents: true
