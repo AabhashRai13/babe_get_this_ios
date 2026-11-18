@@ -12,8 +12,8 @@ enum ListDetailTopBarAction: String, CaseIterable, Identifiable, Equatable {
     /// Android `share_live_action` / `share_as_text`; also the accessibility label.
     var title: String {
         switch self {
-        case .shareLive: "Share live"
-        case .shareAsText: "Share as text"
+        case .shareLive: String(localized: .shareLiveAction)
+        case .shareAsText: String(localized: .shareAsText)
         }
     }
 

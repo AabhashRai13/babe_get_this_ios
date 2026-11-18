@@ -1,19 +1,19 @@
 import SwiftUI
 
-/// Copy for the profile sheet (STR-10), Android's exact wording.
+/// Copy for the profile sheet (STR-10): Android's keys and wording, in Localizable.xcstrings.
 enum ProfileCopy {
-    static let name = "Name"                            // profile_name
-    static let noEmail = "No email"                     // profile_no_email
-    static let logout = "Log out"                       // profile_logout
-    static let save = "Save"
-    static let deleteAccount = "Delete account"
-    static let deleteTitle = "Delete account?"
-    static let deleteBody = "This permanently deletes your account and can't be undone. Your lists are removed from this phone and our server; lists you shared stay with the people you shared them with." // delete_account_body
-    static let delete = "Delete"
-    static let cancel = "Cancel"
-    static let unsyncedTitle = "Sign out?"              // sign_out_unsynced_title
-    static let unsyncedBody = "Some changes haven't been saved to your account yet. If you sign out now, they'll be lost." // sign_out_unsynced_body
-    static let unsyncedConfirm = "Sign out anyway"      // sign_out_unsynced_confirm
+    static var name: String { String(localized: .profileName) }
+    static var noEmail: String { String(localized: .profileNoEmail) }
+    static var logout: String { String(localized: .profileLogout) }
+    static var save: String { String(localized: .save) }
+    static var deleteAccount: String { String(localized: .profileDeleteAccount) }
+    static var deleteTitle: String { String(localized: .profileDeleteTitle) }
+    static var deleteBody: String { String(localized: .deleteAccountBody) }
+    static var delete: String { String(localized: .profileDelete) }
+    static var cancel: String { String(localized: .cancel) }
+    static var unsyncedTitle: String { String(localized: .signOutUnsyncedTitle) }
+    static var unsyncedBody: String { String(localized: .signOutUnsyncedBody) }
+    static var unsyncedConfirm: String { String(localized: .signOutUnsyncedConfirm) }
 }
 
 extension EnvironmentValues {
@@ -171,15 +171,17 @@ private struct ProfileSheetContent: View {
     /// Two layered circles with the name's initial, or a person glyph.
     struct Avatar: View {
         let name: String?
+        /// 88 pt (outer) at the default text size; grows with the initial inside it.
+        @ScaledMetric(relativeTo: .title) private var size: CGFloat = 88
 
         var body: some View {
             ZStack {
                 Circle()
                     .fill(AppColors.primaryContainer.opacity(0.3))
-                    .frame(width: 88, height: 88)
+                    .frame(width: size, height: size)
                 Circle()
                     .fill(AppColors.primaryContainer)
-                    .frame(width: 64, height: 64)
+                    .frame(width: size * 64 / 88, height: size * 64 / 88)
                 if let initial = ListsViewModel.initial(name: name) {
                     Text(initial)
                         .font(.title.bold())

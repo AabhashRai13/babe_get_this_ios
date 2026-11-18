@@ -6,8 +6,8 @@ import Observation
 @MainActor
 @Observable
 final class LoginViewModel {
-    nonisolated static let invalidEmailMessage = "Enter a valid email address"
-    nonisolated static let noGoogleAccountMessage = "Add a Google account to this device, then try again."
+    nonisolated static var invalidEmailMessage: String { String(localized: .authInvalidEmail) }
+    nonisolated static var noGoogleAccountMessage: String { String(localized: .authNoGoogleAccount) }
 
     private(set) var email = ""
     private(set) var password = ""

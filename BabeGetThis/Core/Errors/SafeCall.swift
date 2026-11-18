@@ -23,7 +23,7 @@ struct SafeCall: Sendable {
     func callAsFunction<T>(
         isolation: isolated (any Actor)? = #isolation,
         onUnauthorized: () -> AppError = { .unauthorized() },
-        onClientError: (Int) -> AppError = { _ in .auth("Request failed.") },
+        onClientError: (Int) -> AppError = { _ in .auth(String(localized: .errorRequestFailed)) },
         _ block: () async throws -> T
     ) async throws(CancellationError) -> Result<T, AppError> {
         do {
@@ -66,7 +66,7 @@ struct SafeCall: Sendable {
             switch error.statusCode {
             case 401: return onUnauthorized()
             case 400...499: return onClientError(error.statusCode)
-            case 500...599: return .server(code: error.statusCode, message: "Server error. Please try later.")
+            case 500...599: return .server(code: error.statusCode, message: String(localized: .errorServer))
             default: return .server(code: error.statusCode, message: error.statusLine)
             }
 
@@ -101,11 +101,11 @@ struct SafeCall: Sendable {
         case .timedOut:
             return .timeout()
         case .cannotConnectToHost:
-            return .network("Cannot reach server.")
+            return .network(String(localized: .errorCannotReachServer))
         case .secureConnectionFailed, .serverCertificateUntrusted, .serverCertificateHasBadDate,
              .serverCertificateHasUnknownRoot, .serverCertificateNotYetValid, .clientCertificateRejected,
              .clientCertificateRequired:
-            return .network("Secure connection failed.")
+            return .network(String(localized: .errorSecureConnection))
         default:
             return .network()
         }
@@ -119,7 +119,7 @@ struct SafeCall: Sendable {
         switch code {
         case 401: onUnauthorized()
         case 400...499: onClientError(code)
-        default: .server(code: code, message: "Server error. Please try later.")
+        default: .server(code: code, message: String(localized: .errorServer))
         }
     }
 

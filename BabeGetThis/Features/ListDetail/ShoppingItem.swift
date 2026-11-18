@@ -57,7 +57,7 @@ struct CategoryGroup: Identifiable, Equatable {
     let name: String?
     let items: [ShoppingItem]
     var id: String { name ?? "" }
-    var title: String { name ?? "Uncategorized" }
+    var title: String { name ?? String(localized: .shoppingItemsUncategorized) }
 }
 
 /// Active items under one shop heading, split by category (Android `ShopSection`).
@@ -66,7 +66,7 @@ struct ShopGroup: Identifiable, Equatable {
     let shop: String?
     let categories: [CategoryGroup]
     var id: String { shop ?? "" }
-    var title: String { shop ?? "General" }
+    var title: String { shop ?? String(localized: .shoppingItemsNoShop) }
 
     /// A shop whose only bucket is uncategorized shows no category header, so a list
     /// nobody has categorised stays a flat by-shop list.
@@ -91,7 +91,7 @@ struct ItemDraft: Equatable {
     var shopCounter: String? { Self.counter(shop, limit: Self.shopLimit) }
 
     private static func counter(_ text: String, limit: Int) -> String? {
-        text.count >= limit ? "\(text.count)/\(limit)" : nil
+        text.count >= limit ? String(localized: .characterCounter(text.count, limit)) : nil
     }
 
     /// The manual add-item sheet's rule: name and quantity are both required.

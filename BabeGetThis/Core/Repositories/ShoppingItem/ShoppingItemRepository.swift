@@ -188,7 +188,7 @@ struct ShoppingItemRepository: Sendable {
     private static func requireItemName(_ name: String) throws -> String {
         let trimmed = name.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.isEmpty {
-            throw AppErrorException(.validation("Item name can't be empty."))
+            throw AppErrorException(.validation(String(localized: .errorItemNameEmpty)))
         }
         return trimmed
     }

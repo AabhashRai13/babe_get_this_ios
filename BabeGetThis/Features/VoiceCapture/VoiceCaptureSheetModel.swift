@@ -49,7 +49,13 @@ enum VoiceCaptureSheetContent: Equatable {
 @MainActor
 @Observable
 final class VoiceTranscribingCopy {
-    nonisolated static let lines = ["Listening to your list…", "Sorting your items…", "Almost there…"]
+    nonisolated static var lines: [String] {
+        [
+            String(localized: .voiceTranscribingListening),
+            String(localized: .voiceTranscribingSorting),
+            String(localized: .voiceTranscribingAlmost),
+        ]
+    }
     static let interval: Duration = .milliseconds(2500)
 
     private(set) var index = 0
@@ -75,7 +81,7 @@ final class VoiceTranscribingCopy {
 @MainActor
 @Observable
 final class VoiceCaptureSheetModel {
-    static let permissionMessage = "Microphone access is needed to capture your list."
+    static var permissionMessage: String { String(localized: .voicePermissionMessage) }
 
     let viewModel: VoiceCaptureViewModel
     /// Last known permission, refreshed on open, after asking and when the app comes back.
@@ -120,14 +126,17 @@ final class VoiceCaptureSheetModel {
             // Once denied, iOS won't prompt again, so the button goes to Settings instead.
             .needsPermission(
                 message: permissionMessage,
-                buttonTitle: permission == .denied ? "Open Settings" : "Allow microphone"
+                buttonTitle: permission == .denied
+                    ? String(localized: .voiceOpenSettings)
+                    : String(localized: .voiceAllowMicrophone)
             )
         case .recording: .recording
         case .transcribing: .transcribing
-        case .saving: .loading(label: "Saving your list…")
-        case .done: .loading(label: "Done!")
+        case .saving: .loading(label: String(localized: .voiceSaving))
+        case .done: .loading(label: String(localized: .voiceDone))
         case .failed(let message):
-            .failed(message: message, retryTitle: "Try again", typeInsteadTitle: "Type instead")
+            .failed(message: message, retryTitle: String(localized: .voiceTryAgain),
+                    typeInsteadTitle: String(localized: .voiceTypeInstead))
         }
     }
 
@@ -208,7 +217,7 @@ extension VoiceCaptureSheetContent {
         switch self {
         case .idle: nil
         case .needsPermission(let message, _): message
-        case .recording: "Listening…"
+        case .recording: String(localized: .voiceListening)
         case .transcribing: VoiceTranscribingCopy.lines[0]
         case .loading(let label): label
         case .failed(let message, _, _): message

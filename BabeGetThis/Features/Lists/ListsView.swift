@@ -56,7 +56,7 @@ struct ListsView: View {
             }
         }
         .background(AppColors.background)
-        .navigationTitle("Babe, Get This")
+        .navigationTitle(Text(.appName))
         .toolbar {
             ToolbarItemGroup(placement: .topBarTrailing) {
                 // HOME-13 order, from the view model; Settings is there in every auth state (NAV-05).
@@ -75,7 +75,7 @@ struct ListsView: View {
             // Android: the FAB shows on the Active tab only, and not over the empty state.
             if viewModel.hasLoadedLists && viewModel.isActiveTab && !viewModel.hasNoLists {
                 Button { viewModel.startCreating() } label: {
-                    Label("Create list", systemImage: "plus")
+                    Label(.shoppingListCreate, systemImage: "plus")
                 }
                 .buttonStyle(TonalFABStyle())
                 .padding(AppMetrics.screenPadding)
@@ -86,7 +86,7 @@ struct ListsView: View {
         .task { await viewModel.observeAdoptionNotice() }
         .overlay(alignment: .bottom) {
             if let offer = viewModel.undoOffer {
-                Snackbar(message: offer.message, actionTitle: "Undo") {
+                Snackbar(message: offer.message, actionTitle: String(localized: .undo)) {
                     SystemHapticPlayer().play(.light)
                     // Unstructured: leaving the screen right after tapping Undo must not cancel the restore.
                     Task { await viewModel.undoDelete() }
@@ -182,11 +182,11 @@ struct ListsView: View {
         } message: { count in
             Text(AdoptionNoticeCopy.message(count: count))
         }
-        .alert("Something went wrong", isPresented: Binding(
+        .alert(Text(.errorAlertTitle), isPresented: Binding(
             get: { viewModel.errorMessage != nil },
             set: { if !$0 { viewModel.errorMessage = nil } }
         )) {
-            Button("OK", role: .cancel) {}
+            Button(String(localized: .ok), role: .cancel) {}
         } message: {
             Text(viewModel.errorMessage ?? "")
         }
@@ -219,6 +219,8 @@ struct ListsView: View {
 private struct AccountControlButton: View {
     let control: ListsViewModel.AccountControl
     let action: () -> Void
+    /// 36 pt at the default text size; grows with the initial inside it.
+    @ScaledMetric(relativeTo: .headline) private var avatarSize: CGFloat = 36
 
     var body: some View {
         switch control {
@@ -234,11 +236,11 @@ private struct AccountControlButton: View {
                     }
                 }
                 .foregroundStyle(AppColors.onPrimaryContainer)
-                .frame(width: 36, height: 36)
+                .frame(width: avatarSize, height: avatarSize)
                 .background(AppColors.primaryContainer, in: Circle())
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("Account")
+            .accessibilityLabel(Text(.account))
             .accessibilityIdentifier("lists.account")
         case .signIn:
             Button(action: action) {
@@ -320,7 +322,7 @@ private struct ListsPaneView: View {
                                     }
                                     .accessibilityAddTraits(.isButton)
                                     .accessibilityAction { onOpen(list) }
-                                    .accessibilityAction(named: Text("Rename")) { onRename(list.id) }
+                                    .accessibilityAction(named: Text(.actionRename)) { onRename(list.id) }
                             }
                             .padding(.bottom, 8)
                         }
@@ -458,15 +460,15 @@ private struct EmptyListsView: View {
     var body: some View {
         VStack(spacing: 12) {
             BrandMark()
-            Text("No lists yet")
+            Text(.shoppingListEmptyTitle)
                 .font(.title2.bold())
                 .foregroundStyle(AppColors.textPrimary)
                 .padding(.top, 8)
-            Text("Create a list and share it so you can shop together.")
+            Text(.shoppingListEmptySubtitle)
                 .font(.subheadline)
                 .foregroundStyle(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
-            Button("Create your first list", action: onCreate)
+            Button(.shoppingListEmptyCta, action: onCreate)
                 .buttonStyle(PrimaryButtonStyle())
                 .padding(.top, 16)
                 .accessibilityIdentifier("lists.createFirst")

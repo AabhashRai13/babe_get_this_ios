@@ -53,7 +53,7 @@ struct LoginView: View {
         .toolbar {
             ToolbarItem(placement: .topBarLeading) {
                 Button(action: onClose) { Image(systemName: "xmark") }
-                    .accessibilityLabel("Close")
+                    .accessibilityLabel(Text(.close))
                     .tint(AppColors.textSecondary)
             }
         }
@@ -88,14 +88,14 @@ struct LoginView: View {
 
     private var header: some View {
         VStack(spacing: 4) {
-            Text("Welcome to")
+            Text(.authWelcome)
                 .font(.body)
                 .foregroundStyle(AppColors.textSecondary)
                 .padding(.top, 12)
-            Text("Babe, Get This")
+            Text(.appName)
                 .font(.largeTitle.bold())
                 .foregroundStyle(AppColors.primary)
-            Text("Sign in to sync your lists with your partner")
+            Text(.authLoginSubtitle)
                 .font(.subheadline)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(AppColors.textSecondary)
@@ -149,9 +149,10 @@ struct LoginView: View {
                 .focused($focus, equals: .password)
                 .submitLabel(.go)
                 .onSubmit { viewModel.login() }
-                Button(passwordVisible ? "Hide" : "Show") { passwordVisible.toggle() }
+                Button(AuthCopy.visibilityToggleTitle(isVisible: passwordVisible)) { passwordVisible.toggle() }
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(AppColors.primary)
+                    .accessibilityLabel(AuthCopy.visibilityToggleLabel(isVisible: passwordVisible))
             }
             .modifier(LoginFieldChrome(isError: false))
         }

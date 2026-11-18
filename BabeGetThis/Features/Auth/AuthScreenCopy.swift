@@ -1,14 +1,14 @@
-/// Labels and layout of the auth screens (Android strings.xml). The views build their fields,
-/// their scrolling body and their pinned footer from these lists and route every tap through the
-/// `*ScreenTaps` types, so the AuthScreensTest port checks what the screens actually render.
+/// Labels and layout of the auth screens (Android strings.xml keys, in Localizable.xcstrings). The views
+/// build their fields, their scrolling body and their pinned footer from these lists and route every tap
+/// through the `*ScreenTaps` types, so the AuthScreensTest port checks what the screens actually render.
 enum LoginScreenCopy {
-    static let email = "Email"                          // auth_email
-    static let password = "Password"                    // auth_password
-    static let signIn = "Sign in"                       // auth_sign_in
-    static let forgotPassword = "Forgot password?"      // auth_forgot_password
-    static let continueWithGoogle = "Continue with Google" // auth_continue_with_google
-    static let noAccount = "Don't have an account?"     // auth_no_account
-    static let signUp = "Sign up"                       // auth_sign_up
+    static var email: String { String(localized: .authEmail) }
+    static var password: String { String(localized: .authPassword) }
+    static var signIn: String { String(localized: .authLogin) }
+    static var forgotPassword: String { String(localized: .authForgotPassword) }
+    static var continueWithGoogle: String { String(localized: .authContinueWithGoogle) }
+    static var noAccount: String { String(localized: .authNoAccount) }
+    static var signUp: String { String(localized: .authSignUp) }
 
     /// The text fields in the form card, in order.
     static let fields: [LoginScreenField] = [.email, .password]
@@ -66,13 +66,13 @@ struct LoginScreenTaps {
 }
 
 enum RegisterScreenCopy {
-    static let name = AuthCopy.name                     // auth_name
-    static let email = "Email"                          // auth_email
-    static let password = "Password"                    // auth_password
-    static let confirmPassword = "Confirm password"     // auth_confirm_password
-    static let createAccount = "Create account"         // auth_register
-    static let haveAccount = "Already have an account?" // auth_has_account
-    static let signIn = "Sign in"                       // auth_sign_in
+    static var name: String { AuthCopy.name }
+    static var email: String { String(localized: .authEmail) }
+    static var password: String { String(localized: .authPassword) }
+    static var confirmPassword: String { String(localized: .authConfirmPassword) }
+    static var createAccount: String { String(localized: .authRegister) }
+    static var haveAccount: String { String(localized: .authHasAccount) }
+    static var signIn: String { String(localized: .authSignIn) }
 
     /// The text fields in the form card, in order.
     static let fields: [RegisterScreenField] = [.name, .email, .password, .confirmPassword]
@@ -108,11 +108,11 @@ struct RegisterScreenTaps {
 }
 
 enum ForgotPasswordScreenCopy {
-    static let email = "Email"                          // auth_email
-    static let sendCode = "Send code"                   // auth_send_code
-    static let code = "8-digit code"                    // auth_code
-    static let newPassword = "New password"             // auth_new_password
-    static let resetPassword = AuthCopy.resetPassword   // auth_reset_password
+    static var email: String { String(localized: .authEmail) }
+    static var sendCode: String { String(localized: .authSendCode) }
+    static var code: String { String(localized: .authCode) }
+    static var newPassword: String { String(localized: .authNewPassword) }
+    static var resetPassword: String { AuthCopy.resetPassword }
 
     /// The fields the screen shows: the email first, then (once the code is sent) the code and
     /// the new password.

@@ -51,7 +51,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
 - **APP-01** [done] (app/build.gradle.kts) Three build configs (Dev/Staging/Prod) with their own bundle id, Supabase URL and transcribe API base URL (`AppConfig`), mirroring Android product flavours.
 - **APP-02** [done] (app/src/main/res/mipmap-anydpi-v26/ic_launcher.xml) App icons per environment generated from the Android launcher icon.
 - **APP-03** [done] (D/screenshots, iOS-only hook) Launch arguments `-sampleData` / `-openList <id>` (non-prod) for screenshots.
-- **APP-04** [todo] (app/src/main/res/values/splash.xml, values-night/splash.xml) Launch screen matches the first frame: light background #EDF1F4 with a #607D8B icon, dark background #121212 with a #B0BEC5 icon.
+- **APP-04** [done] (app/src/main/res/values/splash.xml, values-night/splash.xml) Launch screen matches the first frame: light background #EDF1F4 with a #607D8B icon, dark background #121212 with a #B0BEC5 icon.
 - **APP-05** [done] (K/BabeGetThisApp.kt) App start: sync trigger registered, auth state restored before the first screen decision. (Android also fetches feature flags here; flags are out of v1, FLAG-01.)
 - **UI-01** [done] (K/ui/theme/Color.kt) Colour palette (light and dark, no dynamic colour) and 8 list-accent pairs picked by a stable hash of the list id.
 - **UI-02** [done] (K/ui/theme/Theme.kt) Spacing/radii (`AppMetrics`) and button styles (primary 56pt radius 16, outlined, tonal FAB).
@@ -63,7 +63,7 @@ the iOS app must match. Each item has an ID, a status and the Android file it co
   - Medium: FABs, tab switch, swipe-delete.
   - Success: list just completed.
 - **UI-07** [done] (K/navigation/BgtNavGraph.kt) Motion: push to detail slides from the right (300 ms) with the old screen shifting a quarter width left; tab content slides in the direction of travel (280 ms).
-- **UI-08** [todo] (TODO.md) Polish pass: no hard-coded user-facing strings (the Android TODO lists 13), VoiceOver labels on every icon button, Dynamic Type everywhere.
+- **UI-08** [done] (TODO.md) Polish pass: no hard-coded user-facing strings (the Android TODO lists 13), VoiceOver labels on every icon button, Dynamic Type everywhere.
 
 ## Navigation
 

@@ -25,8 +25,12 @@ struct TopAppBarActions {
 struct BgtTopAppBar<ActionSlot: View>: View {
     let title: String
     var navigationIcon: String?
+    /// VoiceOver label of the navigation icon button.
+    var navigationLabel: LocalizedStringResource = .back
     var showActionIcon = false
     var actionIcon = "square.and.arrow.up"
+    /// VoiceOver label of the action icon button.
+    var actionLabel: LocalizedStringResource = .share
     var useLargeTopBar = false
     private let actions: TopAppBarActions
     private let actionSlot: ActionSlot?
@@ -34,9 +38,11 @@ struct BgtTopAppBar<ActionSlot: View>: View {
     init(
         title: String,
         navigationIcon: String? = nil,
+        navigationLabel: LocalizedStringResource = .back,
         onNavigationTap: (() -> Void)? = nil,
         showActionIcon: Bool = false,
         actionIcon: String = "square.and.arrow.up",
+        actionLabel: LocalizedStringResource = .share,
         onActionTap: (() -> Void)? = nil,
         useLargeTopBar: Bool = false,
         haptics: HapticPlaying = SystemHapticPlayer(),
@@ -44,8 +50,10 @@ struct BgtTopAppBar<ActionSlot: View>: View {
     ) {
         self.title = title
         self.navigationIcon = navigationIcon
+        self.navigationLabel = navigationLabel
         self.showActionIcon = showActionIcon
         self.actionIcon = actionIcon
+        self.actionLabel = actionLabel
         self.useLargeTopBar = useLargeTopBar
         actions = TopAppBarActions(onNavigationTap: onNavigationTap, onActionTap: onActionTap, haptics: haptics)
         self.actionSlot = actionSlot?()
@@ -56,6 +64,7 @@ struct BgtTopAppBar<ActionSlot: View>: View {
             if let navigationIcon, actions.onNavigationTap != nil {
                 Button(action: actions.navigationTapped) { Image(systemName: navigationIcon) }
                     .foregroundStyle(AppColors.textPrimary)
+                    .accessibilityLabel(Text(navigationLabel))
             }
             Text(title)
                 .font(useLargeTopBar ? .largeTitle.bold() : .title2.weight(.semibold))
@@ -67,6 +76,7 @@ struct BgtTopAppBar<ActionSlot: View>: View {
             } else if showActionIcon, actions.onActionTap != nil {
                 Button(action: actions.actionTapped) { Image(systemName: actionIcon) }
                     .foregroundStyle(AppColors.textSecondary)
+                    .accessibilityLabel(Text(actionLabel))
             }
         }
         .padding(.horizontal, AppMetrics.screenPadding)
@@ -79,15 +89,18 @@ extension BgtTopAppBar where ActionSlot == EmptyView {
     init(
         title: String,
         navigationIcon: String? = nil,
+        navigationLabel: LocalizedStringResource = .back,
         onNavigationTap: (() -> Void)? = nil,
         showActionIcon: Bool = false,
         actionIcon: String = "square.and.arrow.up",
+        actionLabel: LocalizedStringResource = .share,
         onActionTap: (() -> Void)? = nil,
         useLargeTopBar: Bool = false,
         haptics: HapticPlaying = SystemHapticPlayer()
     ) {
-        self.init(title: title, navigationIcon: navigationIcon, onNavigationTap: onNavigationTap,
-                  showActionIcon: showActionIcon, actionIcon: actionIcon, onActionTap: onActionTap,
+        self.init(title: title, navigationIcon: navigationIcon, navigationLabel: navigationLabel,
+                  onNavigationTap: onNavigationTap, showActionIcon: showActionIcon, actionIcon: actionIcon,
+                  actionLabel: actionLabel, onActionTap: onActionTap,
                   useLargeTopBar: useLargeTopBar, haptics: haptics, actionSlot: nil)
     }
 }

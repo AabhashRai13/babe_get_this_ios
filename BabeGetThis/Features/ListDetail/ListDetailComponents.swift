@@ -40,7 +40,8 @@ struct ProgressCardView: View {
                             .scaleEffect(checkScale)
                             .transition(.scale.combined(with: .opacity))
                     }
-                    Text(allDone ? "All done!" : "\(pickedUp) of \(total) picked up")
+                    Text(allDone ? String(localized: .progressAllDone)
+                                 : String(localized: .progressPickedUp(pickedUp, total)))
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(allDone ? AppColors.onPrimaryContainer : AppColors.textPrimary)
                 }
@@ -126,7 +127,7 @@ struct SectionHeaderView: View {
                 .foregroundStyle(AppColors.primary)
             Spacer()
             if let count {
-                Text(count == 1 ? "1 Item" : "\(count) Items")
+                Text(.shoppingItemsCount(count))
                     .font(.footnote.weight(.medium))
                     .foregroundStyle(AppColors.onPrimaryContainer)
                     .padding(.horizontal, 12)
@@ -184,8 +185,8 @@ struct ItemCardActions {
             onSwipeLeft: onDelete,
             onSwipeRight: onToggle,
             rightIcon: item.isPickedUp ? "arrow.uturn.backward" : "checkmark",
-            leftActionName: "Delete",
-            rightActionName: item.isPickedUp ? "Mark as not picked up" : "Mark as picked up",
+            leftActionName: .actionDelete,
+            rightActionName: item.isPickedUp ? .itemMarkNotPickedUp : .itemMarkPickedUp,
             haptics: haptics,
             content: content)
     }
@@ -218,7 +219,8 @@ struct ItemCardView: View {
             }
             .buttonStyle(.plain)
             .padding(.leading, -7)
-            .accessibilityLabel(item.isPickedUp ? "Mark \(item.name) as not picked up" : "Mark \(item.name) as picked up")
+            .accessibilityLabel(item.isPickedUp ? Text(.itemMarkNamedNotPickedUp(item.name))
+                                                : Text(.itemMarkNamedPickedUp(item.name)))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(item.name)
@@ -235,7 +237,7 @@ struct ItemCardView: View {
                 if !item.isPickedUp {
                     HStack(spacing: 6) {
                         if !item.quantity.isEmpty {
-                            ChipView(text: "Qty: \(item.quantity)",
+                            ChipView(text: String(localized: .shoppingItemsQuantityChip(item.quantity)),
                                      fill: AppColors.secondaryContainer, content: AppColors.onSecondaryContainer)
                         }
                         if let category = item.categoryName {
@@ -262,7 +264,7 @@ struct ItemCardView: View {
         .animation(.easeOut(duration: 0.22), value: item.isPickedUp)
         .contentShape(RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
         .onTapGesture(perform: onEdit)
-        .accessibilityAction(named: "Edit", onEdit)
+        .accessibilityAction(named: Text(.actionEdit), onEdit)
     }
 }
 
@@ -291,7 +293,7 @@ struct UndoSnackbar: View {
     let onUndo: () -> Void
 
     var body: some View {
-        Snackbar(message: message, actionTitle: "Undo", action: onUndo, lineLimit: 1)
+        Snackbar(message: message, actionTitle: String(localized: .undo), action: onUndo, lineLimit: 1)
     }
 }
 
@@ -302,17 +304,17 @@ struct FirstItemPromptView: View {
     var body: some View {
         VStack(spacing: 0) {
             BrandMark()
-            Text("List created!")
+            Text(.shoppingItemsListCreated)
                 .font(.title2.bold())
                 .foregroundStyle(AppColors.textPrimary)
                 .padding(.top, 24)
-            Text("Add your first item to get started")
+            Text(.shoppingItemsAddFirst)
                 .font(.body)
                 .foregroundStyle(AppColors.textSecondary)
                 .multilineTextAlignment(.center)
                 .padding(.top, 8)
             Button(action: onAddItem) {
-                Label("Add first item", systemImage: "plus")
+                Label(.shoppingItemsAddFirstButton, systemImage: "plus")
             }
             .buttonStyle(PrimaryButtonStyle())
             .padding(.top, 32)

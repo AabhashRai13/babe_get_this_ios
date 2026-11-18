@@ -3,17 +3,17 @@ import Observation
 
 /// Android's `settings_*` strings (SET-01, SET-02), with "App Store" where Android says Google Play.
 enum SettingsStrings {
-    static let title = "Settings"
-    static let privacySection = "Privacy"
-    static let aboutSection = "About"
-    static let analyticsTitle = "Usage analytics"
-    static let analyticsSubtitle = "Which features get used, never what is on your lists."
-    static let crashTitle = "Crash reports"
-    static let crashSubtitle = "Sends diagnostics when the app fails, so it can be fixed."
-    static let rateTitle = "Rate the app"
-    static let rateSubtitle = "Leave a review on the App Store"
-    static let privacyPolicyTitle = "Privacy policy"
-    static let privacyPolicySubtitle = "What is collected and how it is used"
+    static var title: String { String(localized: .settingsTitle) }
+    static var privacySection: String { String(localized: .settingsPrivacySection) }
+    static var aboutSection: String { String(localized: .settingsAboutSection) }
+    static var analyticsTitle: String { String(localized: .settingsAnalyticsTitle) }
+    static var analyticsSubtitle: String { String(localized: .settingsAnalyticsSubtitle) }
+    static var crashTitle: String { String(localized: .settingsCrashTitle) }
+    static var crashSubtitle: String { String(localized: .settingsCrashSubtitle) }
+    static var rateTitle: String { String(localized: .settingsRateTitle) }
+    static var rateSubtitle: String { String(localized: .settingsRateSubtitle) }
+    static var privacyPolicyTitle: String { String(localized: .settingsPrivacyPolicyTitle) }
+    static var privacyPolicySubtitle: String { String(localized: .settingsPrivacyPolicySubtitle) }
 }
 
 /// Settings sections, in display order. Android's List lock and Reminders sections are out of v1.
@@ -71,7 +71,7 @@ final class SettingsViewModel {
     }
 
     nonisolated static func versionFooter(name: String, build: String) -> String {
-        "Version \(name) (\(build))"
+        String(localized: .settingsVersion(name, build))
     }
 
     nonisolated static func rateURL(appStoreID: String) -> URL? {

@@ -88,8 +88,8 @@ struct SwipeableCard<Content: View>: View {
     let controller: SwipeableCardController
     private let leftIcon: String
     private let rightIcon: String
-    private let leftActionName: LocalizedStringKey
-    private let rightActionName: LocalizedStringKey
+    private let leftActionName: LocalizedStringResource
+    private let rightActionName: LocalizedStringResource
     private let content: Content
     @State private var offset: CGFloat = 0
 
@@ -98,8 +98,8 @@ struct SwipeableCard<Content: View>: View {
         onSwipeRight: (() -> Void)? = nil,
         leftIcon: String = "trash",
         rightIcon: String = "checkmark",
-        leftActionName: LocalizedStringKey = "Delete",
-        rightActionName: LocalizedStringKey = "Complete",
+        leftActionName: LocalizedStringResource = .actionDelete,
+        rightActionName: LocalizedStringResource = .actionComplete,
         haptics: HapticPlaying = SystemHapticPlayer(),
         @ViewBuilder content: () -> Content
     ) {
@@ -150,7 +150,7 @@ struct SwipeableCard<Content: View>: View {
 /// Adds the swipe-right accessibility action only when there is a right action.
 private struct TrailingSwipeAction: ViewModifier {
     let isEnabled: Bool
-    let name: LocalizedStringKey
+    let name: LocalizedStringResource
     let action: () -> Void
 
     func body(content: Content) -> some View {

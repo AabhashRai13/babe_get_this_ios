@@ -25,25 +25,25 @@ struct AddItemSheet: View {
         NavigationStack {
             Form {
                 Section {
-                    LabeledField(label: "Item name", counter: draft.nameCounter) {
-                        TextField("Item name", text: $draft.name)
+                    LabeledField(label: String(localized: .shoppingItemsNameHint), counter: draft.nameCounter) {
+                        TextField(String(localized: .shoppingItemsNameHint), text: $draft.name)
                             .accessibilityIdentifier("add-item-name")
                     }
-                    LabeledField(label: "Quantity (required)") {
-                        TextField("Quantity (required)", text: $draft.quantity,
-                                  prompt: Text("e.g. 2 large, slightly firm"))
+                    LabeledField(label: String(localized: .shoppingItemsQuantityHint)) {
+                        TextField(String(localized: .shoppingItemsQuantityHint), text: $draft.quantity,
+                                  prompt: Text(.shoppingItemsQuantityPlaceholder))
                             .accessibilityIdentifier("add-item-quantity")
                     }
                 }
                 Section {
                     CategoryPickerView(picker: picker)
-                    LabeledField(label: "Shop (optional)", counter: draft.shopCounter) {
-                        TextField("Shop (optional)", text: $draft.shop,
-                                  prompt: Text("e.g. Whole Foods, Costco"))
+                    LabeledField(label: String(localized: .shoppingItemsShop), counter: draft.shopCounter) {
+                        TextField(String(localized: .shoppingItemsShop), text: $draft.shop,
+                                  prompt: Text(.shoppingItemsShopPlaceholder))
                     }
-                    LabeledField(label: "Note (optional)", counter: draft.noteCounter) {
-                        TextField("Note (optional)", text: $draft.note,
-                                  prompt: Text("Leave a note to make it easier"), axis: .vertical)
+                    LabeledField(label: String(localized: .shoppingItemsNote), counter: draft.noteCounter) {
+                        TextField(String(localized: .shoppingItemsNote), text: $draft.note,
+                                  prompt: Text(.shoppingItemsNotePlaceholder), axis: .vertical)
                     }
                 }
             }
@@ -58,14 +58,14 @@ struct AddItemSheet: View {
             .onChange(of: draft.shop) { _, new in
                 if new.count > ItemDraft.shopLimit { draft.shop = String(new.prefix(ItemDraft.shopLimit)) }
             }
-            .navigationTitle(isEditMode ? "Edit Item" : "Add Item")
+            .navigationTitle(isEditMode ? Text(.shoppingItemsEditTitle) : Text(.shoppingItemsAddTitle))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
+                    Button(.cancel) { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button(isEditMode ? "Save" : "Add") {
+                    Button(isEditMode ? String(localized: .save) : String(localized: .add)) {
                         isSaving = true
                         Task {
                             // Android keeps the dialog open when the save fails.

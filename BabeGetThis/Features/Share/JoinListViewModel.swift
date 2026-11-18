@@ -3,13 +3,13 @@ import Observation
 
 /// Android `join_list_*` strings.
 enum JoinListCopy {
-    static let title = "Join a shared list"
-    static let fieldLabel = "6-character code"
-    static let placeholder = "ABC234"
-    static let join = "Join"
-    static let cancel = "Cancel"
+    static var title: String { String(localized: .joinListTitle) }
+    static var fieldLabel: String { String(localized: .joinListHint) }
+    static var placeholder: String { String(localized: .joinListPlaceholder) }
+    static var join: String { String(localized: .joinListButton) }
+    static var cancel: String { String(localized: .cancel) }
     /// The lists screen's top-bar button (Android `join_list_action`).
-    static let action = "Join a shared list"
+    static var action: String { String(localized: .joinListAction) }
 }
 
 /// The join dialog's code field (Android `JoinListDialog`'s `code` state). `ListsViewModel` owns

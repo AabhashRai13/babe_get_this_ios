@@ -56,7 +56,7 @@ struct ForgotPasswordView: View {
             ToolbarItemGroup(placement: .keyboard) {
                 if focus == .code {
                     Spacer()
-                    Button("Done") { focus = nil }
+                    Button(.done) { focus = nil }
                 }
             }
         }
@@ -127,7 +127,7 @@ struct ForgotPasswordView: View {
 
     /// The swap replaces the field and drops focus, so a focused field gets it back.
     private var toggle: some View {
-        Button(passwordVisible ? "Hide" : "Show") {
+        Button(AuthCopy.visibilityToggleTitle(isVisible: passwordVisible)) {
             let kept = focus
             passwordVisible.toggle()
             Task { @MainActor in focus = kept }

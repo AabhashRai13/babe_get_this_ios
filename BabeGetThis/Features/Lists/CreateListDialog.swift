@@ -28,16 +28,18 @@ struct CreateListDialogState: Equatable {
     }
 
     var isEditMode: Bool { currentName != nil }
-    var title: String { isEditMode ? "Rename List" : "New List" }
-    var confirmTitle: String { isEditMode ? "Save" : "Create" }
-    var fieldLabel: String { "List name" }
-    var placeholder: String { "e.g. Weekly Groceries" }
+    var title: String {
+        isEditMode ? String(localized: .shoppingListEditTitle) : String(localized: .shoppingListCreateTitle)
+    }
+    var confirmTitle: String { isEditMode ? String(localized: .save) : String(localized: .create) }
+    var fieldLabel: String { String(localized: .shoppingListNameHint) }
+    var placeholder: String { String(localized: .shoppingListNamePlaceholder) }
 
     var isConfirmEnabled: Bool { !trimmed.isEmpty }
 
     /// "40/40", shown only once the limit is reached (Android supportingText).
     var counterText: String? {
-        name.count >= Self.maxNameLength ? "\(name.count)/\(Self.maxNameLength)" : nil
+        name.count >= Self.maxNameLength ? String(localized: .characterCounter(name.count, Self.maxNameLength)) : nil
     }
 
     /// Android `if (it.length <= 40) listName = it`: an over-long value is rejected
@@ -118,7 +120,7 @@ struct CreateListDialog: View {
                 }
                 HStack {
                     Spacer()
-                    Button("Cancel", action: onDismiss)
+                    Button(.cancel, action: onDismiss)
                         .accessibilityIdentifier("lists.dialog.cancel")
                     Button(state.confirmTitle, action: confirm)
                         .fontWeight(.semibold)

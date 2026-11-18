@@ -4,13 +4,15 @@ import SwiftUI
 struct CreateListChooserSheet: View {
     let onPickType: () -> Void
     let onPickVoice: () -> Void
+    /// 190 pt at the default text size; taller as the tile labels grow, so they never clip.
+    @ScaledMetric(relativeTo: .subheadline) private var sheetHeight: CGFloat = 190
 
     var body: some View {
         HStack(spacing: 12) {
-            ChooserTile(systemImage: "pencil", label: "Type",
+            ChooserTile(systemImage: "pencil", label: String(localized: .createListType),
                         badge: AppColors.secondaryContainer, onBadge: AppColors.onSecondaryContainer,
                         identifier: "chooser.type", action: onPickType)
-            ChooserTile(systemImage: "mic.fill", label: "Voice",
+            ChooserTile(systemImage: "mic.fill", label: String(localized: .createListVoice),
                         badge: AppColors.primaryContainer, onBadge: AppColors.onPrimaryContainer,
                         identifier: "chooser.voice", action: onPickVoice)
         }
@@ -19,7 +21,7 @@ struct CreateListChooserSheet: View {
         .padding(.bottom, 24)
         .frame(maxWidth: .infinity)
         .background(AppColors.surface)
-        .presentationDetents([.height(190)])
+        .presentationDetents([.height(sheetHeight)])
         .presentationDragIndicator(.visible)
         .presentationCornerRadius(28)
     }

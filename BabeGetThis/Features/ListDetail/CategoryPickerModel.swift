@@ -32,10 +32,10 @@ final class CategoryPickerModel {
     }
 
     /// Android `category_none` / `category_other`.
-    static let noneTitle = "None"
-    static let otherTitle = "Other"
-    static let searchPlaceholder = "Search or select category"
-    static let newCategoryLabel = "New category name"
+    static var noneTitle: String { String(localized: .categoryNone) }
+    static var otherTitle: String { String(localized: .categoryOther) }
+    static var searchPlaceholder: String { String(localized: .shoppingItemsCategoryPlaceholder) }
+    static var newCategoryLabel: String { String(localized: .shoppingItemsNewCategory) }
 
     /// Every category, A→Z. Starts with what was passed (or the shipped defaults) and follows
     /// the source's live list once `observeCategories()` runs, so custom categories appear.
@@ -88,7 +88,7 @@ final class CategoryPickerModel {
 
     /// Android `shopping_items_category_no_match`.
     static func noMatchMessage(for query: String) -> String {
-        "No categories match \"\(query)\""
+        String(localized: .shoppingItemsCategoryNoMatch(query))
     }
 
     var filteredCategories: [ProductCategory] { Self.filter(categories, matching: searchText) }

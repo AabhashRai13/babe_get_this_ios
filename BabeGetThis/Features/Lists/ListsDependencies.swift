@@ -27,9 +27,9 @@ func autoNameVoiceList(_ drafts: [ItemDraft]) -> String {
     let trimmed = drafts.first?.name.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
     // Capped so a mis-parsed, paragraph-long first item can't make an absurd title.
     let capped = String(trimmed.prefix(40))
-    let first = capped.isEmpty ? "List" : capped
+    let first = capped.isEmpty ? String(localized: .voiceListNameFallback) : capped
     let others = drafts.count - 1
-    return others > 0 ? "\(first) + \(others) more" : first
+    return others > 0 ? String(localized: .voiceListNameMore(first, others)) : first
 }
 
 /// What the lists overview reports (TEL-04), in its own terms; the app's adapter

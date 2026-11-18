@@ -8,7 +8,7 @@ struct CategoryPickerView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text("Category (optional)")
+            Text(.shoppingItemsCategory)
                 .font(.caption)
                 .foregroundStyle(AppColors.textSecondary)
                 .accessibilityHidden(true)
@@ -17,10 +17,10 @@ struct CategoryPickerView: View {
                     Text(CategoryPickerModel.otherTitle)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         // The visible label above is hidden from VoiceOver, so name the field here.
-                        .accessibilityLabel("Category (optional)")
+                        .accessibilityLabel(Text(.shoppingItemsCategory))
                         .accessibilityValue(CategoryPickerModel.otherTitle)
                 } else {
-                    TextField("Category (optional)", text: Binding(
+                    TextField(String(localized: .shoppingItemsCategory), text: Binding(
                         get: { picker.searchText },
                         set: { picker.searchChanged($0); isExpanded = true }),
                         prompt: Text(CategoryPickerModel.searchPlaceholder))
@@ -32,13 +32,13 @@ struct CategoryPickerView: View {
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                 }
                 .buttonStyle(.borderless)
-                .accessibilityLabel(isExpanded ? "Hide categories" : "Show categories")
+                .accessibilityLabel(isExpanded ? Text(.categoryHideOptions) : Text(.categoryShowOptions))
             }
             if isExpanded {
                 options
             }
             if picker.isCreatingNewCategory {
-                TextField("New category name", text: $picker.newCategoryName)
+                TextField(CategoryPickerModel.newCategoryLabel, text: $picker.newCategoryName)
                     .accessibilityIdentifier("add-item-new-category")
             }
         }

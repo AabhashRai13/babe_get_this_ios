@@ -71,7 +71,7 @@ final class ListDetailViewModel {
     /// Snackbar copy for the pending delete (Android `snackbar_deleted`, "%1$s deleted").
     var undoMessage: String? {
         guard isOfferingUndo, let pendingUndo else { return nil }
-        return "\(pendingUndo.name) deleted"
+        return String(localized: .snackbarDeleted(pendingUndo.name))
     }
 
     /// The no-shop group gets a "General" header only when other shops exist.

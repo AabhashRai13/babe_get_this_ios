@@ -11,10 +11,10 @@ extension ShareRepository: ListSharing {}
 
 /// Android `share_live_*` and `done` strings.
 enum ShareLiveCopy {
-    static let title = "Share list live"
-    static let hint = "Anyone with this code can see and edit this list. Text it to them, and they enter it under \"Join a shared list\"."
-    static let copy = "Copy"
-    static let done = "Done"
+    static var title: String { String(localized: .shareLiveTitle) }
+    static var hint: String { String(localized: .shareLiveHint) }
+    static var copy: String { String(localized: .shareLiveCopy) }
+    static var done: String { String(localized: .done) }
 }
 
 /// The share-live flow of the list detail screen (Android `ShoppingItemsViewModel.onShareLiveClick`
