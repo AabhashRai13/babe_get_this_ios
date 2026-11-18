@@ -198,6 +198,7 @@ struct ItemCardView: View {
     let item: ShoppingItem
     let onToggle: () -> Void
     var onEdit: () -> Void = {}
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         HStack(alignment: .center, spacing: 7) {
@@ -227,7 +228,7 @@ struct ItemCardView: View {
                     .font(.body.weight(item.isPickedUp ? .regular : .medium))
                     .strikethrough(item.isPickedUp)
                     .foregroundStyle(AppColors.textPrimary.opacity(item.isPickedUp ? 0.45 : 1))
-                    .lineLimit(1)
+                    .lineLimit(typeSize.nameLineLimit)
                 if let note = item.note, !note.isEmpty {
                     Text(note)
                         .font(.footnote.italic())

@@ -81,16 +81,12 @@ private struct ListDetailScreen: View {
                 Button {
                     chrome.voiceFabTapped()
                 } label: {
-                    // Android: a filled primary circle with an on-primary icon, the headline quick-add.
-                    Image(systemName: "mic.fill")
-                        .font(.title3)
-                        .foregroundStyle(AppColors.onPrimary)
-                        .frame(width: AppMetrics.smallFABSize, height: AppMetrics.smallFABSize)
-                        .background(AppColors.primary, in: Circle())
-                        .shadow(color: AppColors.shadow.opacity(0.12),
-                                radius: AppMetrics.fabShadowRadius, y: AppMetrics.fabShadowY)
+                    VoiceFABIcon()
                 }
                 .accessibilityLabel(Text(.voiceAdd))
+                .accessibilityShowsLargeContentViewer {
+                    Label { Text(.voiceAdd) } icon: { Image(systemName: "mic.fill") }
+                }
                 .accessibilityIdentifier("voice-fab")
                 // The empty state has its own "Add first item" button (Android hides the FAB too).
                 if model.hasLoaded && !model.isEmpty {
@@ -277,5 +273,29 @@ private extension View {
             .listRowSeparator(.hidden)
             .listRowInsets(EdgeInsets(top: top, leading: AppMetrics.screenPadding,
                                       bottom: bottom, trailing: AppMetrics.screenPadding))
+    }
+}
+
+/// The voice FAB's face. Android: a filled primary circle with an on-primary icon, the headline quick-add.
+/// It stops growing at the first accessibility size (all the way it reached ~130 pt and covered
+/// the items); the button shows the large content viewer instead.
+struct VoiceFABIcon: View {
+    var body: some View {
+        VoiceFABFace().dynamicTypeSize(...DynamicTypeSize.accessibility1)
+    }
+}
+
+private struct VoiceFABFace: View {
+    /// 48 pt at the default text size; grows with the title3 glyph inside it.
+    @ScaledMetric(relativeTo: .title3) private var side: CGFloat = AppMetrics.smallFABSize
+
+    var body: some View {
+        Image(systemName: "mic.fill")
+            .font(.title3)
+            .foregroundStyle(AppColors.onPrimary)
+            .frame(width: side, height: side)
+            .background(AppColors.primary, in: Circle())
+            .shadow(color: AppColors.shadow.opacity(0.12),
+                    radius: AppMetrics.fabShadowRadius, y: AppMetrics.fabShadowY)
     }
 }
