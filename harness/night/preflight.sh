@@ -21,6 +21,11 @@ git -C "$REPO" cat-file -e "$BASE_REF:scripts/verify.sh" 2>/dev/null && ok "base
 COMMIT_SH="$REPO/harness/night/commit.sh"
 [ -x "$COMMIT_SH" ] && ok "commit wrapper $COMMIT_SH" || bad "commit wrapper missing or not executable: $COMMIT_SH"
 [ -d "$GIT_COMMON/objects" ] && [ -f "$GIT_COMMON/config" ] && ok "git common dir $GIT_COMMON" || bad "git common dir not found ($GIT_COMMON)"
+# Files copied from the Android clone. Drift is a WARN: re-copying needs a person to look at what changed.
+for check in check-migrations check-android-strings; do
+  if OUT=$(cd "$REPO" && BGT_ANDROID_REPO="$ANDROID" "./scripts/$check.sh" 2>&1); then ok "$(echo "$OUT" | tail -1)"
+  else warn "$(echo "$OUT" | head -1) (run scripts/$check.sh for details)"; fi
+done
 
 # 3. Machine
 # AC power is required. On battery, caffeinate's -s has no effect, so a long run can drain the battery and

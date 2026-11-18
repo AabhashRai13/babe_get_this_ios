@@ -3,7 +3,8 @@ import XCTest
 
 /// STR-01…STR-15 and UI-08: `Localizable.xcstrings` uses Android's `strings.xml` keys with Android's English
 /// wording. `android-strings.xml` next to this file is a byte-for-byte copy of
-/// `app/src/main/res/values/strings.xml` on `origin/feat/got-this` (38eec7c).
+/// `app/src/main/res/values/strings.xml` on `origin/feat/got-this` (38eec7c). `scripts/check-android-strings.sh`
+/// fails when Android's file has moved on, and prints the command that re-copies it.
 final class StringCatalogTests: XCTestCase {
     /// String groups that are not in iOS v1: STR-12 (PIN and lock), STR-13 (reminders), STR-15 (Got This).
     static let excludedPrefixes = [
