@@ -74,6 +74,8 @@ xcodebuild -project BabeGetThis.xcodeproj -scheme BabeGetThis-Dev \
 # (babe-get-this-ios) runs on 553xx (API 127.0.0.1:55321), next to the Android stack on 543xx; the tests
 # only reach 55321. These commands only act on this project: never `supabase stop --all`.
 ./scripts/check-migrations.sh   # supabase/migrations still match the Android clone (skips without it)
+./scripts/check-android-strings.sh   # StringCatalogTests' copy of Android's strings.xml is current (skips without it)
+scripts/tests/check-android-strings.test.sh   # tests for that check, on throwaway repos
 supabase start && supabase db reset --local
 ./scripts/verify.sh "iPhone 18 Pro" -testPlan Integration -only-testing:BabeGetThisIntegrationTests
 supabase stop
