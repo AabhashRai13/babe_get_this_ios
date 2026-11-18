@@ -42,6 +42,7 @@ struct WelcomeView: View {
         .scrollBounceBehavior(.basedOnSize)
         .background(AppColors.background)
         .toolbar(.hidden, for: .navigationBar)
+        .reportsScreen(.welcome)
         // The same auth flow as the lists use, opened over Welcome (NAV-03): Close comes back
         // here with nothing persisted, and signing in lands on the lists, dropping Welcome.
         .sheet(isPresented: $showSignIn) {

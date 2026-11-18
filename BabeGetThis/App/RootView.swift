@@ -28,6 +28,8 @@ struct RootView: View {
             }
         }
         .environment(\.profileViewModel, container.profile)
+        // Every screen below, sheets included, reports itself through it (TEL-03).
+        .environment(\.screenTracker, container.screenTracker)
         // The profile's messages outlive its sheet: "Your account has been deleted" shows on
         // Welcome. While the sheet is up, it shows them itself.
         .overlay(alignment: .bottom) {

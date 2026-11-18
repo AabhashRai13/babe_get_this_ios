@@ -11,6 +11,7 @@ struct ListDetailPlaceholderView: View {
                          authState: { [authState = container.authState] in authState.authState },
                          makeVoiceViewModel: { container.makeVoiceCaptureViewModel() },
                          leaveCleaner: container.listRepository)
+            .reportsScreen(.shoppingItems)
     }
 }
 

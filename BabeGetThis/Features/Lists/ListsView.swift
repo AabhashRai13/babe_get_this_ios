@@ -84,6 +84,7 @@ struct ListsView: View {
         }
         .task { await viewModel.observeLists() }
         .task { await viewModel.observeAdoptionNotice() }
+        .reportsScreen(.shoppingList)
         .overlay(alignment: .bottom) {
             if let offer = viewModel.undoOffer {
                 Snackbar(message: offer.message, actionTitle: String(localized: .undo)) {
