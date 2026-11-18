@@ -12,6 +12,13 @@ struct SettingsRowModel {
     func tap() { onTap() }
 }
 
+enum SettingsRowLayout {
+    /// At the accessibility sizes an icon, the text and a toggle side by side leave the text a
+    /// narrow column that breaks words ("analyt-ics"). Stacked, the icon sits above the text and
+    /// the toggle below it, and the text gets the full width.
+    static func stacksVertically(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+}
+
 /// Shared settings-screen row: optional 24pt icon, tinted title, optional subtitle,
 /// optional trailing control (e.g. a Toggle). The whole row outside the control is tappable.
 struct SettingsRow<Trailing: View>: View {
@@ -21,6 +28,8 @@ struct SettingsRow<Trailing: View>: View {
     private let trailing: Trailing
     /// 24 pt at the default text size, growing with Dynamic Type like the title next to it.
     @ScaledMetric(relativeTo: .body) private var iconSize: CGFloat = 24
+    @Environment(\.dynamicTypeSize) private var typeSize
+    private var stacked: Bool { SettingsRowLayout.stacksVertically(at: typeSize) }
 
     init(
         title: String,
@@ -49,16 +58,20 @@ struct SettingsRow<Trailing: View>: View {
         } else {
             // Toggle row: the label is its own button and the trailing control stays a separate
             // accessibility element, so VoiceOver can reach the toggle's value and action.
-            HStack(spacing: 16) {
+            let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 0))
+                                 : AnyLayout(HStackLayout(spacing: 16))
+            layout {
                 Button(action: model.tap) {
                     label
                         .padding(.leading, 20)
+                        .padding(.trailing, stacked ? 20 : 0)
                         .padding(.vertical, 16)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
                 trailing
-                    .padding(.trailing, 20)
+                    .padding(stacked ? .leading : .trailing, 20)
+                    .padding(.bottom, stacked ? 16 : 0)
             }
             .accessibilityElement(children: .contain)
         }
@@ -66,7 +79,9 @@ struct SettingsRow<Trailing: View>: View {
 
     /// Icon and the model's texts, rendered from `visibleTexts`: title, then subtitle.
     private var label: some View {
-        HStack(spacing: 16) {
+        let layout = stacked ? AnyLayout(VStackLayout(alignment: .leading, spacing: 8))
+                             : AnyLayout(HStackLayout(spacing: 16))
+        return layout {
             if let icon {
                 Image(systemName: icon)
                     .font(.system(size: iconSize))
@@ -83,7 +98,7 @@ struct SettingsRow<Trailing: View>: View {
                     }
                 }
             }
-            Spacer(minLength: 0)
+            if !stacked { Spacer(minLength: 0) }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

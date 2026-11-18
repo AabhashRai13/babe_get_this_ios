@@ -217,7 +217,7 @@ struct ListsView: View {
 
 /// The top bar's account control (Android `AccountAction`): an initial avatar while an account
 /// owns the lists, else an outlined "Sign in" pill.
-private struct AccountControlButton: View {
+struct AccountControlButton: View {
     let control: ListsViewModel.AccountControl
     let action: () -> Void
     /// 36 pt at the default text size; grows with the initial inside it.
@@ -247,6 +247,8 @@ private struct AccountControlButton: View {
             Button(action: action) {
                 Text(ListsViewModel.signInPill)
                     .font(.subheadline.weight(.semibold))
+                    // The toolbar offers less than the text needs at large sizes ("Sign…").
+                    .fixedSize()
                     .foregroundStyle(AppColors.primary)
                     .padding(.horizontal, 14)
                     .padding(.vertical, 7)
@@ -339,12 +341,21 @@ private struct ListsPaneView: View {
 
 /// Pill-style tab row (Android TabPillRow): the selected pill is filled with the primary
 /// colour and its icon filled; colour changes animate over 200 ms.
-private struct TabPillRow: View {
+struct TabPillRow: View {
     let selected: ListsViewModel.Tab
     let onSelect: (ListsViewModel.Tab) -> Void
 
+    @Environment(\.dynamicTypeSize) private var typeSize
+
+    /// At the accessibility sizes two half-width pills break "Completed" mid-word, so the pills
+    /// stack, each the full width.
+    static func stacksVertically(at size: DynamicTypeSize) -> Bool { size.isAccessibilitySize }
+
     var body: some View {
-        HStack(spacing: 4) {
+        let stacked = Self.stacksVertically(at: typeSize)
+        let layout = stacked ? AnyLayout(VStackLayout(spacing: 4)) : AnyLayout(HStackLayout(spacing: 4))
+        let track = stacked ? AnyShape(RoundedRectangle(cornerRadius: 28, style: .continuous)) : AnyShape(Capsule())
+        layout {
             ForEach(ListsViewModel.Tab.allCases) { tab in
                 let isSelected = tab == selected
                 Button { onSelect(tab) } label: {
@@ -367,7 +378,7 @@ private struct TabPillRow: View {
             }
         }
         .padding(4)
-        .background(AppColors.surfaceContainer, in: Capsule())
+        .background(AppColors.surfaceContainer, in: track)
         .padding(.horizontal, AppMetrics.screenPadding)
         .padding(.vertical, 8)
         .animation(.easeInOut(duration: 0.2), value: selected)
@@ -418,29 +429,45 @@ private struct GreetingCard: View {
 struct ListCard: View {
     let list: ShoppingListSummary
     var isCompletedTab = false
+    @Environment(\.dynamicTypeSize) private var typeSize
 
     var body: some View {
         let accent = ListAccent(listId: list.id)
         let content = ListCardContent(list: list, isCompletedTab: isCompletedTab)
-        HStack(spacing: 16) {
-            Image(systemName: content.systemImage)
-                .font(.title3)
-                .foregroundStyle(accent.onContainer)
-                .frame(width: AppMetrics.listTileSize, height: AppMetrics.listTileSize)
-                .background(accent.container, in: RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
-            VStack(alignment: .leading, spacing: 4) {
-                Text(content.name)
-                    .font(.headline.weight(content.isNameMuted ? .regular : .semibold))
-                    .foregroundStyle(content.isNameMuted ? AppColors.textSecondary : AppColors.textPrimary)
-                    .lineLimit(1)
-                Text(content.subtitle)
-                    .font(.subheadline)
-                    .foregroundStyle(AppColors.textSecondary)
-            }
-            Spacer(minLength: 8)
-            Image(systemName: "chevron.right")
-                .font(.footnote.weight(.semibold))
+        let tile = ListIconTile(systemImage: content.systemImage, accent: accent)
+        let chevron = Image(systemName: "chevron.right")
+            .font(.footnote.weight(.semibold))
+            .foregroundStyle(AppColors.textSecondary)
+        let texts = VStack(alignment: .leading, spacing: 4) {
+            Text(content.name)
+                .font(.headline.weight(content.isNameMuted ? .regular : .semibold))
+                .foregroundStyle(content.isNameMuted ? AppColors.textSecondary : AppColors.textPrimary)
+                .lineLimit(typeSize.nameLineLimit)
+            Text(content.subtitle)
+                .font(.subheadline)
                 .foregroundStyle(AppColors.textSecondary)
+        }
+        Group {
+            if typeSize.isAccessibilitySize {
+                // Beside the tile the name's column broke words ("Sun-day"), so the tile and
+                // chevron take their own row and the texts get the card's full width.
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        tile
+                        Spacer(minLength: 8)
+                        chevron
+                    }
+                    texts
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+            } else {
+                HStack(spacing: 16) {
+                    tile
+                    texts
+                    Spacer(minLength: 8)
+                    chevron
+                }
+            }
         }
         .padding(16)
         .background(AppColors.surfaceContainerLow,
@@ -452,6 +479,33 @@ struct ListCard: View {
         .shadow(color: AppColors.shadow.opacity(0.04), radius: 4, y: 2)
         .accessibilityElement(children: .combine)
         .accessibilityIdentifier("lists.card.\(list.id)")
+    }
+}
+
+/// The tinted icon tile at the start of a list card.
+struct ListIconTile: View {
+    let systemImage: String
+    let accent: ListAccent
+    var body: some View {
+        // Decorative, so it stops growing at the first accessibility size: all the way it
+        // reached ~130 pt.
+        ListIconTileFace(systemImage: systemImage, accent: accent)
+            .dynamicTypeSize(...DynamicTypeSize.accessibility1)
+    }
+}
+
+private struct ListIconTileFace: View {
+    let systemImage: String
+    let accent: ListAccent
+    /// 48 pt at the default text size; grows with the title3 glyph inside it.
+    @ScaledMetric(relativeTo: .title3) private var side: CGFloat = AppMetrics.listTileSize
+
+    var body: some View {
+        Image(systemName: systemImage)
+            .font(.title3)
+            .foregroundStyle(accent.onContainer)
+            .frame(width: side, height: side)
+            .background(accent.container, in: RoundedRectangle(cornerRadius: AppMetrics.tileRadius, style: .continuous))
     }
 }
 
