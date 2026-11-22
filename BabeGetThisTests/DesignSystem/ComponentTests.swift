@@ -201,7 +201,7 @@ final class HostedView {
 
     /// SwiftUI only builds its accessibility tree while an assistive client is active. Turn on
     /// automation mode (what UI tests and accessibility snapshot tools do) for this test process.
-    private static let accessibilityEnabled: Bool = {
+    static let accessibilityEnabled: Bool = {
         guard let handle = dlopen("/usr/lib/libAccessibility.dylib", RTLD_NOW),
               let symbol = dlsym(handle, "_AXSSetAutomationEnabled") else { return false }
         typealias SetEnabled = @convention(c) (Int32) -> Void
@@ -220,7 +220,11 @@ final class HostedView {
         root = host.view
     }
 
-    var elements: [NSObject] {
+    var elements: [NSObject] { Self.elements(under: root) }
+
+    /// Every accessibility element under `root`, in reading order. Walking a window also finds
+    /// what it presents (sheets, dialogs).
+    static func elements(under root: NSObject) -> [NSObject] {
         var found: [NSObject] = []
         func walk(_ node: NSObject, depth: Int) {
             guard depth < 40 else { return }

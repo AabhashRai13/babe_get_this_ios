@@ -21,6 +21,8 @@ final class ScreenTrackingTests: XCTestCase {
         crashReporter = RecordingCrashReporter()
         scratch = ScratchMarkers()
         suiteName = "screen-tracking-test-\(UUID().uuidString)"
+        // On before anything is hosted: SwiftUI builds its accessibility tree only for an active client.
+        XCTAssertTrue(HostedView.accessibilityEnabled, "could not enable accessibility automation")
     }
 
     override func tearDown() async throws {
@@ -147,6 +149,42 @@ final class ScreenTrackingTests: XCTestCase {
 
         await waitForScreen(.register)
         XCTAssertEqual([.shoppingList, .register], screens)
+    }
+
+    /// Waits (up to 5 s) for an element with this accessibility label anywhere in the window,
+    /// sheets included, and activates it as VoiceOver would.
+    private func tap(_ name: String, file: StaticString = #filePath, line: UInt = #line) async throws {
+        let window = try XCTUnwrap(window)
+        func find() -> NSObject? {
+            HostedView.elements(under: window).first { $0.accessibilityLabel == name }
+        }
+        for _ in 0..<500 where find() == nil {
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        let shown = HostedView.elements(under: window).compactMap(\.accessibilityLabel)
+        let element = try XCTUnwrap(find(), "no element \"\(name)\" in \(shown)", file: file, line: line)
+        XCTAssertTrue(element.accessibilityActivate(), "could not activate \"\(name)\"", file: file, line: line)
+    }
+
+    // A guest's mic opens the sign-in prompt over a list, and Log in opens auth on top. Closing auth
+    // pops the list screen too (NAV-03), so the lists come back on top: like Android, which pops
+    // to the lists, the list screen must not report itself on the way out.
+    func testClosingSignInOpenedFromAListReportsTheListsAndNotTheList() async throws {
+        let container = try makeContainer(screen: .lists)
+        try hostApp(container)
+        await waitForScreen(.shoppingList)
+        await container.lists.confirmCreate(named: "Weekly")
+        await waitForScreen(.shoppingItems)
+
+        try await tap(String(localized: .voiceAdd))
+        try await tap(AuthPromptContent.confirmTitle)
+        await waitForScreen(.login)
+        try await tap(String(localized: .close))
+
+        await waitForScreen(.shoppingList)
+        // Give a late report from the list screen time to land before checking the whole sequence.
+        try? await Task.sleep(for: .milliseconds(500))
+        XCTAssertEqual([.shoppingList, .shoppingItems, .login, .shoppingList], screens)
     }
 
     // Forgot password is only reached by a tap on Login, so the auth sheet is hosted on its own,
